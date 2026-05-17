@@ -13,7 +13,7 @@ export const CURRENCY_PREFIX = "Bs";
 export const dashboardKPIs: KPIData[] = [
   {
     title: "Total Revenue",
-    value: "Bs 185,400",
+    value: "Bs 67",
     trend: 12,
     trendText: "",
     trendStatus: "positive",

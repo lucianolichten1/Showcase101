@@ -1,4 +1,4 @@
-# Agro Dashboard MVP
+# Agro Dashboard MVP v2
 
 A demo financial and operational dashboard for agricultural businesses. Built as the first MVP to present to an agro company owner in a meeting.
 
