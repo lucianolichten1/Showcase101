@@ -1,0 +1,8 @@
+{
+  "name": "Agro Dashboard MVP",
+  "description": "AI-powered financial and operational dashboard for agricultural businesses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
