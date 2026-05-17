@@ -11,7 +11,7 @@ import { Download, Calendar } from "lucide-react";
 
 export function DashboardPage() {
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#1C1917] font-sans flex flex-col">
+    <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0">
       <header className="h-14 bg-white border-b border-stone-200 px-6 sm:px-10 flex items-center justify-between shadow-sm flex-shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between w-full max-w-7xl mx-auto">
           <div className="flex flex-col">
