@@ -13,6 +13,8 @@ import { CustomersPage } from "./components/CustomersPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import type { NavItemId } from "./config/navigation";
+import type { Receivable } from "./data/types";
+import { receivables as initialReceivables } from "./data/mockData";
 
 type ActivePage =
   | "dashboard"
@@ -39,6 +41,7 @@ function isNavigablePage(id: NavItemId): id is ActivePage {
 
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("dashboard");
+  const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
 
   const handleNavigate = (id: NavItemId) => {
     if (isNavigablePage(id)) {
@@ -46,13 +49,25 @@ export default function App() {
     }
   };
 
+  const handleUpdateReceivable = (updated: Receivable) =>
+    setReceivables((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+
+  const handleAddReceivable = (newR: Receivable) =>
+    setReceivables((prev) => [...prev, newR]);
+
   return (
     <AppLayout activeNavId={activePage} onNavigate={handleNavigate}>
       {activePage === "dashboard" && <DashboardPage />}
       {activePage === "export-import" && <ExportImportPage />}
       {activePage === "expenses" && <ExpensesPage />}
       {activePage === "revenue" && <RevenuePage />}
-      {activePage === "accounts-receivable" && <AccountsReceivablePage />}
+      {activePage === "accounts-receivable" && (
+        <AccountsReceivablePage
+          receivables={receivables}
+          onUpdateReceivable={handleUpdateReceivable}
+          onAddReceivable={handleAddReceivable}
+        />
+      )}
       {activePage === "reports" && <ReportsPage />}
       {activePage === "customers" && <CustomersPage />}
     </AppLayout>
