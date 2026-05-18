@@ -13,8 +13,8 @@ import { CustomersPage } from "./components/CustomersPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import type { NavItemId } from "./config/navigation";
-import type { Receivable } from "./data/types";
-import { receivables as initialReceivables } from "./data/mockData";
+import type { Receivable, Customer } from "./data/types";
+import { receivables as initialReceivables, customers as initialCustomers } from "./data/mockData";
 
 type ActivePage =
   | "dashboard"
@@ -42,6 +42,7 @@ function isNavigablePage(id: NavItemId): id is ActivePage {
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("dashboard");
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
 
   const handleNavigate = (id: NavItemId) => {
     if (isNavigablePage(id)) {
@@ -54,6 +55,9 @@ export default function App() {
 
   const handleAddReceivable = (newR: Receivable) =>
     setReceivables((prev) => [...prev, newR]);
+
+  const handleAddCustomer = (newC: Customer) =>
+    setCustomers((prev) => [...prev, newC]);
 
   return (
     <AppLayout activeNavId={activePage} onNavigate={handleNavigate}>
@@ -69,7 +73,13 @@ export default function App() {
         />
       )}
       {activePage === "reports" && <ReportsPage />}
-      {activePage === "customers" && <CustomersPage />}
+      {activePage === "customers" && (
+        <CustomersPage
+          customers={customers}
+          receivables={receivables}
+          onAddCustomer={handleAddCustomer}
+        />
+      )}
     </AppLayout>
   );
 }
