@@ -27,17 +27,8 @@ export interface LivestockGroup {
   estValue: number;
 }
 
-export interface Receivable {
-  id: number;
-  customer: string;
-  invoiceNumber: string;
-  amount: number;
-  amountPaid: number;
-  dueDate: string;
-  overdueDays: number;
-  // riskLevel is calculated, never stored: <15d=Low, 15-45d=Medium, >45d=High
-  status: "Pending" | "Partially Paid" | "Paid" | "Overdue";
-}
+/** @deprecated Use ReceivableRecord from `@/domains/financial/types` */
+export type { ReceivableRecord as Receivable } from "@/domains/financial/types";
 
 export interface Customer {
   id: number;

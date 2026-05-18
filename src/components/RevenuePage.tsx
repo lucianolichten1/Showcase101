@@ -1,20 +1,19 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
+import { isActiveRevenue, sortRevenueRecords } from "@/domains/financial/calculations";
+import { useFinancialData } from "@/domains/financial/hooks";
 import {
-  INITIAL_REVENUE,
-  isActiveRevenue,
   REVENUE_CATEGORIES,
   REVENUE_PAYMENT_METHODS,
   REVENUE_STATUSES,
-  sortRevenueRecords,
   type RevenueCategory,
-  type RevenuePaymentMethod,
+  type PaymentMethod,
   type RevenueRecord,
+  type RevenuePaymentStatus,
   type RevenueSortDirection,
   type RevenueSortKey,
-  type RevenueStatus,
-} from "@/data/revenue";
+} from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
 
 const ALL_FILTER = "all";
@@ -34,7 +33,7 @@ const emptyForm = (): RevenueFormState => ({
   notes: "",
 });
 
-function getStatusBadgeClass(status: RevenueStatus): string {
+function getStatusBadgeClass(status: RevenuePaymentStatus): string {
   if (status === "Collected") return "bg-green-50 text-green-800 border-green-100";
   if (status === "Overdue") return "bg-red-50 text-red-800 border-red-100";
   if (status === "Cancelled") return "bg-stone-100 text-stone-500 border-stone-200";
@@ -49,24 +48,6 @@ function formatDisplayDate(isoDate: string): string {
   ];
   const m = parseInt(month, 10) - 1;
   return `${months[m] ?? month} ${parseInt(day, 10)}, ${year}`;
-}
-
-function computeTopRevenueSource(records: RevenueRecord[]): string {
-  const active = records.filter(isActiveRevenue);
-  if (active.length === 0) return "—";
-  const totals = new Map<string, number>();
-  for (const record of active) {
-    totals.set(record.category, (totals.get(record.category) ?? 0) + record.amount);
-  }
-  let top = "";
-  let max = 0;
-  for (const [category, total] of totals) {
-    if (total > max) {
-      max = total;
-      top = category;
-    }
-  }
-  return top || "—";
 }
 
 const SORTABLE_COLUMNS: { key: RevenueSortKey; label: string }[] = [
@@ -99,7 +80,7 @@ function SortIcon({
 }
 
 export function RevenuePage() {
-  const [revenue, setRevenue] = useState<RevenueRecord[]>(INITIAL_REVENUE);
+  const { setRevenueRecords, filteredRevenueRecords, kpis } = useFinancialData();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
@@ -110,7 +91,7 @@ export function RevenuePage() {
 
   const filteredRevenue = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return revenue.filter((record) => {
+    return filteredRevenueRecords.filter((record) => {
       const matchesSearch =
         query === "" ||
         record.sourceClient.toLowerCase().includes(query) ||
@@ -123,29 +104,12 @@ export function RevenuePage() {
         statusFilter === ALL_FILTER || record.status === statusFilter;
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [revenue, search, categoryFilter, statusFilter]);
+  }, [filteredRevenueRecords, search, categoryFilter, statusFilter]);
 
   const sortedRevenue = useMemo(() => {
     if (!sortKey) return filteredRevenue;
     return sortRevenueRecords(filteredRevenue, sortKey, sortDirection);
   }, [filteredRevenue, sortKey, sortDirection]);
-
-  const kpis = useMemo(() => {
-    const active = revenue.filter(isActiveRevenue);
-    const total = active.reduce((sum, r) => sum + r.amount, 0);
-    const collected = active
-      .filter((r) => r.status === "Collected")
-      .reduce((sum, r) => sum + r.amount, 0);
-    const pending = active
-      .filter((r) => r.status === "Pending")
-      .reduce((sum, r) => sum + r.amount, 0);
-    return {
-      total,
-      collected,
-      pending,
-      topSource: computeTopRevenueSource(revenue),
-    };
-  }, [revenue]);
 
   const handleOpenModal = () => {
     setForm(emptyForm());
@@ -188,7 +152,7 @@ export function RevenuePage() {
       notes: form.notes.trim(),
     };
 
-    setRevenue((prev) => [newRecord, ...prev]);
+    setRevenueRecords((prev) => [newRecord, ...prev]);
     setIsModalOpen(false);
     setForm(emptyForm());
   };
@@ -220,10 +184,10 @@ export function RevenuePage() {
               Total Revenue
             </span>
             <span className="text-lg font-bold text-stone-900">
-              {formatCurrency(kpis.total)}
+              {formatCurrency(kpis.totalRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {revenue.filter(isActiveRevenue).length} active records
+              {filteredRevenueRecords.filter(isActiveRevenue).length} active records
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -231,7 +195,7 @@ export function RevenuePage() {
               Collected Revenue
             </span>
             <span className="text-lg font-bold text-green-700">
-              {formatCurrency(kpis.collected)}
+              {formatCurrency(kpis.collectedRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">Payments received</span>
           </div>
@@ -240,7 +204,7 @@ export function RevenuePage() {
               Pending Revenue
             </span>
             <span className="text-lg font-bold text-amber-700">
-              {formatCurrency(kpis.pending)}
+              {formatCurrency(kpis.pendingRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">Awaiting collection</span>
           </div>
@@ -249,7 +213,7 @@ export function RevenuePage() {
               Top Revenue Source
             </span>
             <span className="text-lg font-bold text-stone-900 truncate">
-              {kpis.topSource}
+              {kpis.topRevenueCategory}
             </span>
             <span className="text-[10px] text-stone-400">By category total</span>
           </div>
@@ -555,7 +519,7 @@ export function RevenuePage() {
                   <select
                     value={form.status}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value as RevenueStatus }))
+                      setForm((f) => ({ ...f, status: e.target.value as RevenuePaymentStatus }))
                     }
                     className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
                   >
@@ -577,7 +541,7 @@ export function RevenuePage() {
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      paymentMethod: e.target.value as RevenuePaymentMethod,
+                      paymentMethod: e.target.value as PaymentMethod,
                     }))
                   }
                   className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"

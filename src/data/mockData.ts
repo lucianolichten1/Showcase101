@@ -5,8 +5,8 @@ import type {
   KPIData,
   LivestockGroup,
   MonthlyFinancial,
-  Receivable,
 } from "./types";
+import { initialReceivableRecords } from "@/domains/financial/mockData";
 
 /** Demo currency — Bolivia bolivianos for the first customer MVP */
 export const CURRENCY_PREFIX = "Bs";
@@ -131,88 +131,7 @@ export const livestockGroups: LivestockGroup[] = [
   },
 ];
 
-export const receivables: Receivable[] = [
-  {
-    id: 1,
-    customer: "Cliente Santa Cruz",
-    invoiceNumber: "INV-001",
-    amount: 12500,
-    amountPaid: 0,
-    dueDate: "May 10",
-    overdueDays: 7,
-    status: "Overdue",
-  },
-  {
-    id: 2,
-    customer: "Distribuidora Norte",
-    invoiceNumber: "INV-002",
-    amount: 8700,
-    amountPaid: 0,
-    dueDate: "May 28",
-    overdueDays: 0,
-    status: "Pending",
-  },
-  {
-    id: 3,
-    customer: "Mercado Central",
-    invoiceNumber: "INV-003",
-    amount: 13000,
-    amountPaid: 0,
-    dueDate: "Apr 28",
-    overdueDays: 19,
-    status: "Overdue",
-  },
-  {
-    id: 4,
-    customer: "Agro Bolivia SRL",
-    invoiceNumber: "INV-004",
-    amount: 9800,
-    amountPaid: 9800,
-    dueDate: "Apr 30",
-    overdueDays: 0,
-    status: "Paid",
-  },
-  {
-    id: 5,
-    customer: "Finca El Palmar",
-    invoiceNumber: "INV-005",
-    amount: 6700,
-    amountPaid: 3500,
-    dueDate: "May 25",
-    overdueDays: 0,
-    status: "Partially Paid",
-  },
-  {
-    id: 6,
-    customer: "Hacienda San Miguel",
-    invoiceNumber: "INV-006",
-    amount: 11200,
-    amountPaid: 0,
-    dueDate: "Jun 5",
-    overdueDays: 0,
-    status: "Pending",
-  },
-  {
-    id: 7,
-    customer: "Exportadora Oriente",
-    invoiceNumber: "INV-007",
-    amount: 7300,
-    amountPaid: 0,
-    dueDate: "Apr 2",
-    overdueDays: 45,
-    status: "Overdue",
-  },
-  {
-    id: 8,
-    customer: "Cooperativa Yungas",
-    invoiceNumber: "INV-008",
-    amount: 5800,
-    amountPaid: 2900,
-    dueDate: "May 22",
-    overdueDays: 0,
-    status: "Partially Paid",
-  },
-];
+export const receivables = initialReceivableRecords;
 
 export const customers: Customer[] = [
   { id: 1, name: "Cliente Santa Cruz", email: "contacto@santacruz.bo", phone: "+591 3 333-1001", city: "Santa Cruz", industry: "Retail", totalInvoiced: 12500, totalPaid: 0, status: "Active" },

@@ -1,6 +1,15 @@
 import { useState, useMemo } from "react";
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download } from "lucide-react";
-import type { Receivable } from "@/data/types";
+import type { ReceivableRecord } from "@/domains/financial/types";
+import {
+  calculateAverageDaysOverdue,
+  calculateReceivablesCollectionRate,
+  calculateReceivablesInvoicesOverdue,
+  calculateReceivablesOverdueAmount,
+  calculateReceivablesTotalOutstanding,
+  getReceivableBalance,
+  isActiveReceivable,
+} from "@/domains/financial/calculations";
 import { formatCurrency, customers as allCustomers } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
@@ -13,9 +22,9 @@ type SortKey = "customer" | "amount" | "balance" | "overdueDays" | "dueDate";
 type RiskLevel = "Low" | "Medium" | "High";
 
 interface Props {
-  receivables: Receivable[];
-  onUpdateReceivable: (updated: Receivable) => void;
-  onAddReceivable: (newR: Receivable) => void;
+  receivables: ReceivableRecord[];
+  onUpdateReceivable: (updated: ReceivableRecord) => void;
+  onAddReceivable: (newR: ReceivableRecord) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,27 +120,17 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Dialog state
-  const [paymentTarget, setPaymentTarget] = useState<Receivable | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
   const [showAddInvoice, setShowAddInvoice] = useState(false);
 
-  // ── KPIs (always from full unfiltered receivables) ──────────────────────────
+  // ── KPIs (always from full unfiltered receivables, via domain calculations) ─
 
-  const activeReceivables = receivables.filter(
-    (r) => r.status === "Pending" || r.status === "Partially Paid" || r.status === "Overdue"
-  );
-  const totalOutstanding = activeReceivables.reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
-
-  const overdueRows = receivables.filter((r) => r.status === "Overdue");
-  const overdueAmount = overdueRows.reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
-  const invoicesOverdue = overdueRows.length;
-  const avgDaysOverdue =
-    overdueRows.length > 0
-      ? Math.round(overdueRows.reduce((sum, r) => sum + r.overdueDays, 0) / overdueRows.length)
-      : 0;
-
-  const totalInvoiced = receivables.reduce((sum, r) => sum + r.amount, 0);
-  const totalPaid = receivables.reduce((sum, r) => sum + r.amountPaid, 0);
-  const collectionRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0;
+  const activeReceivables = receivables.filter(isActiveReceivable);
+  const totalOutstanding = calculateReceivablesTotalOutstanding(receivables);
+  const overdueAmount = calculateReceivablesOverdueAmount(receivables);
+  const invoicesOverdue = calculateReceivablesInvoicesOverdue(receivables);
+  const avgDaysOverdue = calculateAverageDaysOverdue(receivables);
+  const collectionRate = calculateReceivablesCollectionRate(receivables);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -147,16 +146,16 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
 
   const agingCurrent = activeReceivables
     .filter((r) => r.overdueDays === 0)
-    .reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
+    .reduce((sum, r) => sum + getReceivableBalance(r), 0);
   const aging1to30 = receivables
     .filter((r) => r.overdueDays >= 1 && r.overdueDays <= 30)
-    .reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
+    .reduce((sum, r) => sum + getReceivableBalance(r), 0);
   const aging31to60 = receivables
     .filter((r) => r.overdueDays >= 31 && r.overdueDays <= 60)
-    .reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
+    .reduce((sum, r) => sum + getReceivableBalance(r), 0);
   const aging60plus = receivables
     .filter((r) => r.overdueDays > 60)
-    .reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
+    .reduce((sum, r) => sum + getReceivableBalance(r), 0);
 
   // ── Filtered + sorted table rows ─────────────────────────────────────────────
 
@@ -231,7 +230,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
     const r = receivables.find((x) => x.id === id);
     if (!r) return;
     const newTotalPaid = r.amountPaid + payment;
-    const status: Receivable["status"] =
+    const status: ReceivableRecord["status"] =
       newTotalPaid <= 0 ? "Pending"
       : newTotalPaid < r.amount ? "Partially Paid"
       : "Paid";
@@ -239,7 +238,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
     setPaymentTarget(null);
   };
 
-  const handleAddInvoice = (newR: Receivable) => {
+  const handleAddInvoice = (newR: ReceivableRecord) => {
     onAddReceivable(newR);
     setShowAddInvoice(false);
   };

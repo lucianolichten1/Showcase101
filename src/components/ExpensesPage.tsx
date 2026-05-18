@@ -1,24 +1,24 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
+import { sortExpenseRecords } from "@/domains/financial/calculations";
+import { useFinancialData } from "@/domains/financial/hooks";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_STATUSES,
-  INITIAL_EXPENSES,
-  PAYMENT_METHODS,
-  sortExpenseRecords,
-  type Expense,
+  EXPENSE_PAYMENT_METHODS,
+  type ExpenseRecord,
   type ExpenseCategory,
+  type ExpensePaymentStatus,
   type ExpenseSortDirection,
   type ExpenseSortKey,
-  type ExpenseStatus,
   type PaymentMethod,
-} from "@/data/expenses";
+} from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
 
 const ALL_FILTER = "all";
 
-type ExpenseFormState = Omit<Expense, "id">;
+type ExpenseFormState = Omit<ExpenseRecord, "id">;
 
 const emptyForm = (): ExpenseFormState => ({
   date: new Date().toISOString().slice(0, 10),
@@ -32,7 +32,7 @@ const emptyForm = (): ExpenseFormState => ({
   notes: "",
 });
 
-function getStatusBadgeClass(status: ExpenseStatus): string {
+function getStatusBadgeClass(status: ExpensePaymentStatus): string {
   if (status === "Paid") return "bg-green-50 text-green-800 border-green-100";
   if (status === "Overdue") return "bg-red-50 text-red-800 border-red-100";
   return "bg-amber-50 text-amber-800 border-amber-100";
@@ -46,23 +46,6 @@ function formatDisplayDate(isoDate: string): string {
   ];
   const m = parseInt(month, 10) - 1;
   return `${months[m] ?? month} ${parseInt(day, 10)}, ${year}`;
-}
-
-function computeLargestCategory(expenses: Expense[]): string {
-  if (expenses.length === 0) return "—";
-  const totals = new Map<string, number>();
-  for (const expense of expenses) {
-    totals.set(expense.category, (totals.get(expense.category) ?? 0) + expense.amount);
-  }
-  let largest = "";
-  let max = 0;
-  for (const [category, total] of totals) {
-    if (total > max) {
-      max = total;
-      largest = category;
-    }
-  }
-  return largest || "—";
 }
 
 const SORTABLE_COLUMNS: { key: ExpenseSortKey; label: string }[] = [
@@ -94,7 +77,7 @@ function SortIcon({
 }
 
 export function ExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+  const { setExpenseRecords, filteredExpenseRecords, kpis } = useFinancialData();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
@@ -105,7 +88,7 @@ export function ExpensesPage() {
 
   const filteredExpenses = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return expenses.filter((expense) => {
+    return filteredExpenseRecords.filter((expense) => {
       const matchesSearch =
         query === "" ||
         expense.description.toLowerCase().includes(query) ||
@@ -117,28 +100,12 @@ export function ExpensesPage() {
         statusFilter === ALL_FILTER || expense.status === statusFilter;
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [expenses, search, categoryFilter, statusFilter]);
+  }, [filteredExpenseRecords, search, categoryFilter, statusFilter]);
 
   const sortedExpenses = useMemo(() => {
     if (!sortKey) return filteredExpenses;
     return sortExpenseRecords(filteredExpenses, sortKey, sortDirection);
   }, [filteredExpenses, sortKey, sortDirection]);
-
-  const kpis = useMemo(() => {
-    const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const paid = expenses
-      .filter((e) => e.status === "Paid")
-      .reduce((sum, e) => sum + e.amount, 0);
-    const pending = expenses
-      .filter((e) => e.status === "Pending")
-      .reduce((sum, e) => sum + e.amount, 0);
-    return {
-      total,
-      paid,
-      pending,
-      largestCategory: computeLargestCategory(expenses),
-    };
-  }, [expenses]);
 
   const handleOpenModal = () => {
     setForm(emptyForm());
@@ -167,7 +134,7 @@ export function ExpensesPage() {
       return;
     }
 
-    const newExpense: Expense = {
+    const newExpense: ExpenseRecord = {
       id: `exp-${Date.now()}`,
       ...form,
       description: form.description.trim(),
@@ -175,7 +142,7 @@ export function ExpensesPage() {
       notes: form.notes.trim(),
     };
 
-    setExpenses((prev) => [newExpense, ...prev]);
+    setExpenseRecords((prev) => [newExpense, ...prev]);
     setIsModalOpen(false);
     setForm(emptyForm());
   };
@@ -207,16 +174,18 @@ export function ExpensesPage() {
               Total Expenses
             </span>
             <span className="text-lg font-bold text-stone-900">
-              {formatCurrency(kpis.total)}
+              {formatCurrency(kpis.totalExpenses)}
             </span>
-            <span className="text-[10px] text-stone-400">{expenses.length} records</span>
+            <span className="text-[10px] text-stone-400">
+              {filteredExpenseRecords.length} records
+            </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
               Paid Expenses
             </span>
             <span className="text-lg font-bold text-green-700">
-              {formatCurrency(kpis.paid)}
+              {formatCurrency(kpis.paidExpenses)}
             </span>
             <span className="text-[10px] text-stone-400">Settled payments</span>
           </div>
@@ -225,7 +194,7 @@ export function ExpensesPage() {
               Pending Expenses
             </span>
             <span className="text-lg font-bold text-amber-700">
-              {formatCurrency(kpis.pending)}
+              {formatCurrency(kpis.pendingExpenses)}
             </span>
             <span className="text-[10px] text-stone-400">Awaiting payment</span>
           </div>
@@ -234,7 +203,7 @@ export function ExpensesPage() {
               Largest Expense Category
             </span>
             <span className="text-lg font-bold text-stone-900 truncate">
-              {kpis.largestCategory}
+              {kpis.largestExpenseCategory}
             </span>
             <span className="text-[10px] text-stone-400">By total amount</span>
           </div>
@@ -517,7 +486,7 @@ export function ExpensesPage() {
                   <select
                     value={form.status}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value as ExpenseStatus }))
+                      setForm((f) => ({ ...f, status: e.target.value as ExpensePaymentStatus }))
                     }
                     className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
                   >
@@ -544,7 +513,7 @@ export function ExpensesPage() {
                   }
                   className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
                 >
-                  {PAYMENT_METHODS.map((method) => (
+                  {EXPENSE_PAYMENT_METHODS.map((method) => (
                     <option key={method} value={method}>
                       {method}
                     </option>
