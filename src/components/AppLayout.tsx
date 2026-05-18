@@ -6,16 +6,17 @@ import type { NavItemId } from "@/config/navigation";
 interface AppLayoutProps {
   children: ReactNode;
   activeNavId?: NavItemId;
+  onNavChange?: (id: NavItemId) => void;
 }
 
-export function AppLayout({ children, activeNavId = "dashboard" }: AppLayoutProps) {
+export function AppLayout({ children, activeNavId = "dashboard", onNavChange }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-[#FBFBF9]">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:z-30">
-        <Sidebar activeId={activeNavId} />
+        <Sidebar activeId={activeNavId} onNavigate={onNavChange} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -32,7 +33,7 @@ export function AppLayout({ children, activeNavId = "dashboard" }: AppLayoutProp
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar activeId={activeNavId} onClose={() => setMobileOpen(false)} />
+        <Sidebar activeId={activeNavId} onClose={() => setMobileOpen(false)} onNavigate={onNavChange} />
       </div>
 
       {/* Main column */}
