@@ -8,11 +8,12 @@ import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
 import { ExportImportPage } from "./components/ExportImportPage";
 import { AccountsReceivablePage } from "./components/AccountsReceivablePage";
+import { ReportsPage } from "./components/ReportsPage";
 import type { NavItemId } from "./config/navigation";
 
-type ActivePage = "dashboard" | "export-import" | "accounts-receivable";
+type ActivePage = "dashboard" | "export-import" | "accounts-receivable" | "reports";
 
-const navigablePages: ActivePage[] = ["dashboard", "export-import", "accounts-receivable"];
+const navigablePages: ActivePage[] = ["dashboard", "export-import", "accounts-receivable", "reports"];
 
 function isNavigablePage(id: NavItemId): id is ActivePage {
   return navigablePages.includes(id as ActivePage);
@@ -32,6 +33,7 @@ export default function App() {
       {activePage === "dashboard" && <DashboardPage />}
       {activePage === "export-import" && <ExportImportPage />}
       {activePage === "accounts-receivable" && <AccountsReceivablePage />}
+      {activePage === "reports" && <ReportsPage />}
     </AppLayout>
   );
 }
