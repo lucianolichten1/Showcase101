@@ -1,5 +1,25 @@
 import { customers, receivables, formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
+
+const customerAiInsights = [
+  {
+    type: "Opportunity",
+    text: "Finca El Palmar has partially paid 2 invoices on time. High potential for upsell — consider offering a larger crop cycle contract next season.",
+  },
+  {
+    type: "Risk",
+    text: "Exportadora Oriente is 45 days overdue with no payment activity. Recommend a direct follow-up call before escalating to collections.",
+  },
+  {
+    type: "Opportunity",
+    text: "Agro Bolivia SRL has a perfect payment record. They are your most reliable customer — prioritize relationship and offer early access to new services.",
+  },
+  {
+    type: "Watch",
+    text: "Cooperativa Yungas is currently inactive. Their last payment was partial. A re-engagement offer or discount could recover this account.",
+  },
+];
 
 // Calculate outstanding balance per customer from receivables
 function getOutstandingBalance(customerName: string): number {
@@ -169,6 +189,37 @@ export function CustomersPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* AI Customer Insights */}
+      <div className="bg-green-800 text-white rounded-xl shadow-lg p-5 relative overflow-hidden">
+        <div className="absolute top-[-20px] right-[-20px] w-48 h-48 bg-green-700/30 rounded-full blur-3xl" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-green-300" />
+            <h3 className="text-sm font-bold uppercase tracking-widest">AI Customer Insights</h3>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {customerAiInsights.map((insight, idx) => (
+              <div key={idx} className="p-3 bg-white/10 rounded-lg border border-white/10 flex flex-col gap-1.5">
+                <span
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full self-start border",
+                    insight.type === "Opportunity" && "bg-green-600/40 text-green-200 border-green-500/30",
+                    insight.type === "Risk" && "bg-red-500/30 text-red-200 border-red-400/30",
+                    insight.type === "Watch" && "bg-amber-500/30 text-amber-200 border-amber-400/30",
+                  )}
+                >
+                  {insight.type}
+                </span>
+                <p className="text-xs leading-relaxed font-medium text-white/90">{insight.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/10 text-[10px] uppercase font-bold tracking-tighter opacity-60">
+            AI insights are static demo data — live analysis coming in Phase 2
+          </div>
         </div>
       </div>
     </main>
