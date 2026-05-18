@@ -7,9 +7,10 @@ interface SidebarProps {
   activeId?: NavItemId;
   className?: string;
   onClose?: () => void;
+  onNavigate?: (id: NavItemId) => void;
 }
 
-export function Sidebar({ activeId = "dashboard", className, onClose }: SidebarProps) {
+export function Sidebar({ activeId = "dashboard", className, onClose, onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -45,7 +46,7 @@ export function Sidebar({ activeId = "dashboard", className, onClose }: SidebarP
         <ul className="space-y-1">
           {navigationItems.map((item) => (
             <li key={item.id}>
-              <SidebarNavItem item={item} activeId={activeId} />
+              <SidebarNavItem item={item} activeId={activeId} onNavigate={onNavigate} />
             </li>
           ))}
         </ul>
