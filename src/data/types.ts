@@ -39,6 +39,18 @@ export interface Receivable {
   status: "Pending" | "Partially Paid" | "Paid" | "Overdue";
 }
 
+export interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  industry: string;
+  totalInvoiced: number;
+  totalPaid: number;
+  status: "Active" | "Inactive";
+}
+
 export interface ExpenseCategory {
   category: string;
   amount: number;
