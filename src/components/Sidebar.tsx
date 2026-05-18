@@ -10,7 +10,16 @@ interface SidebarProps {
   onNavigate?: (id: NavItemId) => void;
 }
 
+ feature/accounts-recievable-ui
 export function Sidebar({ activeId = "dashboard", className, onClose, onNavigate }: SidebarProps) {
+=======
+export function Sidebar({
+  activeId = "dashboard",
+  className,
+  onClose,
+  onNavigate,
+}: SidebarProps) {
+ main
   return (
     <aside
       className={cn(
