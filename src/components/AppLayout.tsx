@@ -1,27 +1,16 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import type { NavItemId } from "@/config/navigation";
 
-interface AppLayoutProps {
-  children: ReactNode;
-  activeNavId?: NavItemId;
-  onNavigate?: (id: NavItemId) => void;
-}
-
-export function AppLayout({ children, activeNavId = "dashboard", onNavigate }: AppLayoutProps) {
+export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const handleNavigate = (id: NavItemId) => {
-    onNavigate?.(id);
-    setMobileOpen(false);
-  };
 
   return (
     <div className="flex min-h-screen bg-[#FBFBF9]">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:z-30">
-        <Sidebar activeId={activeNavId} onNavigate={handleNavigate} />
+        <Sidebar onNavClick={() => setMobileOpen(false)} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -38,7 +27,7 @@ export function AppLayout({ children, activeNavId = "dashboard", onNavigate }: A
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar activeId={activeNavId} onClose={() => setMobileOpen(false)} onNavigate={handleNavigate} />
+        <Sidebar onClose={() => setMobileOpen(false)} onNavClick={() => setMobileOpen(false)} />
       </div>
 
       {/* Main column */}
@@ -56,7 +45,7 @@ export function AppLayout({ children, activeNavId = "dashboard", onNavigate }: A
           <span className="text-sm font-bold text-stone-900">Agro Dashboard</span>
         </div>
 
-        {children}
+        <Outlet />
       </div>
     </div>
   );

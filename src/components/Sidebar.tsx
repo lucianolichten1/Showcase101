@@ -1,16 +1,15 @@
 import { Tractor, X } from "lucide-react";
-import { navigationItems, type NavItemId } from "@/config/navigation";
+import { navigationItems } from "@/config/navigation";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
-  activeId?: NavItemId;
   className?: string;
   onClose?: () => void;
-  onNavigate?: (id: NavItemId) => void;
+  onNavClick?: () => void;
 }
 
-export function Sidebar({ activeId = "dashboard", className, onClose, onNavigate }: SidebarProps) {
+export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -46,7 +45,7 @@ export function Sidebar({ activeId = "dashboard", className, onClose, onNavigate
         <ul className="space-y-1">
           {navigationItems.map((item) => (
             <li key={item.id}>
-              <SidebarNavItem item={item} activeId={activeId} onNavigate={onNavigate} />
+              <SidebarNavItem item={item} onNavClick={onNavClick} />
             </li>
           ))}
         </ul>

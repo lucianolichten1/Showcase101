@@ -28,18 +28,33 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
+/** Route paths for navigable sidebar items (settings is visual-only). */
+export const navPaths: Record<Exclude<NavItemId, "settings">, string> = {
+  dashboard: "/dashboard",
+  "export-import": "/export-import",
+  expenses: "/expenses",
+  revenue: "/revenue",
+  "accounts-receivable": "/accounts-receivable",
+  reports: "/reports",
+  customers: "/customers",
+};
+
+export function isNavigableNavItem(id: NavItemId): id is Exclude<NavItemId, "settings"> {
+  return id !== "settings";
+}
+
 export const navigationItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", href: "#", icon: LayoutDashboard },
-  { id: "export-import", label: "Export/Import", href: "#", icon: ArrowUpDown },
-  { id: "expenses", label: "Expenses", href: "#", icon: Receipt },
-  { id: "revenue", label: "Revenue", href: "#", icon: TrendingUp },
+  { id: "dashboard", label: "Dashboard", href: navPaths.dashboard, icon: LayoutDashboard },
+  { id: "export-import", label: "Export/Import", href: navPaths["export-import"], icon: ArrowUpDown },
+  { id: "expenses", label: "Expenses", href: navPaths.expenses, icon: Receipt },
+  { id: "revenue", label: "Revenue", href: navPaths.revenue, icon: TrendingUp },
   {
     id: "accounts-receivable",
     label: "Accounts Receivable",
-    href: "#",
+    href: navPaths["accounts-receivable"],
     icon: HandCoins,
   },
-  { id: "reports", label: "Reports", href: "#", icon: FileBarChart },
-  { id: "customers", label: "Customers", href: "#", icon: Users },
+  { id: "reports", label: "Reports", href: navPaths.reports, icon: FileBarChart },
+  { id: "customers", label: "Customers", href: navPaths.customers, icon: Users },
   { id: "settings", label: "Settings", href: "#", icon: Settings },
 ];

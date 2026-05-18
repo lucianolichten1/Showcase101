@@ -1,41 +1,60 @@
-import type { NavItem, NavItemId } from "@/config/navigation";
+import { NavLink } from "react-router-dom";
+import { isNavigableNavItem, type NavItem } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
 interface SidebarNavItemProps {
   item: NavItem;
-  activeId: NavItemId;
-  onNavigate?: (id: NavItemId) => void;
+  onNavClick?: () => void;
 }
 
-export function SidebarNavItem({ item, activeId, onNavigate }: SidebarNavItemProps) {
-  const isActive = item.id === activeId;
+const navItemClassName = (isActive: boolean) =>
+  cn(
+    "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+    isActive
+      ? "bg-green-50 text-green-900 border border-green-100"
+      : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 border border-transparent"
+  );
+
+const iconClassName = (isActive: boolean) =>
+  cn(
+    "h-4 w-4 shrink-0",
+    isActive ? "text-green-700" : "text-stone-400 group-hover:text-stone-600"
+  );
+
+export function SidebarNavItem({ item, onNavClick }: SidebarNavItemProps) {
   const Icon = item.icon;
 
-  return (
-    <a
-      href={item.href}
-      onClick={(e) => {
-        if (onNavigate) {
-          e.preventDefault();
-          onNavigate(item.id);
-        }
-      }}
-      className={cn(
-        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-        isActive
-          ? "bg-green-50 text-green-900 border border-green-100"
-          : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 border border-transparent"
-      )}
-      aria-current={isActive ? "page" : undefined}
-    >
-      <Icon
+  if (!isNavigableNavItem(item.id)) {
+    return (
+      <span
         className={cn(
-          "h-4 w-4 shrink-0",
-          isActive ? "text-green-700" : "text-stone-400 group-hover:text-stone-600"
+          navItemClassName(false),
+          "cursor-not-allowed opacity-50"
         )}
-        strokeWidth={isActive ? 2.25 : 2}
-      />
-      <span className="truncate">{item.label}</span>
-    </a>
+        aria-disabled="true"
+        title="Settings (coming soon)"
+      >
+        <Icon className={iconClassName(false)} strokeWidth={2} />
+        <span className="truncate">{item.label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.href}
+      onClick={() => onNavClick?.()}
+      className={({ isActive }) => navItemClassName(isActive)}
+    >
+      {({ isActive }) => (
+        <>
+          <Icon
+            className={iconClassName(isActive)}
+            strokeWidth={isActive ? 2.25 : 2}
+          />
+          <span className="truncate">{item.label}</span>
+        </>
+      )}
+    </NavLink>
   );
 }

@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
 import { ExportImportPage } from "./components/ExportImportPage";
@@ -12,43 +13,12 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
-import type { NavItemId } from "./config/navigation";
 import type { Receivable, Customer } from "./data/types";
 import { receivables as initialReceivables, customers as initialCustomers } from "./data/mockData";
 
-type ActivePage =
-  | "dashboard"
-  | "export-import"
-  | "expenses"
-  | "revenue"
-  | "accounts-receivable"
-  | "reports"
-  | "customers";
-
-const navigablePages: ActivePage[] = [
-  "dashboard",
-  "export-import",
-  "expenses",
-  "revenue",
-  "accounts-receivable",
-  "reports",
-  "customers",
-];
-
-function isNavigablePage(id: NavItemId): id is ActivePage {
-  return navigablePages.includes(id as ActivePage);
-}
-
 export default function App() {
-  const [activePage, setActivePage] = useState<ActivePage>("dashboard");
   const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-
-  const handleNavigate = (id: NavItemId) => {
-    if (isNavigablePage(id)) {
-      setActivePage(id);
-    }
-  };
 
   const handleUpdateReceivable = (updated: Receivable) =>
     setReceivables((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -60,26 +30,35 @@ export default function App() {
     setCustomers((prev) => [...prev, newC]);
 
   return (
-    <AppLayout activeNavId={activePage} onNavigate={handleNavigate}>
-      {activePage === "dashboard" && <DashboardPage />}
-      {activePage === "export-import" && <ExportImportPage />}
-      {activePage === "expenses" && <ExpensesPage />}
-      {activePage === "revenue" && <RevenuePage />}
-      {activePage === "accounts-receivable" && (
-        <AccountsReceivablePage
-          receivables={receivables}
-          onUpdateReceivable={handleUpdateReceivable}
-          onAddReceivable={handleAddReceivable}
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route element={<AppLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/export-import" element={<ExportImportPage />} />
+        <Route path="/expenses" element={<ExpensesPage />} />
+        <Route path="/revenue" element={<RevenuePage />} />
+        <Route
+          path="/accounts-receivable"
+          element={
+            <AccountsReceivablePage
+              receivables={receivables}
+              onUpdateReceivable={handleUpdateReceivable}
+              onAddReceivable={handleAddReceivable}
+            />
+          }
         />
-      )}
-      {activePage === "reports" && <ReportsPage />}
-      {activePage === "customers" && (
-        <CustomersPage
-          customers={customers}
-          receivables={receivables}
-          onAddCustomer={handleAddCustomer}
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route
+          path="/customers"
+          element={
+            <CustomersPage
+              customers={customers}
+              receivables={receivables}
+              onAddCustomer={handleAddCustomer}
+            />
+          }
         />
-      )}
-    </AppLayout>
+      </Route>
+    </Routes>
   );
 }
