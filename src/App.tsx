@@ -6,16 +6,32 @@
 import { useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
+import { ExportImportPage } from "./components/ExportImportPage";
 import { AccountsReceivablePage } from "./components/AccountsReceivablePage";
 import type { NavItemId } from "./config/navigation";
 
+type ActivePage = "dashboard" | "export-import" | "accounts-receivable";
+
+const navigablePages: ActivePage[] = ["dashboard", "export-import", "accounts-receivable"];
+
+function isNavigablePage(id: NavItemId): id is ActivePage {
+  return navigablePages.includes(id as ActivePage);
+}
+
 export default function App() {
-  const [activeNavId, setActiveNavId] = useState<NavItemId>("dashboard");
+  const [activePage, setActivePage] = useState<ActivePage>("dashboard");
+
+  const handleNavigate = (id: NavItemId) => {
+    if (isNavigablePage(id)) {
+      setActivePage(id);
+    }
+  };
 
   return (
-    <AppLayout activeNavId={activeNavId} onNavChange={setActiveNavId}>
-      {activeNavId === "dashboard" && <DashboardPage />}
-      {activeNavId === "accounts-receivable" && <AccountsReceivablePage />}
+    <AppLayout activeNavId={activePage} onNavigate={handleNavigate}>
+      {activePage === "dashboard" && <DashboardPage />}
+      {activePage === "export-import" && <ExportImportPage />}
+      {activePage === "accounts-receivable" && <AccountsReceivablePage />}
     </AppLayout>
   );
 }
