@@ -30,10 +30,13 @@ export interface LivestockGroup {
 export interface Receivable {
   id: number;
   customer: string;
+  invoiceNumber: string;
   amount: number;
+  amountPaid: number;
   dueDate: string;
   overdueDays: number;
-  status: "Overdue" | "Pending";
+  // riskLevel is calculated, never stored: <15d=Low, 15-45d=Medium, >45d=High
+  status: "Pending" | "Partially Paid" | "Paid" | "Overdue";
 }
 
 export interface ExpenseCategory {

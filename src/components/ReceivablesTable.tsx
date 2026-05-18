@@ -33,7 +33,10 @@ export function ReceivablesTable() {
                   <span
                     className={cn(
                       "px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                      row.status === "Overdue" ? "bg-red-50 text-red-700 border-red-100" : "bg-stone-50 text-stone-600 border-stone-200"
+                      row.status === "Overdue" && "bg-red-50 text-red-700 border-red-100",
+                      row.status === "Paid" && "bg-green-50 text-green-700 border-green-100",
+                      row.status === "Partially Paid" && "bg-amber-50 text-amber-700 border-amber-100",
+                      row.status === "Pending" && "bg-stone-50 text-stone-600 border-stone-200",
                     )}
                   >
                     {row.status}
