@@ -160,3 +160,62 @@ export const INITIAL_EXPENSES: Expense[] = [
     notes: "",
   },
 ];
+
+export const EXPENSE_SORT_KEYS = [
+  "date",
+  "category",
+  "description",
+  "vendor",
+  "amount",
+  "status",
+  "paymentMethod",
+] as const;
+
+export type ExpenseSortKey = (typeof EXPENSE_SORT_KEYS)[number];
+export type ExpenseSortDirection = "asc" | "desc";
+
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+/** Sort a copy of expense rows; does not mutate the input array. */
+export function sortExpenseRecords(
+  records: Expense[],
+  sortKey: ExpenseSortKey,
+  direction: ExpenseSortDirection
+): Expense[] {
+  const sign = direction === "asc" ? 1 : -1;
+
+  return [...records].sort((a, b) => {
+    let result = 0;
+
+    switch (sortKey) {
+      case "date": {
+        const aTime = new Date(`${a.date}T12:00:00`).getTime();
+        const bTime = new Date(`${b.date}T12:00:00`).getTime();
+        result = aTime - bTime;
+        break;
+      }
+      case "amount":
+        result = a.amount - b.amount;
+        break;
+      case "category":
+        result = compareText(a.category, b.category);
+        break;
+      case "description":
+        result = compareText(a.description, b.description);
+        break;
+      case "vendor":
+        result = compareText(a.vendor, b.vendor);
+        break;
+      case "status":
+        result = compareText(a.status, b.status);
+        break;
+      case "paymentMethod":
+        result = compareText(a.paymentMethod, b.paymentMethod);
+        break;
+    }
+
+    return sign * result;
+  });
+}

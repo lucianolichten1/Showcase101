@@ -1,13 +1,16 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_STATUSES,
   INITIAL_EXPENSES,
   PAYMENT_METHODS,
+  sortExpenseRecords,
   type Expense,
   type ExpenseCategory,
+  type ExpenseSortDirection,
+  type ExpenseSortKey,
   type ExpenseStatus,
   type PaymentMethod,
 } from "@/data/expenses";
@@ -62,11 +65,41 @@ function computeLargestCategory(expenses: Expense[]): string {
   return largest || "—";
 }
 
+const SORTABLE_COLUMNS: { key: ExpenseSortKey; label: string }[] = [
+  { key: "date", label: "Date" },
+  { key: "category", label: "Category" },
+  { key: "description", label: "Description" },
+  { key: "vendor", label: "Vendor / Payee" },
+  { key: "amount", label: "Amount" },
+  { key: "status", label: "Status" },
+  { key: "paymentMethod", label: "Payment" },
+];
+
+function SortIcon({
+  column,
+  sortKey,
+  sortDirection,
+}: {
+  column: ExpenseSortKey;
+  sortKey: ExpenseSortKey | null;
+  sortDirection: ExpenseSortDirection;
+}) {
+  if (sortKey !== column) {
+    return <ArrowUpDown className="h-3 w-3 shrink-0 opacity-30" aria-hidden />;
+  }
+  if (sortDirection === "asc") {
+    return <ArrowUp className="h-3 w-3 shrink-0 text-stone-600" aria-hidden />;
+  }
+  return <ArrowDown className="h-3 w-3 shrink-0 text-stone-600" aria-hidden />;
+}
+
 export function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
+  const [sortKey, setSortKey] = useState<ExpenseSortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<ExpenseSortDirection>("asc");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<ExpenseFormState>(emptyForm);
 
@@ -85,6 +118,11 @@ export function ExpensesPage() {
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [expenses, search, categoryFilter, statusFilter]);
+
+  const sortedExpenses = useMemo(() => {
+    if (!sortKey) return filteredExpenses;
+    return sortExpenseRecords(filteredExpenses, sortKey, sortDirection);
+  }, [filteredExpenses, sortKey, sortDirection]);
 
   const kpis = useMemo(() => {
     const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -108,6 +146,20 @@ export function ExpensesPage() {
   };
 
   const handleCloseModal = () => setIsModalOpen(false);
+
+  const handleSort = (column: ExpenseSortKey) => {
+    if (sortKey !== column) {
+      setSortKey(column);
+      setSortDirection("asc");
+      return;
+    }
+    if (sortDirection === "asc") {
+      setSortDirection("desc");
+      return;
+    }
+    setSortKey(null);
+    setSortDirection("asc");
+  };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -264,25 +316,39 @@ export function ExpensesPage() {
             <table className="w-full text-left border-collapse min-w-[960px]">
               <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
                 <tr className="h-8">
-                  <th className="font-bold pr-3">Date</th>
-                  <th className="font-bold pr-3">Category</th>
-                  <th className="font-bold pr-3">Description</th>
-                  <th className="font-bold pr-3">Vendor / Payee</th>
-                  <th className="font-bold pr-3">Amount</th>
-                  <th className="font-bold pr-3">Status</th>
-                  <th className="font-bold pr-3">Payment</th>
+                  {SORTABLE_COLUMNS.map(({ key, label }) => (
+                    <th key={key} className="font-bold pr-3">
+                      <button
+                        type="button"
+                        onClick={() => handleSort(key)}
+                        className={cn(
+                          "inline-flex items-center gap-1 cursor-pointer rounded px-0.5 -mx-0.5",
+                          "hover:text-stone-600 transition-colors",
+                          sortKey === key && "text-stone-600"
+                        )}
+                        aria-label={`Sort by ${label}${
+                          sortKey === key
+                            ? `, ${sortDirection === "asc" ? "ascending" : "descending"}`
+                            : ""
+                        }`}
+                      >
+                        <span>{label}</span>
+                        <SortIcon column={key} sortKey={sortKey} sortDirection={sortDirection} />
+                      </button>
+                    </th>
+                  ))}
                   <th className="font-bold">Notes</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-stone-800">
-                {filteredExpenses.length === 0 ? (
+                {sortedExpenses.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-stone-500">
                       No expenses match your search or filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredExpenses.map((expense) => (
+                  sortedExpenses.map((expense) => (
                     <tr
                       key={expense.id}
                       className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
