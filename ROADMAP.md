@@ -11,6 +11,11 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 - [x] Single-page dashboard layout
 - [x] KPI cards, chart, tables, expense breakdown, AI panel
 - [x] Mock data centralized in `src/data/mockData.ts`
+- [x] Sidebar navigation with state-based routing (`App.tsx`)
+- [x] Customers, Accounts Receivable, Reports pages
+- [x] Expenses and Revenue modules (local state + modals)
+- [x] Export/Import CSV pipeline (client-side)
+- [ ] Settings page (sidebar item only today)
 - [ ] Align mock numbers with customer’s real ballpark figures
 - [ ] Polish responsive layout for tablet/laptop in meeting
 - [ ] Optional: company name / logo in header
@@ -35,11 +40,13 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 **Goal:** Meet customers where they are — spreadsheets today.
 
+- [x] Import CSV in browser with preview and confirm (Export/Import page)
+- [x] Export confirmed rows to CSV download
+- [ ] Robust CSV parsing (quoted commas, Papa Parse)
+- [ ] Excel (.xlsx) import and export
 - [ ] Export dashboard summary to Excel (.xlsx)
-- [ ] Export transaction template for customer to fill
-- [ ] Import transactions from Excel with validation errors UI
-- [ ] Map columns to categories (feed, labor, fertilizer, etc.)
-- [ ] Store imported data in memory / local JSON first
+- [ ] Map columns to categories with validation UI
+- [ ] Persist imports to database (not session-only)
 
 ---
 

@@ -1,100 +1,225 @@
-# Agro Dashboard MVP v2
+# Agro Dashboard MVP
 
-A demo financial and operational dashboard for agricultural businesses. Built as the first MVP to present to an agro company owner in a meeting.
+A client-side demo dashboard for agro, import, and export businesses. It combines financial KPIs, customer and receivables visibility, operational modules (expenses, revenue, reports), and a working CSV import/export flow — all in the browser with mock and session-local data.
 
-## Product context
+## Business context
 
-This project is the foundation for an AI-powered financial and agro management SaaS — a simpler QuickBooks-style tool tailored to farms with crops, livestock, and mixed operations. **This version is demo-only:** all numbers are mock data.
+This MVP targets agricultural operators who manage **corn production**, **livestock**, **customer sales**, and **cross-border trade**. The goal is to show owners and stakeholders a single place to understand cash flow, outstanding invoices, operating costs, and commercial performance — as a foundation for a future SaaS product (similar to a simpler, industry-specific finance tool).
+
+**Currency in demo data:** Bolivianos (`Bs`), aligned with the first customer context.
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|------------|
 | Framework | React 19 + TypeScript |
-| Build tool | Vite 6 |
+| Build | Vite 6 |
 | Styling | Tailwind CSS v4 |
 | Charts | Recharts |
 | Icons | Lucide React |
+| Routing | `useState` in `App.tsx` (no React Router) |
 
-This is **not** Next.js. It is a single-page app (SPA) served by Vite.
+This is a **single-page application (SPA)**, not Next.js. There is **no backend**, **no database**, and **no authentication** in this version.
 
 ## Prerequisites
 
 - Node.js 18+ (20+ recommended)
 - npm
 
-## Install
-
-```bash
-npm install
-```
-
 ## Run locally
 
 ```bash
+npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Other scripts:
+Other commands:
 
 ```bash
 npm run build    # production build → dist/
-npm run preview  # preview production build
+npm run preview  # serve production build locally
 npm run lint     # TypeScript check (tsc --noEmit)
 ```
 
-No API key is required for the current demo — AI insights are static mock text.
+No API keys are required.
 
-## Current features
+## Navigation model
 
-- KPI summary cards (revenue, expenses, profit, receivables, corn, cattle)
-- Monthly revenue vs expenses bar chart
-- Corn production table by plot
-- Livestock groups table
-- Expense breakdown by category
-- Accounts receivable table with overdue status
-- AI insights panel (static demo copy)
+The left sidebar lists eight items. **Seven are fully navigable** via state in `src/App.tsx`. **Settings** appears in the sidebar but does not load a page (sidebar-only placeholder).
+
+| Sidebar label | Route key (`activePage`) | Navigable |
+|---------------|--------------------------|-----------|
+| Dashboard | `dashboard` | Yes |
+| Export/Import | `export-import` | Yes |
+| Expenses | `expenses` | Yes |
+| Revenue | `revenue` | Yes |
+| Accounts Receivable | `accounts-receivable` | Yes |
+| Reports | `reports` | Yes |
+| Customers | `customers` | Yes |
+| Settings | `settings` | **No** (sidebar-only) |
+
+## Feature summary
+
+| Module | Purpose | Key features | Data source | Status |
+|--------|---------|--------------|-------------|--------|
+| **Dashboard** | Executive overview | KPI cards, revenue vs expenses chart, corn/livestock tables, expense breakdown, receivables snapshot, static AI insights | `src/data/mockData.ts` | Demo-complete (UI) |
+| **Customers** | Customer registry | KPIs, customer table, outstanding/risk derived from receivables, static AI insight cards | `mockData.ts` (customers + receivables) | Demo-complete (Add Customer button is UI-only) |
+| **Accounts Receivable** | Invoice collections | Outstanding KPIs, full invoice table, aging buckets, risk badges | `mockData.ts` (receivables) | Demo-complete (Record Payment is UI-only) |
+| **Export/Import** | Data exchange | CSV upload, column detection, preview, confirm import, export imported CSV, recent imports list, export report cards (UI) | Session state + `src/lib/csv.ts`; seed recent imports | **CSV pipeline works**; Excel not implemented |
+| **Expenses** | Operating costs | KPIs, search/filter, expense table, Add Expense modal (local state) | `src/data/expenses.ts` + React state | Demo-complete (client-side CRUD) |
+| **Revenue** | Income tracking | KPIs, search/filter, revenue table, Add Revenue modal (local state) | `src/data/revenue.ts` + React state | Demo-complete (client-side CRUD) |
+| **Reports** | Financial reporting | P&L statement (May 2026), summary KPIs, monthly trend table | `mockData.ts` (derived) | Demo-complete (Export button UI-only) |
+| **Settings** | App configuration | — | — | **Sidebar-only** (not routed) |
+
+## Module details
+
+### Dashboard (`DashboardPage.tsx`)
+
+- Six KPI cards: revenue, expenses, net profit, receivables, corn production, cattle count.
+- Bar chart: monthly revenue vs expenses (`FinancialChart`).
+- Tables: corn plots, livestock groups, expense categories, accounts receivable.
+- AI insights panel: **static text** (not generated by an API).
+- Header: “This Month” and “Export Report” are **non-functional** UI placeholders.
+
+### Customers (`CustomersPage.tsx`)
+
+- Lists customers with contact info, invoiced/paid totals, status, and risk (computed from receivables).
+- KPIs: total customers, active count, total outstanding, at-risk count.
+- AI-style insight cards: static copy.
+- **Add Customer** does not open a form yet.
+
+### Accounts Receivable (`AccountsReceivablePage.tsx`)
+
+- Invoice-level view with paid/balance, due date, overdue days, status, risk.
+- KPIs: total outstanding, overdue amount, invoice count, average days overdue.
+- Aging summary: Current, 1–30, 31–60, 60+ days.
+- **Record Payment** is UI-only.
+
+### Export/Import (`ExportImportPage.tsx`)
+
+- **Working:** CSV file pick / drag-drop, parse, column detection, preview (10 rows), confirm import, recent imports list updates, export `agro-imported-data.csv`.
+- **Not working:** Excel (`.xlsx`), export report cards, real AI mapping.
+- Data persists only for the browser session (refresh clears imports).
+
+### Expenses (`ExpensesPage.tsx`)
+
+- Tracks transport, labor, supplier payments, fuel, etc.
+- Search + category/status filters; KPIs computed from list.
+- **Add Expense** modal appends to local state (lost on refresh).
+
+### Revenue (`RevenuePage.tsx`)
+
+- Tracks export sales, wholesale, commissions, service fees, etc.
+- Search + filters; KPIs exclude cancelled records from totals.
+- **Add Revenue** modal appends to local state (lost on refresh).
+
+### Reports (`ReportsPage.tsx`)
+
+- Profit & Loss for May 2026 built from `monthlyFinancials` and `expenseCategories`.
+- Monthly trend table (Jan–Jun).
+- **Export** and period selector are UI-only; AI insight is template text.
+
+### Settings
+
+- Listed in sidebar only; clicking it does **not** change the main view.
 
 ## Project structure
 
 ```
-├── index.html              # HTML shell
-├── vite.config.ts          # Vite + Tailwind + path aliases
+├── index.html
+├── vite.config.ts
 ├── package.json
+├── README.md                 ← this file
+├── DEMO.md                   ← presenter walkthrough
+├── PROJECT_CONTEXT.md        ← product vision
+├── ARCHITECTURE.md           ← technical design
+├── ROADMAP.md                ← phased plan
+├── COLLABORATION.md          ← team Git workflow
+├── TODO.md                   ← developer tasks
 ├── src/
-│   ├── main.tsx            # React entry point
-│   ├── App.tsx             # Root component → DashboardPage
-│   ├── index.css           # Tailwind import
+│   ├── main.tsx
+│   ├── App.tsx               ← page routing (useState)
+│   ├── index.css
+│   ├── config/
+│   │   └── navigation.ts     ← sidebar items & ids
 │   ├── data/
-│   │   ├── types.ts        # Shared TypeScript types
-│   │   └── mockData.ts     # All demo data (edit here first)
-│   ├── components/
-│   │   ├── DashboardPage.tsx   # Main layout & sections
-│   │   ├── KPICard.tsx
-│   │   ├── FinancialChart.tsx
-│   │   ├── CropTable.tsx
-│   │   ├── LivestockTable.tsx
-│   │   ├── ReceivablesTable.tsx
-│   │   ├── ExpenseBreakdown.tsx
-│   │   ├── AIInsightsPanel.tsx
-│   │   └── ui/card.tsx     # shadcn-style card primitives (partially used)
-│   └── lib/utils.ts        # cn() helper for Tailwind classes
-└── docs/                   # See PROJECT_CONTEXT, ROADMAP, etc. in repo root
+│   │   ├── mockData.ts       ← dashboard, AR, customers, reports
+│   │   ├── expenses.ts       ← expense seed data
+│   │   ├── revenue.ts        ← revenue seed data
+│   │   └── types.ts          ← shared TS types
+│   ├── lib/
+│   │   ├── csv.ts            ← CSV parse/export helpers
+│   │   └── utils.ts          ← cn() Tailwind helper
+│   └── components/
+│       ├── AppLayout.tsx
+│       ├── Sidebar.tsx
+│       ├── SidebarNavItem.tsx
+│       ├── DashboardPage.tsx
+│       ├── CustomersPage.tsx
+│       ├── AccountsReceivablePage.tsx
+│       ├── ExportImportPage.tsx
+│       ├── ExpensesPage.tsx
+│       ├── RevenuePage.tsx
+│       ├── ReportsPage.tsx
+│       ├── KPICard.tsx, FinancialChart.tsx, …  ← dashboard widgets
+│       └── ui/card.tsx
+└── docs/adr/                 ← architecture decision records
 ```
 
-## Next steps
+## Data model (mock / local)
 
-1. Replace mock data with the first customer’s real numbers (see `src/data/mockData.ts`).
-2. Wire date filter and Export button (currently UI-only).
-3. Initialize Git and push to a shared remote (see `COLLABORATION.md`).
-4. Follow `ROADMAP.md` for phased product development.
+| File | Contents |
+|------|----------|
+| `mockData.ts` | Dashboard KPIs, monthly financials, crop plots, livestock, receivables, customers, expense categories (dashboard chart), AI insight strings |
+| `expenses.ts` | `INITIAL_EXPENSES` (10 rows) |
+| `revenue.ts` | `INITIAL_REVENUE` (10 rows) |
+| Component state | Expenses/Revenue additions; Export/Import confirmed rows |
 
-## Related docs
+**Important:** Dashboard KPI card *values* are still hardcoded strings in `dashboardKPIs`; charts and tables use structured mock arrays. Expenses and Revenue modules maintain their own lists independently of `mockData.ts`.
 
-- [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) — business vision and mock vs real data
-- [ROADMAP.md](./ROADMAP.md) — phased delivery plan
-- [TODO.md](./TODO.md) — developer task list
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — technical design
+## Known limitations
+
+- No persistence across page refresh (except browser session for Export/Import import buffer).
+- No user accounts, roles, or multi-tenant organizations.
+- No real API, Supabase, or bank integrations.
+- AI panels and insights are **static demo copy**, not LLM-generated.
+- Simple CSV parser (comma-separated; quoted commas not supported).
+- Excel import/export not implemented.
+- Many primary buttons are visual only (Export Report, Record Payment, Add Customer, Settings, report Export).
+- Settings page not built.
+- Revenue and Expenses data are **not** synced with Dashboard or Reports figures.
+
+## Future roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for phased detail. High-level next steps:
+
+1. **Backend / database** — Supabase (or similar) for organizations, transactions, invoices, agro entities.
+2. **Authentication** — login, org membership, role-based access.
+3. **Real CRUD persistence** — wire forms to API; unify data across Dashboard, Reports, Expenses, Revenue.
+4. **Import improvements** — robust CSV (e.g. Papa Parse), Excel (SheetJS), validation UI.
+5. **Real financial reporting** — live P&L from transactions, export PDF/Excel.
+6. **Supplier management** — vendors linked to expenses and payments.
+7. **Inventory & logistics** — stock, shipments, plot-level inventory.
+8. **Deployment polish** — hosted demo URL, CI, preview environments.
+
+Do not assume any of the above is complete unless listed under **Status** in the feature table.
+
+## Demo walkthrough
+
+A step-by-step presenter script is in **[DEMO.md](./DEMO.md)**.
+
+Suggested order: Dashboard → Customers → Accounts Receivable → Export/Import → Expenses → Revenue → Reports.
+
+## Related documentation
+
+- [DEMO.md](./DEMO.md) — meeting demo script
+- [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) — business problem and vision
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — components and suggested DB schema
 - [COLLABORATION.md](./COLLABORATION.md) — Git workflow for two developers
+- [TODO.md](./TODO.md) — active task list
+
+## License
+
+Apache-2.0 (see SPDX headers in source files).
