@@ -174,3 +174,66 @@ export const INITIAL_REVENUE: RevenueRecord[] = [
 export function isActiveRevenue(record: RevenueRecord): boolean {
   return record.status !== "Cancelled";
 }
+
+export const REVENUE_SORT_KEYS = [
+  "date",
+  "sourceClient",
+  "productService",
+  "category",
+  "amount",
+  "status",
+  "paymentMethod",
+  "invoiceNumber",
+] as const;
+
+export type RevenueSortKey = (typeof REVENUE_SORT_KEYS)[number];
+export type RevenueSortDirection = "asc" | "desc";
+
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+/** Sort a copy of revenue rows; does not mutate the input array. */
+export function sortRevenueRecords(
+  records: RevenueRecord[],
+  sortKey: RevenueSortKey,
+  direction: RevenueSortDirection
+): RevenueRecord[] {
+  const sign = direction === "asc" ? 1 : -1;
+
+  return [...records].sort((a, b) => {
+    let result = 0;
+
+    switch (sortKey) {
+      case "date": {
+        const aTime = new Date(`${a.date}T12:00:00`).getTime();
+        const bTime = new Date(`${b.date}T12:00:00`).getTime();
+        result = aTime - bTime;
+        break;
+      }
+      case "amount":
+        result = a.amount - b.amount;
+        break;
+      case "sourceClient":
+        result = compareText(a.sourceClient, b.sourceClient);
+        break;
+      case "productService":
+        result = compareText(a.productService, b.productService);
+        break;
+      case "category":
+        result = compareText(a.category, b.category);
+        break;
+      case "status":
+        result = compareText(a.status, b.status);
+        break;
+      case "paymentMethod":
+        result = compareText(a.paymentMethod, b.paymentMethod);
+        break;
+      case "invoiceNumber":
+        result = compareText(a.invoiceNumber, b.invoiceNumber);
+        break;
+    }
+
+    return sign * result;
+  });
+}

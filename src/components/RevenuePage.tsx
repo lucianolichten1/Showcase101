@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import {
   INITIAL_REVENUE,
@@ -7,9 +7,12 @@ import {
   REVENUE_CATEGORIES,
   REVENUE_PAYMENT_METHODS,
   REVENUE_STATUSES,
+  sortRevenueRecords,
   type RevenueCategory,
   type RevenuePaymentMethod,
   type RevenueRecord,
+  type RevenueSortDirection,
+  type RevenueSortKey,
   type RevenueStatus,
 } from "@/data/revenue";
 import { cn } from "@/lib/utils";
@@ -66,11 +69,42 @@ function computeTopRevenueSource(records: RevenueRecord[]): string {
   return top || "—";
 }
 
+const SORTABLE_COLUMNS: { key: RevenueSortKey; label: string }[] = [
+  { key: "date", label: "Date" },
+  { key: "sourceClient", label: "Source / Client" },
+  { key: "productService", label: "Product / Service" },
+  { key: "category", label: "Category" },
+  { key: "amount", label: "Amount" },
+  { key: "status", label: "Status" },
+  { key: "paymentMethod", label: "Payment" },
+  { key: "invoiceNumber", label: "Invoice #" },
+];
+
+function SortIcon({
+  column,
+  sortKey,
+  sortDirection,
+}: {
+  column: RevenueSortKey;
+  sortKey: RevenueSortKey | null;
+  sortDirection: RevenueSortDirection;
+}) {
+  if (sortKey !== column) {
+    return <ArrowUpDown className="h-3 w-3 shrink-0 opacity-30" aria-hidden />;
+  }
+  if (sortDirection === "asc") {
+    return <ArrowUp className="h-3 w-3 shrink-0 text-stone-600" aria-hidden />;
+  }
+  return <ArrowDown className="h-3 w-3 shrink-0 text-stone-600" aria-hidden />;
+}
+
 export function RevenuePage() {
   const [revenue, setRevenue] = useState<RevenueRecord[]>(INITIAL_REVENUE);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
+  const [sortKey, setSortKey] = useState<RevenueSortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<RevenueSortDirection>("asc");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<RevenueFormState>(emptyForm);
 
@@ -90,6 +124,11 @@ export function RevenuePage() {
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [revenue, search, categoryFilter, statusFilter]);
+
+  const sortedRevenue = useMemo(() => {
+    if (!sortKey) return filteredRevenue;
+    return sortRevenueRecords(filteredRevenue, sortKey, sortDirection);
+  }, [filteredRevenue, sortKey, sortDirection]);
 
   const kpis = useMemo(() => {
     const active = revenue.filter(isActiveRevenue);
@@ -114,6 +153,20 @@ export function RevenuePage() {
   };
 
   const handleCloseModal = () => setIsModalOpen(false);
+
+  const handleSort = (column: RevenueSortKey) => {
+    if (sortKey !== column) {
+      setSortKey(column);
+      setSortDirection("asc");
+      return;
+    }
+    if (sortDirection === "asc") {
+      setSortDirection("desc");
+      return;
+    }
+    setSortKey(null);
+    setSortDirection("asc");
+  };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -278,26 +331,39 @@ export function RevenuePage() {
             <table className="w-full text-left border-collapse min-w-[1040px]">
               <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
                 <tr className="h-8">
-                  <th className="font-bold pr-3">Date</th>
-                  <th className="font-bold pr-3">Source / Client</th>
-                  <th className="font-bold pr-3">Product / Service</th>
-                  <th className="font-bold pr-3">Category</th>
-                  <th className="font-bold pr-3">Amount</th>
-                  <th className="font-bold pr-3">Status</th>
-                  <th className="font-bold pr-3">Payment</th>
-                  <th className="font-bold pr-3">Invoice #</th>
+                  {SORTABLE_COLUMNS.map(({ key, label }) => (
+                    <th key={key} className="font-bold pr-3">
+                      <button
+                        type="button"
+                        onClick={() => handleSort(key)}
+                        className={cn(
+                          "inline-flex items-center gap-1 cursor-pointer rounded px-0.5 -mx-0.5",
+                          "hover:text-stone-600 transition-colors",
+                          sortKey === key && "text-stone-600"
+                        )}
+                        aria-label={`Sort by ${label}${
+                          sortKey === key
+                            ? `, ${sortDirection === "asc" ? "ascending" : "descending"}`
+                            : ""
+                        }`}
+                      >
+                        <span>{label}</span>
+                        <SortIcon column={key} sortKey={sortKey} sortDirection={sortDirection} />
+                      </button>
+                    </th>
+                  ))}
                   <th className="font-bold">Notes</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-stone-800">
-                {filteredRevenue.length === 0 ? (
+                {sortedRevenue.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-8 text-center text-stone-500">
                       No revenue records match your search or filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredRevenue.map((record) => (
+                  sortedRevenue.map((record) => (
                     <tr
                       key={record.id}
                       className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
