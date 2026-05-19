@@ -1,9 +1,7 @@
 import type {
-  CropPlot,
   Customer,
   ExpenseCategory,
   KPIData,
-  LivestockGroup,
   MonthlyFinancial,
 } from "./types";
 import { initialReceivableRecords } from "@/domains/financial/mockData";
@@ -65,72 +63,6 @@ export const monthlyFinancials: MonthlyFinancial[] = [
   { month: "Jun", revenue: 195000, expenses: 130000, profit: 65000 },
 ];
 
-export const cropPlots: CropPlot[] = [
-  {
-    id: 1,
-    plot: "Plot A",
-    hectares: 25,
-    crop: "Corn",
-    expectedYield: 30,
-    actualYield: 28,
-    revenue: 72000,
-    cost: 48000,
-    profit: 24000,
-  },
-  {
-    id: 2,
-    plot: "Plot B",
-    hectares: 18,
-    crop: "Corn",
-    expectedYield: 22,
-    actualYield: 24,
-    revenue: 61000,
-    cost: 39500,
-    profit: 21500,
-  },
-  {
-    id: 3,
-    plot: "Plot C",
-    hectares: 12,
-    crop: "Corn",
-    expectedYield: 15,
-    actualYield: 14,
-    revenue: 36000,
-    cost: 27000,
-    profit: 9000,
-  },
-];
-
-export const livestockGroups: LivestockGroup[] = [
-  {
-    id: 1,
-    group: "Adult Cows",
-    count: 92,
-    weight: 430,
-    feedCost: 18500,
-    vetCost: 4200,
-    estValue: 414000,
-  },
-  {
-    id: 2,
-    group: "Calves",
-    count: 54,
-    weight: 180,
-    feedCost: 9800,
-    vetCost: 2100,
-    estValue: 121500,
-  },
-  {
-    id: 3,
-    group: "Bulls",
-    count: 40,
-    weight: 520,
-    feedCost: 11200,
-    vetCost: 3600,
-    estValue: 240000,
-  },
-];
-
 export const receivables = initialReceivableRecords;
 
 export const customers: Customer[] = [
@@ -152,13 +84,6 @@ export const expenseCategories: ExpenseCategory[] = [
   { category: "Veterinary", amount: 8949, percentage: 7 },
   { category: "Fuel", amount: 6392, percentage: 5 },
   { category: "Maintenance", amount: 3837, percentage: 3 },
-];
-
-export const aiInsights: string[] = [
-  "Net profit is positive this month, but feed and fertilizer costs represent 38% of total expenses.",
-  "Plot B produced more corn than expected, generating the highest profit per hectare.",
-  "Two customers are overdue, representing Bs 25,500 in delayed cash collection.",
-  "Cattle feed costs increased compared to last month. Review supplier pricing or feeding efficiency.",
 ];
 
 export function formatCurrency(value: number): string {

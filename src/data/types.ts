@@ -5,28 +5,6 @@ export interface MonthlyFinancial {
   profit: number;
 }
 
-export interface CropPlot {
-  id: number;
-  plot: string;
-  hectares: number;
-  crop: string;
-  expectedYield: number;
-  actualYield: number;
-  revenue: number;
-  cost: number;
-  profit: number;
-}
-
-export interface LivestockGroup {
-  id: number;
-  group: string;
-  count: number;
-  weight: number;
-  feedCost: number;
-  vetCost: number;
-  estValue: number;
-}
-
 /** @deprecated Use ReceivableRecord from `@/domains/financial/types` */
 export type { ReceivableRecord as Receivable } from "@/domains/financial/types";
 
