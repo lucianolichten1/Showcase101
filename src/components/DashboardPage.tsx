@@ -1,4 +1,5 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { FinancialPeriodFilter } from "./FinancialPeriodFilter";
 import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
 import { CropTable } from "./CropTable";
@@ -9,23 +10,33 @@ import { AIInsightsPanel } from "./AIInsightsPanel";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useAgroData } from "@/domains/agro/hooks";
 import { useFinancialData } from "@/domains/financial/hooks";
+import {
+  DEFAULT_FINANCIAL_PERIOD,
+  getDateRangeForPeriod,
+  getFinancialPeriodLabel,
+  type FinancialPeriod,
+} from "@/domains/financial/period";
 import type { KPIData } from "@/data/types";
-import { Download, Calendar } from "lucide-react";
 
-const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
-
-function kpiPeriodSubtitle(title: string): string | undefined {
+function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefined {
   if (title === "Total Revenue" || title === "Total Expenses" || title === "Net Profit") {
-    return FINANCIAL_YTD_LABEL;
+    return periodLabel;
   }
-  if (title === "Accounts Receivable") return "Outstanding receivables";
+  if (title === "Accounts Receivable") return "Outstanding receivables (all open invoices)";
   if (title === "Corn Production" || title === "Cattle Count") return "Current operation data";
   return undefined;
 }
 
 export function DashboardPage() {
   const { kpis: agroKpis } = useAgroData();
-  const { kpis: financialKpis } = useFinancialData();
+  const { kpis: financialKpis, setDateRange } = useFinancialData();
+  const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
+  const periodLabel = getFinancialPeriodLabel(period);
+
+  const handlePeriodChange = (next: FinancialPeriod) => {
+    setPeriod(next);
+    setDateRange(getDateRangeForPeriod(next));
+  };
 
   const kpiCards = useMemo((): KPIData[] => {
     return dashboardKPIs.map((kpi) => {
@@ -57,14 +68,12 @@ export function DashboardPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-stone-100 rounded border border-stone-200 text-xs text-stone-600 font-medium flex items-center gap-2">
-              <Calendar className="w-3 h-3 text-stone-600" />
-              Jan–Jun 2026
-            </div>
-            <button className="bg-stone-800 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm flex items-center">
-              <Download className="mr-2 h-3 w-3" />
-              Export Report
-            </button>
+            <FinancialPeriodFilter
+              id="dashboard-period"
+              period={period}
+              onPeriodChange={handlePeriodChange}
+              className="w-44"
+            />
           </div>
         </div>
       </header>
@@ -79,7 +88,7 @@ export function DashboardPage() {
                 trend={kpi.trend}
                 trendText={kpi.trendText}
                 trendStatus={kpi.trendStatus}
-                subtitle={kpiPeriodSubtitle(kpi.title)}
+                subtitle={kpiPeriodSubtitle(kpi.title, periodLabel)}
               />
             </Fragment>
           ))}

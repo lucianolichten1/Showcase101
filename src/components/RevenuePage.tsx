@@ -1,8 +1,15 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
+import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { isActiveRevenue, sortRevenueRecords } from "@/domains/financial/calculations";
 import { useFinancialData } from "@/domains/financial/hooks";
+import {
+  DEFAULT_FINANCIAL_PERIOD,
+  getDateRangeForPeriod,
+  getFinancialPeriodLabel,
+  type FinancialPeriod,
+} from "@/domains/financial/period";
 import {
   REVENUE_CATEGORIES,
   REVENUE_PAYMENT_METHODS,
@@ -17,8 +24,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const ALL_FILTER = "all";
-const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
-
 type RevenueFormState = Omit<RevenueRecord, "id">;
 
 const emptyForm = (): RevenueFormState => ({
@@ -81,7 +86,10 @@ function SortIcon({
 }
 
 export function RevenuePage() {
-  const { setRevenueRecords, filteredRevenueRecords, kpis } = useFinancialData();
+  const { setRevenueRecords, setDateRange, filteredRevenueRecords, kpis } =
+    useFinancialData();
+  const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
+  const periodLabel = getFinancialPeriodLabel(period);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
@@ -111,6 +119,11 @@ export function RevenuePage() {
     if (!sortKey) return filteredRevenue;
     return sortRevenueRecords(filteredRevenue, sortKey, sortDirection);
   }, [filteredRevenue, sortKey, sortDirection]);
+
+  const handlePeriodChange = (next: FinancialPeriod) => {
+    setPeriod(next);
+    setDateRange(getDateRangeForPeriod(next));
+  };
 
   const handleOpenModal = () => {
     setForm(emptyForm());
@@ -188,7 +201,7 @@ export function RevenuePage() {
               {formatCurrency(kpis.totalRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {FINANCIAL_YTD_LABEL} · {filteredRevenueRecords.filter(isActiveRevenue).length} active records
+              {periodLabel} · {filteredRevenueRecords.filter(isActiveRevenue).length} active records
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -198,7 +211,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-green-700">
               {formatCurrency(kpis.collectedRevenue)}
             </span>
-            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · payments received</span>
+            <span className="text-[10px] text-stone-400">{periodLabel} · payments received</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -207,7 +220,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-amber-700">
               {formatCurrency(kpis.pendingRevenue)}
             </span>
-            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · awaiting collection</span>
+            <span className="text-[10px] text-stone-400">{periodLabel} · awaiting collection</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -216,7 +229,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-stone-900 truncate">
               {kpis.topRevenueCategory}
             </span>
-            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · by category total</span>
+            <span className="text-[10px] text-stone-400">{periodLabel} · by category total</span>
           </div>
         </div>
 
@@ -283,6 +296,12 @@ export function RevenuePage() {
                 ))}
               </select>
             </div>
+            <FinancialPeriodFilter
+              id="revenue-period"
+              period={period}
+              onPeriodChange={handlePeriodChange}
+              className="w-full lg:w-44"
+            />
           </div>
 
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">
