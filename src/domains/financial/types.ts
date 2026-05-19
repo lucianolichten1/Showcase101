@@ -151,6 +151,14 @@ export type ExpenseSortKey = (typeof EXPENSE_SORT_KEYS)[number];
 export type RevenueSortDirection = "asc" | "desc";
 export type ExpenseSortDirection = "asc" | "desc";
 
+/** One month of revenue vs expenses for charts and summaries */
+export interface MonthlyFinancialSummary {
+  month: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+}
+
 /** Computed KPI bundle returned by useFinancialData */
 export interface FinancialKPIs {
   totalRevenue: number;

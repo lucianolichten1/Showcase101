@@ -4,11 +4,22 @@ import type {
   ExpenseSortDirection,
   ExpenseSortKey,
   FinancialKPIs,
+  MonthlyFinancialSummary,
   ReceivableRecord,
   RevenueRecord,
   RevenueSortDirection,
   RevenueSortKey,
 } from "./types";
+
+/** Jan–Jun 2026 chart months (ISO prefix → short label) */
+const CHART_MONTH_BUCKETS: readonly { isoPrefix: string; label: string }[] = [
+  { isoPrefix: "2026-01", label: "Jan" },
+  { isoPrefix: "2026-02", label: "Feb" },
+  { isoPrefix: "2026-03", label: "Mar" },
+  { isoPrefix: "2026-04", label: "Apr" },
+  { isoPrefix: "2026-05", label: "May" },
+  { isoPrefix: "2026-06", label: "Jun" },
+];
 
 // ─── Date range ───────────────────────────────────────────────────────────────
 
@@ -127,6 +138,29 @@ export function calculateProfitMargin(
   const total = calculateTotalRevenue(revenue);
   if (total <= 0) return 0;
   return Math.round((calculateNetProfit(revenue, expenses) / total) * 100);
+}
+
+// ─── Monthly aggregation (charts) ─────────────────────────────────────────────
+
+/** Groups revenue and expense records by calendar month for charting */
+export function computeMonthlyFinancials(
+  revenueRecords: RevenueRecord[],
+  expenseRecords: ExpenseRecord[]
+): MonthlyFinancialSummary[] {
+  return CHART_MONTH_BUCKETS.map(({ isoPrefix, label }) => {
+    const revenue = revenueRecords
+      .filter((r) => isActiveRevenue(r) && r.date.startsWith(isoPrefix))
+      .reduce((sum, r) => sum + r.amount, 0);
+    const expenses = expenseRecords
+      .filter((e) => e.date.startsWith(isoPrefix))
+      .reduce((sum, e) => sum + e.amount, 0);
+    return {
+      month: label,
+      revenue,
+      expenses,
+      profit: revenue - expenses,
+    };
+  });
 }
 
 // ─── Receivables ──────────────────────────────────────────────────────────────
