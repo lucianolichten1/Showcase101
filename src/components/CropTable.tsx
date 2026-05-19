@@ -1,4 +1,5 @@
-import { cropPlots, formatCurrency } from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
+import { plots } from "@/domains/agro/mockData";
 
 export function CropTable() {
   return (
@@ -18,9 +19,9 @@ export function CropTable() {
             </tr>
           </thead>
           <tbody className="text-[11px] text-stone-800">
-            {cropPlots.map((row) => (
+            {plots.map((row) => (
               <tr key={row.id} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-100 cursor-pointer transition-colors">
-                <td>{row.plot}</td>
+                <td>{row.name}</td>
                 <td>{row.hectares} ha</td>
                 <td>{row.crop}</td>
                 <td>{row.expectedYield} t</td>

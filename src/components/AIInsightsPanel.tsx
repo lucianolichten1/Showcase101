@@ -1,4 +1,4 @@
-import { aiInsights } from "@/data/mockData";
+import { aiInsights } from "@/domains/agro/mockData";
 import { Sparkles } from "lucide-react";
 
 export function AIInsightsPanel() {

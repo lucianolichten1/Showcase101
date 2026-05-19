@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
+import { plots } from "@/domains/agro/mockData";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { cn } from "@/lib/utils";
 
@@ -13,12 +14,11 @@ const MAY_EXPENSES = monthlyFinancials[MAY_IDX].expenses; // 127,850
 
 const COGS_CATEGORIES = ["Feed", "Fertilizer"];
 
-// Revenue breakdown at May baseline — sums to MAY_REVENUE exactly
+// Revenue breakdown at May baseline — derived from agro plot domain + livestock remainder
+const plotRevenue = plots.reduce((sum, p) => sum + p.revenue, 0);
 const BASE_REVENUE_LINES = [
-  { label: "Corn Sales — Plot A", amount: 72000 },
-  { label: "Corn Sales — Plot B", amount: 61000 },
-  { label: "Corn Sales — Plot C", amount: 36000 },
-  { label: "Livestock Sales", amount: 16400 },
+  ...plots.map((p) => ({ label: `Corn Sales — ${p.name}`, amount: p.revenue })),
+  { label: "Livestock Sales", amount: MAY_REVENUE - plotRevenue },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
