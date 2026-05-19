@@ -1,11 +1,32 @@
-import { expenseCategories } from "@/data/mockData";
+import { useMemo } from "react";
+import { useFinancialData } from "@/domains/financial/hooks";
+import type { ExpenseRecord } from "@/domains/financial/types";
+
+function groupByCategory(records: ExpenseRecord[]): { category: string; amount: number; percentage: number }[] {
+  const totals = new Map<string, number>();
+  for (const r of records) {
+    totals.set(r.category, (totals.get(r.category) ?? 0) + r.amount);
+  }
+  const grand = Array.from(totals.values()).reduce((s, v) => s + v, 0);
+  return Array.from(totals.entries())
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: grand > 0 ? Math.round((amount / grand) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
 
 export function ExpenseBreakdown() {
+  const { expenseRecords } = useFinancialData();
+
+  const breakdown = useMemo(() => groupByCategory(expenseRecords), [expenseRecords]);
+
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden flex flex-col h-full">
       <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">Expense Breakdown</h3>
       <div className="space-y-2.5 flex-1">
-        {expenseCategories.map((expense) => (
+        {breakdown.map((expense) => (
           <div key={expense.category} className="flex flex-col gap-1">
             <div className="flex justify-between text-[10px] font-bold uppercase text-stone-800">
               <span>{expense.category}</span>
