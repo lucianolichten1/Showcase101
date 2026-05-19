@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
 import { CropTable } from "./CropTable";
@@ -7,9 +7,26 @@ import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { AIInsightsPanel } from "./AIInsightsPanel";
 import { dashboardKPIs } from "@/data/mockData";
+import { useAgroData } from "@/domains/agro/hooks";
+import type { KPIData } from "@/data/types";
 import { Download, Calendar } from "lucide-react";
 
 export function DashboardPage() {
+  const { kpis } = useAgroData();
+
+  // Replace the two static agro KPI entries with computed values from the domain
+  const kpiCards = useMemo((): KPIData[] => {
+    return dashboardKPIs.map((kpi) => {
+      if (kpi.title === "Corn Production") {
+        return { ...kpi, value: `${kpis.totalActualYieldTons} tons` };
+      }
+      if (kpi.title === "Cattle Count") {
+        return { ...kpi, value: `${kpis.totalHeadCount} head` };
+      }
+      return kpi;
+    });
+  }, [kpis]);
+
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0">
       <header className="h-14 bg-white border-b border-stone-200 px-6 sm:px-10 flex items-center justify-between shadow-sm flex-shrink-0">
@@ -36,7 +53,7 @@ export function DashboardPage() {
 
       <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          {dashboardKPIs.map((kpi) => (
+          {kpiCards.map((kpi) => (
             <Fragment key={kpi.title}>
               <KPICard
                 title={kpi.title}

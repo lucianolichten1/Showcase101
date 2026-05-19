@@ -1,4 +1,5 @@
-import { formatCurrency, livestockGroups } from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
+import { livestock } from "@/domains/agro/mockData";
 
 export function LivestockTable() {
   return (
@@ -15,12 +16,12 @@ export function LivestockTable() {
             </tr>
           </thead>
           <tbody className="text-[11px] text-stone-800">
-            {livestockGroups.map((row) => (
+            {livestock.map((row) => (
               <tr key={row.id} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-100 cursor-pointer transition-colors">
                 <td>{row.group}</td>
                 <td>{row.count}</td>
-                <td>{formatCurrency(row.feedCost)}</td>
-                <td className="font-bold">{formatCurrency(row.estValue)}</td>
+                <td>{formatCurrency(row.feedCostPerMonth)}</td>
+                <td className="font-bold">{formatCurrency(row.estimatedValue)}</td>
               </tr>
             ))}
           </tbody>

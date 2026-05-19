@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportImportRecords as agroSeedRecords } from "@/domains/agro/mockData";
 import {
   DETECTED_FIELDS,
   detectColumns,
@@ -37,35 +38,7 @@ const importSteps = [
   { label: "Confirm import", step: 4 },
 ];
 
-const INITIAL_RECENT_IMPORTS = [
-  {
-    id: "seed-1",
-    fileName: "january_transactions.xlsx",
-    type: "Excel" as const,
-    rows: 248,
-    status: "Completed" as const,
-    uploadedBy: "Luciano",
-    date: "May 17, 2026",
-  },
-  {
-    id: "seed-2",
-    fileName: "cattle_expenses.csv",
-    type: "CSV" as const,
-    rows: 86,
-    status: "Completed" as const,
-    uploadedBy: "Admin",
-    date: "May 14, 2026",
-  },
-  {
-    id: "seed-3",
-    fileName: "corn_sales_april.xlsx",
-    type: "Excel" as const,
-    rows: 132,
-    status: "Needs Review" as const,
-    uploadedBy: "Accountant",
-    date: "May 10, 2026",
-  },
-];
+const INITIAL_RECENT_IMPORTS = agroSeedRecords;
 
 const exportOptions = [
   {
