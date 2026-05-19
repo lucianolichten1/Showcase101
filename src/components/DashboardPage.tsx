@@ -6,26 +6,33 @@ import { LivestockTable } from "./LivestockTable";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { AIInsightsPanel } from "./AIInsightsPanel";
-import { dashboardKPIs } from "@/data/mockData";
+import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useAgroData } from "@/domains/agro/hooks";
+import { useFinancialData } from "@/domains/financial/hooks";
 import type { KPIData } from "@/data/types";
 import { Download, Calendar } from "lucide-react";
 
 export function DashboardPage() {
-  const { kpis } = useAgroData();
+  const { kpis: agroKpis } = useAgroData();
+  const { kpis: financialKpis } = useFinancialData();
 
-  // Replace the two static agro KPI entries with computed values from the domain
   const kpiCards = useMemo((): KPIData[] => {
     return dashboardKPIs.map((kpi) => {
-      if (kpi.title === "Corn Production") {
-        return { ...kpi, value: `${kpis.totalActualYieldTons} tons` };
-      }
-      if (kpi.title === "Cattle Count") {
-        return { ...kpi, value: `${kpis.totalHeadCount} head` };
-      }
+      if (kpi.title === "Corn Production")
+        return { ...kpi, value: `${agroKpis.totalActualYieldTons} tons` };
+      if (kpi.title === "Cattle Count")
+        return { ...kpi, value: `${agroKpis.totalHeadCount} head` };
+      if (kpi.title === "Total Revenue")
+        return { ...kpi, value: formatCurrency(financialKpis.totalRevenue) };
+      if (kpi.title === "Total Expenses")
+        return { ...kpi, value: formatCurrency(financialKpis.totalExpenses) };
+      if (kpi.title === "Net Profit")
+        return { ...kpi, value: formatCurrency(financialKpis.netProfit) };
+      if (kpi.title === "Accounts Receivable")
+        return { ...kpi, value: formatCurrency(financialKpis.receivablesTotalOutstanding) };
       return kpi;
     });
-  }, [kpis]);
+  }, [agroKpis, financialKpis]);
 
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0">

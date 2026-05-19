@@ -2,6 +2,7 @@ import { useState, useMemo, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import { plots } from "@/domains/agro/mockData";
+import { useFinancialData } from "@/domains/financial/hooks";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ function TrendBadge({ pct }: { pct: number | null }) {
 
 export function ReportsPage() {
   const [selectedIdx, setSelectedIdx] = useState(MAY_IDX);
+  const { kpis: financialKpis } = useFinancialData();
 
   const current = monthlyFinancials[selectedIdx];
   const prev = selectedIdx > 0 ? monthlyFinancials[selectedIdx - 1] : null;
@@ -157,34 +159,34 @@ export function ReportsPage() {
         </div>
       </div>
 
-      {/* KPI Row */}
+      {/* KPI Row — Revenue & Expenses from transaction records; Gross/Net Profit from P&L */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Revenue</span>
-          <span className="text-lg font-bold text-stone-900">{formatCurrency(totalRevenue)}</span>
-          <TrendBadge pct={trendPct(current.revenue, prev?.revenue)} />
+          <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalRevenue)}</span>
+          <span className="text-[10px] text-stone-400">From transaction records</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Gross Profit</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(grossProfit)}</span>
-          <span className="text-[10px] text-stone-400 font-medium">{grossMargin}% margin</span>
+          <span className="text-[10px] text-stone-400 font-medium">{grossMargin}% margin (monthly view)</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Expenses</span>
-          <span className="text-lg font-bold text-stone-900">{formatCurrency(current.expenses)}</span>
-          <TrendBadge pct={trendPct(current.expenses, prev?.expenses)} />
+          <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalExpenses)}</span>
+          <span className="text-[10px] text-stone-400">From transaction records</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Net Profit</span>
-          <span className="text-lg font-bold text-green-700">{formatCurrency(netProfit)}</span>
-          <span className="text-[10px] text-stone-400 font-medium">{netMargin}% margin</span>
+          <span className="text-lg font-bold text-green-700">{formatCurrency(financialKpis.netProfit)}</span>
+          <span className="text-[10px] text-stone-400 font-medium">{Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin</span>
         </div>
       </div>
 
       {/* P&L Statement */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement</h3>
+          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement — Monthly View</h3>
           <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
             {current.month} 2026
           </span>
