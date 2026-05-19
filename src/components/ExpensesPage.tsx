@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, ReceiptText, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { sortExpenseRecords } from "@/domains/financial/calculations";
@@ -163,11 +163,12 @@ export function ExpensesPage() {
 
   return (
     <>
-      <main className="flex flex-col gap-5 p-5 lg:p-6 flex-1 min-h-0 overflow-auto">
+      <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <h1 className="text-lg font-bold text-stone-900">Expenses</h1>
-            <p className="text-xs text-stone-500 mt-1 max-w-xl leading-relaxed">
+            <h1 className="text-xl font-bold text-stone-900 tracking-tight">Expenses</h1>
+            <p className="text-sm text-stone-500 mt-1 max-w-xl leading-relaxed">
               Track operational costs, supplier payments, logistics, and pending expenses for your
               agro and export operations.
             </p>
@@ -223,7 +224,7 @@ export function ExpensesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
             <div className="flex-1 min-w-[200px]">
               <label
@@ -332,8 +333,12 @@ export function ExpensesPage() {
               <tbody className="text-[11px] text-stone-800">
                 {sortedExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-stone-500">
-                      No expenses match your search or filters.
+                    <td colSpan={8} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-stone-400">
+                        <ReceiptText size={32} strokeWidth={1.5} />
+                        <p className="text-sm font-medium">No expenses match your filters</p>
+                        <p className="text-xs">Try adjusting the search or filter options above</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -373,6 +378,7 @@ export function ExpensesPage() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </main>
 
