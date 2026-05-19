@@ -365,7 +365,7 @@ export function ExportImportPage() {
               onDrop={handleDrop}
               className={cn(
                 "border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center transition-colors",
-                fileName ? "p-6 min-h-[120px]" : "p-8",
+                fileName ? "p-6 min-h-[120px]" : "p-10 sm:p-12",
                 isDragging
                   ? "border-green-500 bg-green-50/50"
                   : "border-stone-200 bg-stone-50/80"
@@ -609,7 +609,7 @@ export function ExportImportPage() {
               {exportOptions.map((option) => (
                 <div
                   key={option.title}
-                  className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 transition-colors"
+                  className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 hover:shadow-sm transition-all cursor-pointer"
                 >
                   <p className="text-sm font-bold text-stone-900">{option.title}</p>
                   <p className="text-xs text-stone-500 flex-1">{option.description}</p>

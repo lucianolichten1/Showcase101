@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch } from "lucide-react";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   calculateAverageDaysOverdue,
@@ -269,12 +269,13 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
 
   return (
     <>
-      <main className="flex flex-col gap-5 p-5 lg:p-6">
+      <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-lg font-bold text-stone-900">Accounts Receivable</h1>
-            <p className="text-xs text-stone-500 mt-0.5">
+            <h1 className="text-xl font-bold text-stone-900 tracking-tight">Accounts Receivable</h1>
+            <p className="text-sm text-stone-500 mt-1">
               Outstanding balances and payment status · period filter requires ISO due dates
             </p>
           </div>
@@ -340,7 +341,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
         </div>
 
         {/* Filters + Table */}
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden">
           <div className="flex flex-col gap-3 mb-4">
             {/* Search */}
             <div className="relative">
@@ -428,8 +429,12 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
               <tbody className="text-[11px] text-stone-800">
                 {displayed.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-8 text-center text-xs text-stone-400">
-                      No invoices match your filters.
+                    <td colSpan={10} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-stone-400">
+                        <FileSearch size={32} strokeWidth={1.5} />
+                        <p className="text-sm font-medium">No invoices match your filters</p>
+                        <p className="text-xs">Try adjusting the search, status, or risk filters</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -506,7 +511,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
 
         {/* Aging Summary */}
         <div>
-          <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-2">Aging Summary</h3>
+          <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Aging Summary</h3>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
               <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Current</span>
@@ -529,6 +534,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
               <span className="text-[10px] text-stone-400">High risk</span>
             </div>
           </div>
+        </div>
         </div>
       </main>
 

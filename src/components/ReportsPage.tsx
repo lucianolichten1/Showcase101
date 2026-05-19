@@ -52,7 +52,7 @@ function PLRow({ label, amount, indent = false, bold = false, positive }: {
 }
 
 function SectionHeader({ label }: { label: string }) {
-  return <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-4 mb-1">{label}</p>;
+  return <p className="text-xs font-bold uppercase tracking-wider text-stone-400 mt-4 mb-1">{label}</p>;
 }
 
 function Divider() {
@@ -143,11 +143,12 @@ export function ReportsPage() {
   };
 
   return (
-    <main className="flex flex-col gap-5 p-5 lg:p-6">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+    <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold text-stone-900">Reports</h1>
-          <p className="text-xs text-stone-500 mt-0.5">
+          <h1 className="text-xl font-bold text-stone-900 tracking-tight">Reports</h1>
+          <p className="text-sm text-stone-500 mt-1">
             Financial summary for <span className="font-medium text-stone-700">{periodLabel}</span>
           </p>
         </div>
@@ -198,7 +199,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
+      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement</h3>
           <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right max-w-[220px]">
@@ -246,7 +247,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
+      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-1">Monthly Trend</h3>
         <p className="text-[10px] text-stone-400 mb-3">
           Demo P&L months (Jan–Jun {DEMO_FINANCIAL_YEAR}). Click a row to set period to that month.
@@ -306,6 +307,7 @@ export function ReportsPage() {
         <p className="text-[10px] text-stone-400 mt-2">
           When period is All or YTD, P&L shows the latest demo month (Jun {DEMO_FINANCIAL_YEAR}) as a sample breakdown.
         </p>
+      </div>
       </div>
     </main>
   );

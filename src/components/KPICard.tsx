@@ -19,7 +19,7 @@ export function KPICard({
     <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-center gap-1">
       <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">{title}</span>
       <div className="flex items-baseline gap-2">
-        <span className="text-lg font-bold text-stone-900">{value}</span>
+        <span className="text-lg sm:text-xl font-bold text-stone-900">{value}</span>
         {trendStatus === "positive" && (
           <span className="text-[10px] text-green-600 font-bold">+{trend}%</span>
         )}
@@ -31,7 +31,7 @@ export function KPICard({
         )}
       </div>
       {subtitle && (
-        <span className="text-[10px] text-stone-400 leading-snug">{subtitle}</span>
+        <span className="text-[10px] text-stone-400 leading-relaxed">{subtitle}</span>
       )}
     </div>
   );
