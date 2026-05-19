@@ -199,6 +199,12 @@ export function calculateTotalRevenue(records: RevenueRecord[]): number {
   return records.filter(isActiveRevenue).reduce((sum, r) => sum + r.amount, 0);
 }
 
+export function calculateTotalCost(records: RevenueRecord[]): number {
+  return records
+    .filter(isActiveRevenue)
+    .reduce((sum, r) => sum + (r.cost ?? 0), 0);
+}
+
 export function calculateCollectedRevenue(records: RevenueRecord[]): number {
   return records
     .filter((r) => isActiveRevenue(r) && r.status === "Collected")
@@ -276,11 +282,19 @@ export function calculateLargestExpenseCategory(records: ExpenseRecord[]): strin
 
 // ─── Profit ───────────────────────────────────────────────────────────────────
 
+export function calculateGrossProfit(revenue: RevenueRecord[]): number {
+  return calculateTotalRevenue(revenue) - calculateTotalCost(revenue);
+}
+
 export function calculateNetProfit(
   revenue: RevenueRecord[],
   expenses: ExpenseRecord[]
 ): number {
-  return calculateTotalRevenue(revenue) - calculateTotalExpenses(expenses);
+  return (
+    calculateTotalRevenue(revenue) -
+    calculateTotalCost(revenue) -
+    calculateTotalExpenses(expenses)
+  );
 }
 
 export function calculateProfitMargin(
@@ -292,54 +306,115 @@ export function calculateProfitMargin(
   return Math.round((calculateNetProfit(revenue, expenses) / total) * 100);
 }
 
+/** Month buckets derived from actual record dates (for imported data). */
+export function getChartMonthBucketsFromRecordDates(
+  dates: string[]
+): ChartMonthBucket[] {
+  if (dates.length === 0) return getAllDemoChartMonthBuckets();
+  const sorted = [...dates].sort();
+  const startMonth = sorted[0].slice(0, 7);
+  const endMonth = sorted[sorted.length - 1].slice(0, 7);
+  const [sy, sm] = startMonth.split("-").map(Number);
+  const [ey, em] = endMonth.split("-").map(Number);
+  const endDay = lastDayOfMonth(ey, em);
+  return getChartMonthBucketsForDateRange({
+    startDate: `${sy}-${pad2(sm)}-01`,
+    endDate: `${ey}-${pad2(em)}-${pad2(endDay)}`,
+  });
+}
+
+function resolveChartMonthBuckets(
+  period: FinancialPeriod,
+  revenueRecords: RevenueRecord[],
+  expenseRecords: ExpenseRecord[],
+  useDataDrivenMonths: boolean
+): ChartMonthBucket[] {
+  if (period.kind === "month") {
+    return getChartWeekBuckets(period.year, period.month).map((w) => ({
+      isoPrefix: w.startDate,
+      label: w.label,
+    }));
+  }
+
+  if (useDataDrivenMonths && period.kind === "all") {
+    const dates = [
+      ...revenueRecords.map((r) => r.date),
+      ...expenseRecords.map((e) => e.date),
+    ];
+    return getChartMonthBucketsFromRecordDates(dates);
+  }
+
+  return getChartMonthBuckets(period);
+}
+
+function aggregateBucket(
+  scopedRevenue: RevenueRecord[],
+  scopedExpenses: ExpenseRecord[],
+  matchRevenue: (r: RevenueRecord) => boolean,
+  matchExpense: (e: ExpenseRecord) => boolean,
+  label: string
+): MonthlyFinancialSummary {
+  const revenue = scopedRevenue
+    .filter((r) => isActiveRevenue(r) && matchRevenue(r))
+    .reduce((sum, r) => sum + r.amount, 0);
+  const cost = scopedRevenue
+    .filter((r) => isActiveRevenue(r) && matchRevenue(r))
+    .reduce((sum, r) => sum + (r.cost ?? 0), 0);
+  const expenses = scopedExpenses
+    .filter((e) => matchExpense(e))
+    .reduce((sum, e) => sum + e.amount, 0);
+  return {
+    month: label,
+    revenue,
+    cost,
+    expenses,
+    profit: revenue - cost - expenses,
+  };
+}
+
 // ─── Monthly aggregation (charts) ─────────────────────────────────────────────
 
 /** Groups revenue and expense records by calendar month or week for charting */
 export function computeMonthlyFinancials(
   revenueRecords: RevenueRecord[],
   expenseRecords: ExpenseRecord[],
-  period: FinancialPeriod
+  period: FinancialPeriod,
+  options?: { useDataDrivenMonths?: boolean }
 ): MonthlyFinancialSummary[] {
   const dateRange = getDateRangeForPeriod(period);
   const scopedRevenue = filterRecordsByDateRange(revenueRecords, dateRange);
   const scopedExpenses = filterRecordsByDateRange(expenseRecords, dateRange);
+  const useDataDrivenMonths = options?.useDataDrivenMonths ?? false;
 
   if (period.kind === "month") {
     const weekBuckets = getChartWeekBuckets(period.year, period.month);
-    return weekBuckets.map(({ startDate, endDate, label }) => {
-      const revenue = scopedRevenue
-        .filter(
-          (r) =>
-            isActiveRevenue(r) && isDateWithinInclusive(r.date, startDate, endDate)
-        )
-        .reduce((sum, r) => sum + r.amount, 0);
-      const expenses = scopedExpenses
-        .filter((e) => isDateWithinInclusive(e.date, startDate, endDate))
-        .reduce((sum, e) => sum + e.amount, 0);
-      return {
-        month: label,
-        revenue,
-        expenses,
-        profit: revenue - expenses,
-      };
-    });
+    return weekBuckets.map(({ startDate, endDate, label }) =>
+      aggregateBucket(
+        scopedRevenue,
+        scopedExpenses,
+        (r) => isDateWithinInclusive(r.date, startDate, endDate),
+        (e) => isDateWithinInclusive(e.date, startDate, endDate),
+        label
+      )
+    );
   }
 
-  const buckets = getChartMonthBuckets(period);
-  return buckets.map(({ isoPrefix, label }) => {
-    const revenue = scopedRevenue
-      .filter((r) => isActiveRevenue(r) && r.date.startsWith(isoPrefix))
-      .reduce((sum, r) => sum + r.amount, 0);
-    const expenses = scopedExpenses
-      .filter((e) => e.date.startsWith(isoPrefix))
-      .reduce((sum, e) => sum + e.amount, 0);
-    return {
-      month: label,
-      revenue,
-      expenses,
-      profit: revenue - expenses,
-    };
-  });
+  const buckets = resolveChartMonthBuckets(
+    period,
+    revenueRecords,
+    expenseRecords,
+    useDataDrivenMonths
+  );
+
+  return buckets.map(({ isoPrefix, label }) =>
+    aggregateBucket(
+      scopedRevenue,
+      scopedExpenses,
+      (r) => r.date.startsWith(isoPrefix),
+      (e) => e.date.startsWith(isoPrefix),
+      label
+    )
+  );
 }
 
 // ─── Receivables ──────────────────────────────────────────────────────────────
@@ -392,25 +467,36 @@ export function calculateAverageDaysOverdue(records: ReceivableRecord[]): number
 export function computeFinancialKPIs(
   revenue: RevenueRecord[],
   expenses: ExpenseRecord[],
-  receivables: ReceivableRecord[]
+  receivables: ReceivableRecord[],
+  options?: { usesImportedData?: boolean }
 ): FinancialKPIs {
+  const totalRevenue = calculateTotalRevenue(revenue);
+  const totalCost = calculateTotalCost(revenue);
+  const grossProfit = totalRevenue - totalCost;
+  const totalExpenses = calculateTotalExpenses(expenses);
+  const netProfit = grossProfit - totalExpenses;
+
   return {
-    totalRevenue: calculateTotalRevenue(revenue),
+    totalRevenue,
     collectedRevenue: calculateCollectedRevenue(revenue),
     pendingRevenue: calculatePendingRevenue(revenue),
     overdueRevenue: calculateOverdueRevenue(revenue),
     topRevenueCategory: calculateTopRevenueCategory(revenue),
-    totalExpenses: calculateTotalExpenses(expenses),
+    totalCost,
+    grossProfit,
+    totalExpenses,
     paidExpenses: calculatePaidExpenses(expenses),
     pendingExpenses: calculatePendingExpenses(expenses),
     overdueExpenses: calculateOverdueExpenses(expenses),
     largestExpenseCategory: calculateLargestExpenseCategory(expenses),
-    netProfit: calculateNetProfit(revenue, expenses),
-    profitMargin: calculateProfitMargin(revenue, expenses),
+    netProfit,
+    profitMargin:
+      totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0,
     receivablesTotalOutstanding: calculateReceivablesTotalOutstanding(receivables),
     receivablesOverdueAmount: calculateReceivablesOverdueAmount(receivables),
     receivablesInvoicesOverdue: calculateReceivablesInvoicesOverdue(receivables),
     receivablesCollectionRate: calculateReceivablesCollectionRate(receivables),
+    usesImportedData: options?.usesImportedData ?? false,
   };
 }
 

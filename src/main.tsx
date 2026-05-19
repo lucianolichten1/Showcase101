@@ -2,12 +2,15 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
+import { FinancialDataProvider } from "./domains/financial/FinancialDataContext.tsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <FinancialDataProvider>
+        <App />
+      </FinancialDataProvider>
     </BrowserRouter>
   </StrictMode>
 );

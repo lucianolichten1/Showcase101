@@ -1,3 +1,6 @@
+import type { Dispatch, SetStateAction } from "react";
+import type { ImportedData, ImportMapping } from "@/domains/import/types";
+
 /** ISO date string (YYYY-MM-DD) */
 export type ISODate = string;
 
@@ -83,6 +86,8 @@ export interface RevenueRecord extends FinancialTransaction {
   paymentMethod: PaymentMethod;
   invoiceNumber: string;
   notes: string;
+  /** Product cost from import (COGS); defaults to 0 when absent */
+  cost?: number;
 }
 
 export interface ExpenseRecord extends FinancialTransaction {
@@ -151,10 +156,11 @@ export type ExpenseSortKey = (typeof EXPENSE_SORT_KEYS)[number];
 export type RevenueSortDirection = "asc" | "desc";
 export type ExpenseSortDirection = "asc" | "desc";
 
-/** One month of revenue vs expenses for charts and summaries */
+/** One period bucket for charts and summaries */
 export interface MonthlyFinancialSummary {
   month: string;
   revenue: number;
+  cost: number;
   expenses: number;
   profit: number;
 }
@@ -171,10 +177,32 @@ export interface FinancialKPIs {
   pendingExpenses: number;
   overdueExpenses: number;
   largestExpenseCategory: string;
+  totalCost: number;
+  grossProfit: number;
   netProfit: number;
   profitMargin: number;
+  usesImportedData: boolean;
   receivablesTotalOutstanding: number;
   receivablesOverdueAmount: number;
   receivablesInvoicesOverdue: number;
   receivablesCollectionRate: number;
+}
+
+export interface UseFinancialDataResult {
+  revenueRecords: RevenueRecord[];
+  setRevenueRecords: Dispatch<SetStateAction<RevenueRecord[]>>;
+  expenseRecords: ExpenseRecord[];
+  setExpenseRecords: Dispatch<SetStateAction<ExpenseRecord[]>>;
+  receivableRecords: ReceivableRecord[];
+  setReceivableRecords: Dispatch<SetStateAction<ReceivableRecord[]>>;
+  dateRange: DateRange;
+  setDateRange: Dispatch<SetStateAction<DateRange>>;
+  filteredRevenueRecords: RevenueRecord[];
+  filteredExpenseRecords: ExpenseRecord[];
+  kpis: FinancialKPIs;
+  usesImportedData: boolean;
+  importedData: ImportedData | null;
+  importMapping: ImportMapping | null;
+  applyImportedData: (data: ImportedData, mapping: ImportMapping) => void;
+  clearImportedData: () => void;
 }

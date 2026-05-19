@@ -30,11 +30,14 @@ function tooltipLabel(name: string): string {
 }
 
 export function FinancialChart({ period }: FinancialChartProps) {
-  const { revenueRecords, expenseRecords } = useFinancialData();
+  const { revenueRecords, expenseRecords, usesImportedData } = useFinancialData();
 
   const monthlyFinancials = useMemo(
-    () => computeMonthlyFinancials(revenueRecords, expenseRecords, period),
-    [revenueRecords, expenseRecords, period]
+    () =>
+      computeMonthlyFinancials(revenueRecords, expenseRecords, period, {
+        useDataDrivenMonths: usesImportedData,
+      }),
+    [revenueRecords, expenseRecords, period, usesImportedData]
   );
 
   const chartSubtitle = getFinancialChartSubtitle(period);
