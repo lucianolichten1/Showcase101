@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ALL_FILTER = "all";
+const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
 
 type RevenueFormState = Omit<RevenueRecord, "id">;
 
@@ -187,7 +188,7 @@ export function RevenuePage() {
               {formatCurrency(kpis.totalRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {filteredRevenueRecords.filter(isActiveRevenue).length} active records
+              {FINANCIAL_YTD_LABEL} · {filteredRevenueRecords.filter(isActiveRevenue).length} active records
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -197,7 +198,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-green-700">
               {formatCurrency(kpis.collectedRevenue)}
             </span>
-            <span className="text-[10px] text-stone-400">Payments received</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · payments received</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -206,7 +207,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-amber-700">
               {formatCurrency(kpis.pendingRevenue)}
             </span>
-            <span className="text-[10px] text-stone-400">Awaiting collection</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · awaiting collection</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -215,7 +216,7 @@ export function RevenuePage() {
             <span className="text-lg font-bold text-stone-900 truncate">
               {kpis.topRevenueCategory}
             </span>
-            <span className="text-[10px] text-stone-400">By category total</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · by category total</span>
           </div>
         </div>
 

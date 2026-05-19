@@ -12,6 +12,17 @@ import { useFinancialData } from "@/domains/financial/hooks";
 import type { KPIData } from "@/data/types";
 import { Download, Calendar } from "lucide-react";
 
+const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
+
+function kpiPeriodSubtitle(title: string): string | undefined {
+  if (title === "Total Revenue" || title === "Total Expenses" || title === "Net Profit") {
+    return FINANCIAL_YTD_LABEL;
+  }
+  if (title === "Accounts Receivable") return "Outstanding receivables";
+  if (title === "Corn Production" || title === "Cattle Count") return "Current operation data";
+  return undefined;
+}
+
 export function DashboardPage() {
   const { kpis: agroKpis } = useAgroData();
   const { kpis: financialKpis } = useFinancialData();
@@ -48,7 +59,7 @@ export function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="px-3 py-1.5 bg-stone-100 rounded border border-stone-200 text-xs text-stone-600 font-medium flex items-center gap-2">
               <Calendar className="w-3 h-3 text-stone-600" />
-              This Month
+              Jan–Jun 2026
             </div>
             <button className="bg-stone-800 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm flex items-center">
               <Download className="mr-2 h-3 w-3" />
@@ -68,6 +79,7 @@ export function DashboardPage() {
                 trend={kpi.trend}
                 trendText={kpi.trendText}
                 trendStatus={kpi.trendStatus}
+                subtitle={kpiPeriodSubtitle(kpi.title)}
               />
             </Fragment>
           ))}

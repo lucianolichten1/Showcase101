@@ -299,7 +299,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Outstanding</span>
             <span className="text-lg font-bold text-stone-900">{formatCurrency(totalOutstanding)}</span>
-            <span className="text-[10px] text-stone-400">Pending + Overdue</span>
+            <span className="text-[10px] text-stone-400">Outstanding receivables</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Overdue Amount</span>

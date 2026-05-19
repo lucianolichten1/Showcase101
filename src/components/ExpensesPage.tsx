@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ALL_FILTER = "all";
+const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
 
 type ExpenseFormState = Omit<ExpenseRecord, "id">;
 
@@ -177,7 +178,7 @@ export function ExpensesPage() {
               {formatCurrency(kpis.totalExpenses)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {filteredExpenseRecords.length} records
+              {FINANCIAL_YTD_LABEL} · {filteredExpenseRecords.length} records
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -187,7 +188,7 @@ export function ExpensesPage() {
             <span className="text-lg font-bold text-green-700">
               {formatCurrency(kpis.paidExpenses)}
             </span>
-            <span className="text-[10px] text-stone-400">Settled payments</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · settled payments</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -196,7 +197,7 @@ export function ExpensesPage() {
             <span className="text-lg font-bold text-amber-700">
               {formatCurrency(kpis.pendingExpenses)}
             </span>
-            <span className="text-[10px] text-stone-400">Awaiting payment</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · awaiting payment</span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
@@ -205,7 +206,7 @@ export function ExpensesPage() {
             <span className="text-lg font-bold text-stone-900 truncate">
               {kpis.largestExpenseCategory}
             </span>
-            <span className="text-[10px] text-stone-400">By total amount</span>
+            <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL} · by total amount</span>
           </div>
         </div>
 

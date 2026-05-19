@@ -14,6 +14,7 @@ const MAY_REVENUE = monthlyFinancials[MAY_IDX].revenue;  // 185,400
 const MAY_EXPENSES = monthlyFinancials[MAY_IDX].expenses; // 127,850
 
 const COGS_CATEGORIES = ["Feed", "Fertilizer"];
+const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
 
 // Revenue breakdown at May baseline — derived from agro plot domain + livestock remainder
 const plotRevenue = plots.reduce((sum, p) => sum + p.revenue, 0);
@@ -129,7 +130,9 @@ export function ReportsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-stone-900">Reports</h1>
-          <p className="text-xs text-stone-500 mt-0.5">Financial performance overview</p>
+          <p className="text-xs text-stone-500 mt-0.5">
+            P&L by month · year-to-date summary (Jan–Jun 2026)
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Month selector */}
@@ -164,22 +167,26 @@ export function ReportsPage() {
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Revenue</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalRevenue)}</span>
-          <span className="text-[10px] text-stone-400">From transaction records</span>
+          <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL}</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Gross Profit</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(grossProfit)}</span>
-          <span className="text-[10px] text-stone-400 font-medium">{grossMargin}% margin (monthly view)</span>
+          <span className="text-[10px] text-stone-400 font-medium">
+            {grossMargin}% margin · {current.month} 2026 P&L
+          </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Expenses</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalExpenses)}</span>
-          <span className="text-[10px] text-stone-400">From transaction records</span>
+          <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL}</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Net Profit</span>
           <span className="text-lg font-bold text-green-700">{formatCurrency(financialKpis.netProfit)}</span>
-          <span className="text-[10px] text-stone-400 font-medium">{Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin</span>
+          <span className="text-[10px] text-stone-400 font-medium">
+            {Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin · {FINANCIAL_YTD_LABEL}
+          </span>
         </div>
       </div>
 

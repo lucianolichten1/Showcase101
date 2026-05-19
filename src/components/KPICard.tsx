@@ -3,7 +3,9 @@ import type { KPIData } from "@/data/types";
 type KPICardProps = Pick<
   KPIData,
   "title" | "value" | "trend" | "trendText" | "trendStatus"
->;
+> & {
+  subtitle?: string;
+};
 
 export function KPICard({
   title,
@@ -11,6 +13,7 @@ export function KPICard({
   trend,
   trendText,
   trendStatus = "neutral",
+  subtitle,
 }: KPICardProps) {
   return (
     <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-center gap-1">
@@ -27,6 +30,9 @@ export function KPICard({
           <span className="text-[10px] text-stone-400 font-medium">{trendText || "Stable"}</span>
         )}
       </div>
+      {subtitle && (
+        <span className="text-[10px] text-stone-400 leading-snug">{subtitle}</span>
+      )}
     </div>
   );
 }
