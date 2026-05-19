@@ -1,7 +1,8 @@
-import { receivables } from "@/data/mockData";
+import { useFinancialData } from "@/domains/financial/hooks";
 import { cn } from "@/lib/utils";
 
 export function ReceivablesTable() {
+  const { receivableRecords } = useFinancialData();
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden flex flex-col w-full h-full">
       <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">Accounts Receivable</h3>
@@ -17,10 +18,10 @@ export function ReceivablesTable() {
             </tr>
           </thead>
           <tbody className="text-[11px] text-stone-800">
-            {receivables.map((row) => (
+            {receivableRecords.map((row) => (
               <tr key={row.id} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-100 cursor-pointer transition-colors">
                 <td className="font-medium">{row.customer}</td>
-                <td className="font-bold">Bs {row.amount.toLocaleString()}</td>
+                <td className="font-bold">Bs {(row.amount - row.amountPaid).toLocaleString()}</td>
                 <td>{row.dueDate}</td>
                 <td>
                   {row.overdueDays > 0 ? (
