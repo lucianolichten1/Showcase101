@@ -58,9 +58,9 @@ export function DashboardPage() {
   const kpiCards = useMemo((): KPIData[] => {
     return dashboardKPIs.map((kpi) => {
       if (kpi.title === "Corn Production")
-        return { ...kpi, value: `${agroKpis.totalActualYieldTons} tons` };
+        return { ...kpi, value: `${agroKpis.totalActualYieldTons} tons`, trendStatus: "neutral" as const, trendText: "−4% vs last season" };
       if (kpi.title === "Cattle Count")
-        return { ...kpi, value: `${agroKpis.totalHeadCount} head` };
+        return { ...kpi, value: `${agroKpis.totalHeadCount} head`, trendStatus: "neutral" as const, trendText: "+2% growth" };
       if (kpi.title === "Total Revenue")
         return { ...kpi, value: formatCurrency(financialKpis.totalRevenue) };
       if (kpi.title === "Total Expenses")
