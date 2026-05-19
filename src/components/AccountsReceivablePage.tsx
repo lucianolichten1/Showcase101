@@ -123,7 +123,7 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
   const [showAddInvoice, setShowAddInvoice] = useState(false);
 
-  // ── KPIs (always from full unfiltered receivables, via domain calculations) ─
+  // ── KPIs (all receivables; period filter needs ISO due dates) ─
 
   const activeReceivables = receivables.filter(isActiveReceivable);
   const totalOutstanding = calculateReceivablesTotalOutstanding(receivables);
@@ -274,7 +274,9 @@ export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddR
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-stone-900">Accounts Receivable</h1>
-            <p className="text-xs text-stone-500 mt-0.5">Outstanding balances and payment status</p>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Outstanding balances and payment status · period filter requires ISO due dates
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button

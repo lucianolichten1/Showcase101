@@ -37,6 +37,49 @@ export function filterRecordsByDateRange<T extends { date: string }>(
   return records.filter((r) => isWithinDateRange(r.date, range));
 }
 
+/** Short month abbreviations used in receivable dueDate display (e.g. "May 10") */
+const RECEIVABLE_DUE_MONTH_ABBREV = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/** Converts AR display due dates to ISO; demo data uses calendar year 2026 */
+export function receivableDueDateToIso(
+  dueDate: string,
+  year = 2026
+): string | null {
+  const [monthStr, dayStr] = dueDate.trim().split(/\s+/);
+  const monthIdx = RECEIVABLE_DUE_MONTH_ABBREV.indexOf(
+    monthStr as (typeof RECEIVABLE_DUE_MONTH_ABBREV)[number]
+  );
+  const day = parseInt(dayStr ?? "", 10);
+  if (monthIdx === -1 || Number.isNaN(day)) return null;
+  const month = String(monthIdx + 1).padStart(2, "0");
+  const dayPadded = String(day).padStart(2, "0");
+  return `${year}-${month}-${dayPadded}`;
+}
+
+export function filterReceivablesByDateRange(
+  records: ReceivableRecord[],
+  range: DateRange
+): ReceivableRecord[] {
+  if (!range.startDate && !range.endDate) return records;
+  return records.filter((r) => {
+    const iso = receivableDueDateToIso(r.dueDate);
+    return iso !== null && isWithinDateRange(iso, range);
+  });
+}
+
 // ─── Revenue ──────────────────────────────────────────────────────────────────
 
 export function isActiveRevenue(record: RevenueRecord): boolean {

@@ -1,22 +1,29 @@
-import { useState, useMemo, Fragment } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import { plots } from "@/domains/agro/mockData";
 import { useFinancialData } from "@/domains/financial/hooks";
+import {
+  DEFAULT_FINANCIAL_PERIOD,
+  DEMO_FINANCIAL_YEAR,
+  getDateRangeForPeriod,
+  getDemoPlMonthIndex,
+  getFinancialPeriodLabel,
+  getPlSectionSubtitle,
+  type FinancialPeriod,
+} from "@/domains/financial/period";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { cn } from "@/lib/utils";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// May (index 4) is the baseline for scaling revenue/expense line items
 const MAY_IDX = 4;
-const MAY_REVENUE = monthlyFinancials[MAY_IDX].revenue;  // 185,400
-const MAY_EXPENSES = monthlyFinancials[MAY_IDX].expenses; // 127,850
+const MAY_REVENUE = monthlyFinancials[MAY_IDX].revenue;
+const MAY_EXPENSES = monthlyFinancials[MAY_IDX].expenses;
 
 const COGS_CATEGORIES = ["Feed", "Fertilizer"];
-const FINANCIAL_YTD_LABEL = "2026 year-to-date (Jan–Jun)";
 
-// Revenue breakdown at May baseline — derived from agro plot domain + livestock remainder
 const plotRevenue = plots.reduce((sum, p) => sum + p.revenue, 0);
 const BASE_REVENUE_LINES = [
   ...plots.map((p) => ({ label: `Corn Sales — ${p.name}`, amount: p.revenue })),
@@ -71,16 +78,31 @@ function TrendBadge({ pct }: { pct: number | null }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  const [selectedIdx, setSelectedIdx] = useState(MAY_IDX);
-  const { kpis: financialKpis } = useFinancialData();
+  const { kpis: financialKpis, setDateRange } = useFinancialData();
+  const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
+  const periodLabel = getFinancialPeriodLabel(period);
+  const plMonthIdx = getDemoPlMonthIndex(period);
+  const plSubtitle = getPlSectionSubtitle(period);
 
-  const current = monthlyFinancials[selectedIdx];
-  const prev = selectedIdx > 0 ? monthlyFinancials[selectedIdx - 1] : null;
+  const handlePeriodChange = (next: FinancialPeriod) => {
+    setPeriod(next);
+    setDateRange(getDateRangeForPeriod(next));
+  };
+
+  const handlePlMonthSelect = (idx: number) => {
+    handlePeriodChange({
+      kind: "month",
+      year: DEMO_FINANCIAL_YEAR,
+      month: idx + 1,
+    });
+  };
+
+  const current = monthlyFinancials[plMonthIdx];
+  const prev = plMonthIdx > 0 ? monthlyFinancials[plMonthIdx - 1] : null;
 
   const trendPct = (cur: number, prv: number | undefined) =>
     prv && prv > 0 ? Math.round(((cur - prv) / prv) * 100) : null;
 
-  // Scale line items proportionally to the selected month
   const revenueScale = current.revenue / MAY_REVENUE;
   const expenseScale = current.expenses / MAY_EXPENSES;
 
@@ -102,10 +124,8 @@ export function ReportsPage() {
   const grossProfit = totalRevenue - totalCOGS;
   const totalOpEx = opexCategories.reduce((s, e) => s + e.amount, 0);
   const netProfit = grossProfit - totalOpEx;
-  const grossMargin = Math.round((grossProfit / totalRevenue) * 100);
-  const netMargin = Math.round((netProfit / totalRevenue) * 100);
-
-  // ── Export ───────────────────────────────────────────────────────────────────
+  const grossMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0;
+  const netMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
   const handleExport = () => {
     const headers = ["Item", "Category", "Amount (Bs)"];
@@ -122,39 +142,25 @@ export function ReportsPage() {
     downloadCsvFile(rowsToCsv(headers, rows), `pl-${current.month}-2026.csv`);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <main className="flex flex-col gap-5 p-5 lg:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
           <h1 className="text-lg font-bold text-stone-900">Reports</h1>
           <p className="text-xs text-stone-500 mt-0.5">
-            P&L by month · year-to-date summary (Jan–Jun 2026)
+            Financial summary for <span className="font-medium text-stone-700">{periodLabel}</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Month selector */}
-          <div className="flex items-center bg-white border border-stone-200 rounded-lg shadow-sm overflow-hidden">
-            {monthlyFinancials.map((m, idx) => (
-              <button
-                key={m.month}
-                onClick={() => setSelectedIdx(idx)}
-                className={cn(
-                  "px-3 py-2 text-xs font-semibold transition-colors border-r border-stone-200 last:border-r-0",
-                  selectedIdx === idx
-                    ? "bg-green-800 text-white"
-                    : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
-                )}
-              >
-                {m.month}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+          <FinancialPeriodFilter
+            id="reports-period"
+            period={period}
+            onPeriodChange={handlePeriodChange}
+            className="w-full sm:w-auto"
+          />
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors h-[34px] sm:mb-0 mb-0 self-end"
           >
             <Download size={13} />
             Export
@@ -162,40 +168,41 @@ export function ReportsPage() {
         </div>
       </div>
 
-      {/* KPI Row — Revenue & Expenses from transaction records; Gross/Net Profit from P&L */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Revenue</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalRevenue)}</span>
-          <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL}</span>
+          <span className="text-[10px] text-stone-400">{periodLabel} · from records</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Gross Profit</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(grossProfit)}</span>
           <span className="text-[10px] text-stone-400 font-medium">
-            {grossMargin}% margin · {current.month} 2026 P&L
+            {grossMargin}% margin · {plSubtitle}
           </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Expenses</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalExpenses)}</span>
-          <span className="text-[10px] text-stone-400">{FINANCIAL_YTD_LABEL}</span>
+          <span className="text-[10px] text-stone-400">{periodLabel} · from records</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Net Profit</span>
           <span className="text-lg font-bold text-green-700">{formatCurrency(financialKpis.netProfit)}</span>
           <span className="text-[10px] text-stone-400 font-medium">
-            {Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin · {FINANCIAL_YTD_LABEL}
+            {financialKpis.totalRevenue > 0
+              ? `${Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin`
+              : "—"}{" "}
+            · {periodLabel} · from records
           </span>
         </div>
       </div>
 
-      {/* P&L Statement */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement — Monthly View</h3>
-          <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
-            {current.month} 2026
+          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement</h3>
+          <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right max-w-[220px]">
+            {plSubtitle}
           </span>
         </div>
 
@@ -233,15 +240,17 @@ export function ReportsPage() {
         <div className="mt-4 rounded-lg bg-stone-50 border border-stone-100 px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">AI Insight — coming soon</p>
           <p className="text-xs text-stone-500 leading-relaxed">
-            Net profit of {formatCurrency(netProfit)} represents a {netMargin}% margin in {current.month} 2026.
+            Net profit of {formatCurrency(netProfit)} represents a {netMargin}% margin in {current.month} {DEMO_FINANCIAL_YEAR}.
             Feed and fertilizer costs account for the largest share of COGS at {formatCurrency(totalCOGS)}.
           </p>
         </div>
       </div>
 
-      {/* Monthly Trend Table */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-        <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">Monthly Trend</h3>
+        <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-1">Monthly Trend</h3>
+        <p className="text-[10px] text-stone-400 mb-3">
+          Demo P&L months (Jan–Jun {DEMO_FINANCIAL_YEAR}). Click a row to set period to that month.
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
@@ -256,22 +265,22 @@ export function ReportsPage() {
             </thead>
             <tbody className="text-[11px] text-stone-800">
               {monthlyFinancials.map((row, idx) => {
-                const margin = Math.round((row.profit / row.revenue) * 100);
-                const isSelected = idx === selectedIdx;
+                const margin = row.revenue > 0 ? Math.round((row.profit / row.revenue) * 100) : 0;
+                const isSelected = idx === plMonthIdx;
                 const prevRow = idx > 0 ? monthlyFinancials[idx - 1] : null;
                 const profitTrend = prevRow ? trendPct(row.profit, prevRow.profit) : null;
                 return (
                   <tr
                     key={row.month}
-                    onClick={() => setSelectedIdx(idx)}
+                    onClick={() => handlePlMonthSelect(idx)}
                     className={cn(
                       "h-10 border-b border-stone-50 last:border-0 cursor-pointer transition-colors",
                       isSelected ? "bg-green-50 hover:bg-green-50" : "hover:bg-stone-50"
                     )}
                   >
                     <td className={cn("pr-6 font-semibold", isSelected && "text-green-800")}>
-                      {row.month} 2026
-                      {isSelected && <span className="text-[9px] text-green-600 font-bold ml-1">← selected</span>}
+                      {row.month} {DEMO_FINANCIAL_YEAR}
+                      {isSelected && <span className="text-[9px] text-green-600 font-bold ml-1">← period</span>}
                     </td>
                     <td className="pr-6">{formatCurrency(row.revenue)}</td>
                     <td className="pr-6">{formatCurrency(row.expenses)}</td>
@@ -294,7 +303,9 @@ export function ReportsPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-stone-400 mt-2">Click any row to view that month's P&L above.</p>
+        <p className="text-[10px] text-stone-400 mt-2">
+          When period is All or YTD, P&L shows the latest demo month (Jun {DEMO_FINANCIAL_YEAR}) as a sample breakdown.
+        </p>
       </div>
     </main>
   );

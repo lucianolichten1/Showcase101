@@ -1,14 +1,11 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { computeFinancialKPIs, filterRecordsByDateRange } from "./calculations";
 import {
-  computeFinancialKPIs,
-  filterRecordsByDateRange,
-} from "./calculations";
-import {
-  defaultDateRange,
   initialExpenseRecords,
   initialReceivableRecords,
   initialRevenueRecords,
 } from "./mockData";
+import { DEFAULT_FINANCIAL_PERIOD, getDateRangeForPeriod } from "./period";
 import type {
   DateRange,
   ExpenseRecord,
@@ -59,10 +56,7 @@ export function useFinancialData(
     options.initialReceivables ?? initialReceivableRecords
   );
   const [dateRange, setDateRange] = useState<DateRange>(
-    options.initialDateRange ?? {
-      startDate: defaultDateRange.startDate,
-      endDate: defaultDateRange.endDate,
-    }
+    options.initialDateRange ?? getDateRangeForPeriod(DEFAULT_FINANCIAL_PERIOD)
   );
 
   const filteredRevenueRecords = useMemo(
