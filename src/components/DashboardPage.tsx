@@ -27,6 +27,23 @@ function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefin
   return undefined;
 }
 
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500">{title}</h2>
+      {description && (
+        <p className="text-sm text-stone-600 mt-1">{description}</p>
+      )}
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { kpis: agroKpis } = useAgroData();
   const { kpis: financialKpis, setDateRange } = useFinancialData();
@@ -57,69 +74,83 @@ export function DashboardPage() {
   }, [agroKpis, financialKpis]);
 
   return (
-    <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0">
-      <header className="h-14 bg-white border-b border-stone-200 px-6 sm:px-10 flex items-center justify-between shadow-sm flex-shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between w-full max-w-7xl mx-auto">
-          <div className="flex flex-col">
-            <h1 className="text-lg font-bold text-stone-900 leading-none flex items-center">
-              Agro Dashboard
-            </h1>
-            <p className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold mt-1">Financial & Operational Overview</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
+    <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8 sm:space-y-10">
+          {/* Page header */}
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
+                Agro Dashboard
+              </h1>
+              <p className="text-sm text-stone-600 mt-1 max-w-xl">
+                Financial and operational overview for your farm. Use the period
+                selector to focus KPIs and the chart on a specific timeframe.
+              </p>
+            </div>
             <FinancialPeriodFilter
               id="dashboard-period"
               period={period}
               onPeriodChange={handlePeriodChange}
-              className="w-44"
+              className="w-full sm:w-52 shrink-0"
             />
-          </div>
-        </div>
-      </header>
+          </section>
 
-      <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          {kpiCards.map((kpi) => (
-            <Fragment key={kpi.title}>
-              <KPICard
-                title={kpi.title}
-                value={kpi.value}
-                trend={kpi.trend}
-                trendText={kpi.trendText}
-                trendStatus={kpi.trendStatus}
-                subtitle={kpiPeriodSubtitle(kpi.title, periodLabel)}
-              />
-            </Fragment>
-          ))}
-        </div>
+          {/* KPIs */}
+          <section>
+            <SectionHeading
+              title="Key metrics"
+              description={`Snapshot for ${periodLabel.toLowerCase()}`}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+              {kpiCards.map((kpi) => (
+                <Fragment key={kpi.title}>
+                  <KPICard
+                    title={kpi.title}
+                    value={kpi.value}
+                    trend={kpi.trend}
+                    trendText={kpi.trendText}
+                    trendStatus={kpi.trendStatus}
+                    subtitle={kpiPeriodSubtitle(kpi.title, periodLabel)}
+                  />
+                </Fragment>
+              ))}
+            </div>
+          </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="col-span-1 lg:col-span-8">
-            <FinancialChart />
-          </div>
-          <div className="col-span-1 lg:col-span-4 h-full">
-            <AIInsightsPanel />
-          </div>
-        </div>
+          {/* Financial chart + insights */}
+          <section>
+            <SectionHeading
+              title="Financial overview"
+              description="Monthly revenue and expenses based on your selected period"
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+              <div className="lg:col-span-8">
+                <FinancialChart period={period} />
+              </div>
+              <div className="lg:col-span-4">
+                <AIInsightsPanel />
+              </div>
+            </div>
+          </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="col-span-1 lg:col-span-4">
-            <CropTable />
-          </div>
-          <div className="col-span-1 lg:col-span-4">
-            <LivestockTable />
-          </div>
-          <div className="col-span-1 lg:col-span-4">
-            <ExpenseBreakdown />
-          </div>
+          {/* Operations */}
+          <section>
+            <SectionHeading
+              title="Operations"
+              description="Crops, livestock, expenses, and receivables"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+              <CropTable />
+              <LivestockTable />
+              <ExpenseBreakdown />
+            </div>
+            <div className="mt-4 lg:mt-6">
+              <ReceivablesTable />
+            </div>
+          </section>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="col-span-1 lg:col-span-12">
-            <ReceivablesTable />
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
