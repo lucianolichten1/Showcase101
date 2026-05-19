@@ -9,7 +9,7 @@ import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { AIInsightsPanel } from "./AIInsightsPanel";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useAgroData } from "@/domains/agro/hooks";
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -46,9 +46,12 @@ function SectionHeading({
 
 export function DashboardPage() {
   const { kpis: agroKpis } = useAgroData();
-  const { kpis: financialKpis, setDateRange } = useFinancialData();
+  const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
+    useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
+
+  useSyncFinancialPeriod(period, setDateRange);
 
   const handlePeriodChange = (next: FinancialPeriod) => {
     setPeriod(next);
@@ -100,7 +103,11 @@ export function DashboardPage() {
           <section>
             <SectionHeading
               title="Key metrics"
-              description={`Snapshot for ${periodLabel.toLowerCase()}`}
+              description={
+                usesImportedData && importedData
+                  ? `Imported data · ${periodLabel.toLowerCase()}`
+                  : `Snapshot for ${periodLabel.toLowerCase()}`
+              }
             />
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
               {kpiCards.map((kpi) => (
@@ -122,7 +129,11 @@ export function DashboardPage() {
           <section>
             <SectionHeading
               title="Financial overview"
-              description="Monthly revenue and expenses based on your selected period"
+              description={
+                usesImportedData
+                  ? "Monthly revenue and expenses from imported data"
+                  : "Monthly revenue and expenses based on your selected period"
+              }
             />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
               <div className="lg:col-span-8">

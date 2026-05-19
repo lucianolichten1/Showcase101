@@ -9,16 +9,27 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  expenseRecordsToImport,
   importExpensesToFinancial,
+  revenueRecordsToSales,
   salesToRevenueRecords,
 } from "@/domains/import/convert";
 import {
+  addImportHistoryItem,
+  clearImportHistory,
+  clearImportedData as clearPersistedImportedData,
   loadImportedData,
+  loadImportHistory,
   loadImportMapping,
   saveImportedData,
   saveImportMapping,
 } from "@/domains/import/storage";
-import type { ImportedData, ImportMapping } from "@/domains/import/types";
+import type {
+  ImportedData,
+  ImportHistoryItem,
+  ImportHistoryMeta,
+  ImportMapping,
+} from "@/domains/import/types";
 import { computeFinancialKPIs, filterRecordsByDateRange } from "./calculations";
 import {
   initialExpenseRecords,
@@ -49,7 +60,13 @@ export interface FinancialDataContextValue {
   usesImportedData: boolean;
   importedData: ImportedData | null;
   importMapping: ImportMapping | null;
-  applyImportedData: (data: ImportedData, mapping: ImportMapping) => void;
+  importHistory: ImportHistoryItem[];
+  applyImportedData: (
+    data: ImportedData,
+    mapping: ImportMapping,
+    historyMeta: ImportHistoryMeta
+  ) => void;
+  appendImportHistory: (item: ImportHistoryItem) => void;
   clearImportedData: () => void;
 }
 
@@ -57,28 +74,22 @@ const FinancialDataContext = createContext<FinancialDataContextValue | null>(
   null
 );
 
-function buildRecordsFromImport(data: ImportedData | null): {
-  revenue: RevenueRecord[];
-  expenses: ExpenseRecord[];
-  usesImported: boolean;
-} {
-  if (!data || (data.sales.length === 0 && data.expenses.length === 0)) {
-    return {
-      revenue: initialRevenueRecords,
-      expenses: initialExpenseRecords,
-      usesImported: false,
-    };
-  }
+function hasActiveImport(data: ImportedData | null): boolean {
+  return Boolean(data && (data.sales.length > 0 || data.expenses.length > 0));
+}
+
+function createHistoryItem(
+  meta: ImportHistoryMeta,
+  importedAt: string
+): ImportHistoryItem {
   return {
-    revenue:
-      data.sales.length > 0
-        ? salesToRevenueRecords(data.sales)
-        : [],
-    expenses:
-      data.expenses.length > 0
-        ? importExpensesToFinancial(data.expenses)
-        : [],
-    usesImported: true,
+    id: `import-${Date.now()}`,
+    fileName: meta.fileName,
+    importedAt,
+    salesRows: meta.salesRows,
+    expenseRows: meta.expenseRows,
+    skippedRows: meta.skippedRows,
+    warningCount: meta.warningCount,
   };
 }
 
@@ -89,17 +100,15 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
   const [importMapping, setImportMapping] = useState<ImportMapping | null>(() =>
     loadImportMapping()
   );
-
-  const initialRecords = useMemo(
-    () => buildRecordsFromImport(importedData),
-    [importedData]
+  const [importHistory, setImportHistory] = useState<ImportHistoryItem[]>(() =>
+    loadImportHistory()
   );
 
-  const [revenueRecords, setRevenueRecords] = useState<RevenueRecord[]>(
-    initialRecords.revenue
+  const [mockRevenueRecords, setMockRevenueRecords] = useState<RevenueRecord[]>(
+    () => initialRevenueRecords
   );
-  const [expenseRecords, setExpenseRecords] = useState<ExpenseRecord[]>(
-    initialRecords.expenses
+  const [mockExpenseRecords, setMockExpenseRecords] = useState<ExpenseRecord[]>(
+    () => initialExpenseRecords
   );
   const [receivableRecords, setReceivableRecords] = useState<ReceivableRecord[]>(
     initialReceivableRecords
@@ -108,26 +117,88 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     getDateRangeForPeriod(DEFAULT_FINANCIAL_PERIOD)
   );
 
-  const usesImportedData = initialRecords.usesImported;
+  const usesImportedData = hasActiveImport(importedData);
+
+  /** Active revenue: derived from imported sales when import is active, else mock. */
+  const revenueRecords = useMemo(() => {
+    if (!usesImportedData || !importedData) return mockRevenueRecords;
+    if (importedData.sales.length === 0) return [];
+    return salesToRevenueRecords(importedData.sales);
+  }, [usesImportedData, importedData, mockRevenueRecords]);
+
+  /** Active expenses: derived from imported rows when import is active, else mock. */
+  const expenseRecords = useMemo(() => {
+    if (!usesImportedData || !importedData) return mockExpenseRecords;
+    if (importedData.expenses.length === 0) return [];
+    return importExpensesToFinancial(importedData.expenses);
+  }, [usesImportedData, importedData, mockExpenseRecords]);
+
+  const setRevenueRecords = useCallback(
+    (action: SetStateAction<RevenueRecord[]>) => {
+      if (usesImportedData && importedData) {
+        const current =
+          importedData.sales.length > 0
+            ? salesToRevenueRecords(importedData.sales)
+            : [];
+        const next = typeof action === "function" ? action(current) : action;
+        const updated: ImportedData = {
+          ...importedData,
+          sales: revenueRecordsToSales(next),
+        };
+        saveImportedData(updated);
+        setImportedData(updated);
+        return;
+      }
+      setMockRevenueRecords(action);
+    },
+    [usesImportedData, importedData]
+  );
+
+  const setExpenseRecords = useCallback(
+    (action: SetStateAction<ExpenseRecord[]>) => {
+      if (usesImportedData && importedData) {
+        const current =
+          importedData.expenses.length > 0
+            ? importExpensesToFinancial(importedData.expenses)
+            : [];
+        const next = typeof action === "function" ? action(current) : action;
+        const updated: ImportedData = {
+          ...importedData,
+          expenses: expenseRecordsToImport(next),
+        };
+        saveImportedData(updated);
+        setImportedData(updated);
+        return;
+      }
+      setMockExpenseRecords(action);
+    },
+    [usesImportedData, importedData]
+  );
 
   const applyImportedData = useCallback(
-    (data: ImportedData, mapping: ImportMapping) => {
+    (data: ImportedData, mapping: ImportMapping, historyMeta: ImportHistoryMeta) => {
       saveImportedData(data);
       saveImportMapping(mapping);
+      const historyItem = createHistoryItem(historyMeta, data.importedAt);
+      const nextHistory = addImportHistoryItem(historyItem);
+
       setImportedData(data);
       setImportMapping(mapping);
-      const next = buildRecordsFromImport(data);
-      setRevenueRecords(next.revenue);
-      setExpenseRecords(next.expenses);
+      setImportHistory(nextHistory);
     },
     []
   );
 
-  const clearImportedData = useCallback(() => {
-    localStorage.removeItem("agro-import-data");
+  const appendImportHistory = useCallback((item: ImportHistoryItem) => {
+    const nextHistory = addImportHistoryItem(item);
+    setImportHistory(nextHistory);
+  }, []);
+
+  const clearImportedDataHandler = useCallback(() => {
+    clearPersistedImportedData();
+    clearImportHistory();
     setImportedData(null);
-    setRevenueRecords(initialRevenueRecords);
-    setExpenseRecords(initialExpenseRecords);
+    setImportHistory([]);
   }, []);
 
   const filteredRevenueRecords = useMemo(
@@ -172,8 +243,10 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
       usesImportedData,
       importedData,
       importMapping,
+      importHistory,
       applyImportedData,
-      clearImportedData,
+      appendImportHistory,
+      clearImportedData: clearImportedDataHandler,
     }),
     [
       revenueRecords,
@@ -186,8 +259,12 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
       usesImportedData,
       importedData,
       importMapping,
+      importHistory,
+      setRevenueRecords,
+      setExpenseRecords,
       applyImportedData,
-      clearImportedData,
+      appendImportHistory,
+      clearImportedDataHandler,
     ]
   );
 

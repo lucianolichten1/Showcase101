@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { isActiveRevenue, sortRevenueRecords } from "@/domains/financial/calculations";
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -90,6 +90,9 @@ export function RevenuePage() {
     useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
+
+  useSyncFinancialPeriod(period, setDateRange);
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);

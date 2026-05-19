@@ -51,6 +51,26 @@ export interface ImportedData {
   sourceFileName?: string;
 }
 
+/** One completed import shown in Recent imports */
+export interface ImportHistoryItem {
+  id: string;
+  fileName: string;
+  importedAt: string;
+  salesRows: number;
+  expenseRows: number;
+  skippedRows: number;
+  warningCount: number;
+}
+
+/** Metadata recorded when an Excel import succeeds */
+export interface ImportHistoryMeta {
+  fileName: string;
+  salesRows: number;
+  expenseRows: number;
+  skippedRows: number;
+  warningCount: number;
+}
+
 export const SALES_FIELD_KEYS = [
   "date",
   "revenue",

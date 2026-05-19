@@ -1,7 +1,17 @@
-import type { ImportedData, ImportMapping } from "./types";
+import type { ImportedData, ImportHistoryItem, ImportMapping } from "./types";
 
-const MAPPING_KEY = "agro-import-mapping";
-const DATA_KEY = "agro-import-data";
+/** Centralized localStorage keys for import persistence */
+export const IMPORT_STORAGE_KEYS = {
+  mapping: "agro-import-mapping",
+  data: "agro-import-data",
+  history: "agro-import-history",
+} as const;
+
+const MAPPING_KEY = IMPORT_STORAGE_KEYS.mapping;
+const DATA_KEY = IMPORT_STORAGE_KEYS.data;
+const HISTORY_KEY = IMPORT_STORAGE_KEYS.history;
+
+const MAX_HISTORY_ITEMS = 20;
 
 export function loadImportMapping(): ImportMapping | null {
   try {
@@ -40,4 +50,32 @@ export function clearImportedData(): void {
 export function hasImportedData(): boolean {
   const data = loadImportedData();
   return Boolean(data && (data.sales.length > 0 || data.expenses.length > 0));
+}
+
+export function loadImportHistory(): ImportHistoryItem[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const items = JSON.parse(raw) as ImportHistoryItem[];
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveImportHistory(items: ImportHistoryItem[]): void {
+  localStorage.setItem(
+    HISTORY_KEY,
+    JSON.stringify(items.slice(0, MAX_HISTORY_ITEMS))
+  );
+}
+
+export function addImportHistoryItem(item: ImportHistoryItem): ImportHistoryItem[] {
+  const next = [item, ...loadImportHistory()].slice(0, MAX_HISTORY_ITEMS);
+  saveImportHistory(next);
+  return next;
+}
+
+export function clearImportHistory(): void {
+  localStorage.removeItem(HISTORY_KEY);
 }

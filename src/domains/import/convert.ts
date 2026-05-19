@@ -36,3 +36,35 @@ export function importExpensesToFinancial(
     notes: row.category ?? "",
   }));
 }
+
+/** Convert financial revenue records back to imported sales shape (for edits/persistence). */
+export function revenueRecordsToSales(revenue: RevenueRecord[]): SalesRecord[] {
+  return revenue.map((record) => ({
+    id: record.id,
+    date: record.date,
+    revenue: record.amount,
+    customerName:
+      record.sourceClient && record.sourceClient !== "—"
+        ? record.sourceClient
+        : undefined,
+    product:
+      record.productService && record.productService !== "—"
+        ? record.productService
+        : undefined,
+    cost: record.cost,
+  }));
+}
+
+/** Convert financial expense records back to imported expense shape (for edits/persistence). */
+export function expenseRecordsToImport(
+  expenses: ExpenseRecord[]
+): ImportExpenseRecord[] {
+  return expenses.map((record) => ({
+    id: record.id,
+    date: record.date,
+    amount: record.amount,
+    category: record.notes || record.category,
+    description: record.description,
+    vendor: record.vendor !== "—" ? record.vendor : undefined,
+  }));
+}

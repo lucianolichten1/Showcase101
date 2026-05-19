@@ -16,7 +16,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportImportRecords as agroSeedRecords } from "@/domains/agro/mockData";
+import {
+  importHistoryToDisplayRow,
+  type ImportHistoryDisplayStatus,
+} from "@/domains/import/importHistoryDisplay";
+import { useFinancialData } from "@/domains/financial/hooks";
 import { ExcelImportWizard } from "./ExcelImportWizard";
 import {
   DETECTED_FIELDS,
@@ -38,8 +42,6 @@ const importSteps = [
   { label: "Review imported rows", step: 3 },
   { label: "Confirm import", step: 4 },
 ];
-
-const INITIAL_RECENT_IMPORTS = agroSeedRecords;
 
 const exportOptions = [
   {
@@ -77,19 +79,7 @@ const aiBullets = [
 
 const PIPELINE_STEPS = ["Upload", "Preview", "Confirm", "Export"] as const;
 
-type ImportStatus = "Completed" | "Needs Review";
-
-interface RecentImport {
-  id: string;
-  fileName: string;
-  type: "CSV" | "Excel";
-  rows: number;
-  status: ImportStatus;
-  uploadedBy: string;
-  date: string;
-}
-
-function StatusBadge({ status }: { status: ImportStatus }) {
+function StatusBadge({ status }: { status: ImportHistoryDisplayStatus }) {
   return (
     <span
       className={cn(
@@ -167,8 +157,19 @@ function getWorkflowProgress(state: {
 
 export function ExportImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    importHistory,
+    appendImportHistory,
+    usesImportedData,
+    importedData,
+  } = useFinancialData();
 
-  const [recentImports, setRecentImports] = useState<RecentImport[]>(INITIAL_RECENT_IMPORTS);
+  const recentImports = importHistory.map((item) =>
+    importHistoryToDisplayRow(
+      item,
+      item.fileName.toLowerCase().endsWith(".csv") ? "CSV" : "Excel"
+    )
+  );
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
@@ -274,17 +275,15 @@ export function ExportImportPage() {
     setImportedRows(parsedRows);
     setImportedHeaders(parsedHeaders);
 
-    const entry: RecentImport = {
+    appendImportHistory({
       id: `import-${Date.now()}`,
       fileName,
-      type: "CSV",
-      rows: parsedRows.length,
-      status: "Completed",
-      uploadedBy: "Luciano",
-      date: formatDisplayDate(),
-    };
-
-    setRecentImports((prev) => [entry, ...prev]);
+      importedAt: new Date().toISOString(),
+      salesRows: parsedRows.length,
+      expenseRows: 0,
+      skippedRows: 0,
+      warningCount: 0,
+    });
     setSuccessMessage(`Imported ${parsedRows.length} rows successfully.`);
   };
 
@@ -321,6 +320,20 @@ export function ExportImportPage() {
       </header>
 
       <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6">
+        {usesImportedData && importedData && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            <p className="font-semibold">Imported data active</p>
+            <p className="text-xs mt-1 text-green-800">
+              Dashboard and charts use {importedData.sales.length} sales and{" "}
+              {importedData.expenses.length} expense rows
+              {importedData.sourceFileName
+                ? ` from ${importedData.sourceFileName}`
+                : ""}
+              . Data is saved in this browser until you clear the import.
+            </p>
+          </div>
+        )}
+
         <ExcelImportWizard />
 
         {(errorMessage || successMessage) && (
@@ -570,6 +583,11 @@ export function ExportImportPage() {
         )}
 
         <SectionCard title="Recent Imports">
+          {recentImports.length === 0 ? (
+            <p className="text-sm text-stone-500">
+              No imports yet. Complete an Excel import above to see it here.
+            </p>
+          ) : (
           <div className="overflow-x-auto -mx-1">
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
@@ -593,7 +611,14 @@ export function ExportImportPage() {
                       {row.fileName}
                     </td>
                     <td className="pr-4">{row.type}</td>
-                    <td className="pr-4">{row.rows}</td>
+                    <td className="pr-4">
+                      {row.rows}
+                      {(row.salesRows > 0 || row.expenseRows > 0) && (
+                        <span className="block text-[10px] text-stone-500 font-normal">
+                          {row.salesRows} sales · {row.expenseRows} expenses
+                        </span>
+                      )}
+                    </td>
                     <td className="pr-4">
                       <StatusBadge status={row.status} />
                     </td>
@@ -604,6 +629,7 @@ export function ExportImportPage() {
               </tbody>
             </table>
           </div>
+          )}
         </SectionCard>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

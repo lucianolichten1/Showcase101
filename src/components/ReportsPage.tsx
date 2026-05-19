@@ -3,7 +3,15 @@ import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import { plots } from "@/domains/agro/mockData";
-import { useFinancialData } from "@/domains/financial/hooks";
+import {
+  calculateTotalCost,
+  calculateTotalExpenses,
+  calculateTotalRevenue,
+  computeMonthlyFinancials,
+  isActiveRevenue,
+} from "@/domains/financial/calculations";
+import type { RevenueRecord } from "@/domains/financial/types";
+import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   DEMO_FINANCIAL_YEAR,
@@ -77,12 +85,49 @@ function TrendBadge({ pct }: { pct: number | null }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+function groupExpenseAmountsByLabel(
+  records: { category: string; description: string; amount: number }[]
+): { label: string; amount: number }[] {
+  const totals = new Map<string, number>();
+  for (const record of records) {
+    const label = record.description.trim() || record.category || "Other";
+    totals.set(label, (totals.get(label) ?? 0) + record.amount);
+  }
+  return Array.from(totals.entries())
+    .map(([label, amount]) => ({ label, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function groupRevenueAmountsByProduct(
+  records: RevenueRecord[]
+): { label: string; amount: number }[] {
+  const totals = new Map<string, number>();
+  for (const record of records) {
+    if (!isActiveRevenue(record)) continue;
+    const label = record.productService.trim() || "Other";
+    totals.set(label, (totals.get(label) ?? 0) + record.amount);
+  }
+  return Array.from(totals.entries())
+    .map(([label, amount]) => ({ label, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
 export function ReportsPage() {
-  const { kpis: financialKpis, setDateRange } = useFinancialData();
+  const {
+    kpis: financialKpis,
+    setDateRange,
+    usesImportedData,
+    filteredRevenueRecords,
+    filteredExpenseRecords,
+    revenueRecords,
+    expenseRecords,
+  } = useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
   const plMonthIdx = getDemoPlMonthIndex(period);
   const plSubtitle = getPlSectionSubtitle(period);
+
+  useSyncFinancialPeriod(period, setDateRange);
 
   const handlePeriodChange = (next: FinancialPeriod) => {
     setPeriod(next);
@@ -97,6 +142,15 @@ export function ReportsPage() {
     });
   };
 
+  const trendRows = useMemo(() => {
+    if (usesImportedData) {
+      return computeMonthlyFinancials(revenueRecords, expenseRecords, { kind: "all" }, {
+        useDataDrivenMonths: true,
+      });
+    }
+    return monthlyFinancials;
+  }, [usesImportedData, revenueRecords, expenseRecords]);
+
   const current = monthlyFinancials[plMonthIdx];
   const prev = plMonthIdx > 0 ? monthlyFinancials[plMonthIdx - 1] : null;
 
@@ -106,26 +160,70 @@ export function ReportsPage() {
   const revenueScale = current.revenue / MAY_REVENUE;
   const expenseScale = current.expenses / MAY_EXPENSES;
 
-  const revenueLines = useMemo(() =>
-    BASE_REVENUE_LINES.map((l) => ({ ...l, amount: Math.round(l.amount * revenueScale) })),
+  const demoRevenueLines = useMemo(
+    () =>
+      BASE_REVENUE_LINES.map((l) => ({
+        ...l,
+        amount: Math.round(l.amount * revenueScale),
+      })),
     [revenueScale]
   );
 
-  const scaledExpenses = useMemo(() =>
-    expenseCategories.map((e) => ({ ...e, amount: Math.round(e.amount * expenseScale) })),
+  const scaledExpenses = useMemo(
+    () =>
+      expenseCategories.map((e) => ({
+        ...e,
+        amount: Math.round(e.amount * expenseScale),
+      })),
     [expenseScale]
   );
 
-  const cogsCategories = scaledExpenses.filter((e) => COGS_CATEGORIES.includes(e.category));
-  const opexCategories = scaledExpenses.filter((e) => !COGS_CATEGORIES.includes(e.category));
+  const importedPl = useMemo(() => {
+    const totalRevenue = calculateTotalRevenue(filteredRevenueRecords);
+    const totalCOGS = calculateTotalCost(filteredRevenueRecords);
+    const totalExpenses = calculateTotalExpenses(filteredExpenseRecords);
+    const grossProfit = totalRevenue - totalCOGS;
+    const netProfit = grossProfit - totalExpenses;
+    return {
+      revenueLines: groupRevenueAmountsByProduct(filteredRevenueRecords),
+      expenseLines: groupExpenseAmountsByLabel(filteredExpenseRecords),
+      totalRevenue,
+      totalCOGS,
+      grossProfit,
+      totalExpenses,
+      netProfit,
+      grossMargin:
+        totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0,
+      netMargin: totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0,
+    };
+  }, [filteredRevenueRecords, filteredExpenseRecords]);
 
-  const totalRevenue = current.revenue;
-  const totalCOGS = cogsCategories.reduce((s, e) => s + e.amount, 0);
-  const grossProfit = totalRevenue - totalCOGS;
-  const totalOpEx = opexCategories.reduce((s, e) => s + e.amount, 0);
-  const netProfit = grossProfit - totalOpEx;
-  const grossMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 0;
-  const netMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
+  const revenueLines = usesImportedData ? importedPl.revenueLines : demoRevenueLines;
+
+  const cogsCategories = usesImportedData
+    ? []
+    : scaledExpenses.filter((e) => COGS_CATEGORIES.includes(e.category));
+  const opexCategories = usesImportedData
+    ? importedPl.expenseLines.map((e) => ({ category: e.label, amount: e.amount }))
+    : scaledExpenses.filter((e) => !COGS_CATEGORIES.includes(e.category));
+
+  const totalRevenue = usesImportedData ? importedPl.totalRevenue : current.revenue;
+  const totalCOGS = usesImportedData ? importedPl.totalCOGS : cogsCategories.reduce((s, e) => s + e.amount, 0);
+  const grossProfit = usesImportedData ? importedPl.grossProfit : totalRevenue - totalCOGS;
+  const totalOpEx = usesImportedData
+    ? importedPl.totalExpenses
+    : opexCategories.reduce((s, e) => s + e.amount, 0);
+  const netProfit = usesImportedData ? importedPl.netProfit : grossProfit - totalOpEx;
+  const grossMargin = usesImportedData
+    ? importedPl.grossMargin
+    : totalRevenue > 0
+      ? Math.round((grossProfit / totalRevenue) * 100)
+      : 0;
+  const netMargin = usesImportedData
+    ? importedPl.netMargin
+    : totalRevenue > 0
+      ? Math.round((netProfit / totalRevenue) * 100)
+      : 0;
 
   const handleExport = () => {
     const headers = ["Item", "Category", "Amount (Bs)"];
@@ -213,7 +311,19 @@ export function ReportsPage() {
         <PLRow label="Total Revenue" amount={totalRevenue} bold positive={true} />
 
         <SectionHeader label="Cost of Goods Sold (COGS)" />
-        {cogsCategories.map((e) => <Fragment key={e.category}><PLRow label={e.category} amount={e.amount} indent /></Fragment>)}
+        {usesImportedData ? (
+          totalCOGS > 0 ? (
+            <PLRow label="Cost of sales (from import)" amount={totalCOGS} indent />
+          ) : (
+            <p className="text-xs text-stone-400 pl-4 py-1">No cost column mapped in import</p>
+          )
+        ) : (
+          cogsCategories.map((e) => (
+            <Fragment key={e.category}>
+              <PLRow label={e.category} amount={e.amount} indent />
+            </Fragment>
+          ))
+        )}
         <Divider />
         <PLRow label="Total COGS" amount={totalCOGS} bold />
 
@@ -226,7 +336,11 @@ export function ReportsPage() {
         </div>
 
         <SectionHeader label="Operating Expenses" />
-        {opexCategories.map((e) => <Fragment key={e.category}><PLRow label={e.category} amount={e.amount} indent /></Fragment>)}
+        {opexCategories.map((e) => (
+          <Fragment key={e.category}>
+            <PLRow label={e.category} amount={e.amount} indent />
+          </Fragment>
+        ))}
         <Divider />
         <PLRow label="Total Operating Expenses" amount={totalOpEx} bold />
 
@@ -250,7 +364,9 @@ export function ReportsPage() {
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-1">Monthly Trend</h3>
         <p className="text-[10px] text-stone-400 mb-3">
-          Demo P&L months (Jan–Jun {DEMO_FINANCIAL_YEAR}). Click a row to set period to that month.
+          {usesImportedData
+            ? "Monthly totals from imported financial records."
+            : `Demo P&L months (Jan–Jun ${DEMO_FINANCIAL_YEAR}). Click a row to set period to that month.`}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -265,22 +381,23 @@ export function ReportsPage() {
               </tr>
             </thead>
             <tbody className="text-[11px] text-stone-800">
-              {monthlyFinancials.map((row, idx) => {
+              {trendRows.map((row, idx) => {
                 const margin = row.revenue > 0 ? Math.round((row.profit / row.revenue) * 100) : 0;
-                const isSelected = idx === plMonthIdx;
-                const prevRow = idx > 0 ? monthlyFinancials[idx - 1] : null;
+                const isSelected = !usesImportedData && idx === plMonthIdx;
+                const prevRow = idx > 0 ? trendRows[idx - 1] : null;
                 const profitTrend = prevRow ? trendPct(row.profit, prevRow.profit) : null;
                 return (
                   <tr
                     key={row.month}
-                    onClick={() => handlePlMonthSelect(idx)}
+                    onClick={() => !usesImportedData && handlePlMonthSelect(idx)}
                     className={cn(
                       "h-10 border-b border-stone-50 last:border-0 cursor-pointer transition-colors",
                       isSelected ? "bg-green-50 hover:bg-green-50" : "hover:bg-stone-50"
                     )}
                   >
                     <td className={cn("pr-6 font-semibold", isSelected && "text-green-800")}>
-                      {row.month} {DEMO_FINANCIAL_YEAR}
+                      {row.month}
+                      {!usesImportedData && ` ${DEMO_FINANCIAL_YEAR}`}
                       {isSelected && <span className="text-[9px] text-green-600 font-bold ml-1">← period</span>}
                     </td>
                     <td className="pr-6">{formatCurrency(row.revenue)}</td>
@@ -305,7 +422,9 @@ export function ReportsPage() {
           </table>
         </div>
         <p className="text-[10px] text-stone-400 mt-2">
-          When period is All or YTD, P&L shows the latest demo month (Jun {DEMO_FINANCIAL_YEAR}) as a sample breakdown.
+          {usesImportedData
+            ? "P&L and KPI totals use imported sales and expenses for the selected period."
+            : `When period is All or YTD, P&L shows the latest demo month (Jun ${DEMO_FINANCIAL_YEAR}) as a sample breakdown.`}
         </p>
       </div>
       </div>

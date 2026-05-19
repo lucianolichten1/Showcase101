@@ -1,5 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { ImportedData, ImportMapping } from "@/domains/import/types";
+import type {
+  ImportedData,
+  ImportHistoryItem,
+  ImportHistoryMeta,
+  ImportMapping,
+} from "@/domains/import/types";
 
 /** ISO date string (YYYY-MM-DD) */
 export type ISODate = string;
@@ -203,6 +208,12 @@ export interface UseFinancialDataResult {
   usesImportedData: boolean;
   importedData: ImportedData | null;
   importMapping: ImportMapping | null;
-  applyImportedData: (data: ImportedData, mapping: ImportMapping) => void;
+  importHistory: ImportHistoryItem[];
+  applyImportedData: (
+    data: ImportedData,
+    mapping: ImportMapping,
+    historyMeta: ImportHistoryMeta
+  ) => void;
+  appendImportHistory: (item: ImportHistoryItem) => void;
   clearImportedData: () => void;
 }

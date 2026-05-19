@@ -190,7 +190,13 @@ export function ExcelImportWizard() {
     }
 
     const mapping = createImportMapping(mappingName.trim() || "Company mapping", sheetMappings);
-    applyImportedData(result.data, mapping);
+    applyImportedData(result.data, mapping, {
+      fileName,
+      salesRows: result.salesCount,
+      expenseRows: result.expensesCount,
+      skippedRows: result.skipped,
+      warningCount: result.warnings.length,
+    });
     setImportWarnings(result.warnings.slice(0, 15));
     setSuccessMessage(
       `Imported ${result.salesCount} sales and ${result.expensesCount} expense rows` +
