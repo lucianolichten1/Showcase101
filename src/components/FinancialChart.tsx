@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -7,9 +8,18 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatCurrency, monthlyFinancials } from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
+import { computeMonthlyFinancials } from "@/domains/financial/calculations";
+import { useFinancialData } from "@/domains/financial/hooks";
 
 export function FinancialChart() {
+  const { revenueRecords, expenseRecords } = useFinancialData();
+
+  const monthlyFinancials = useMemo(
+    () => computeMonthlyFinancials(revenueRecords, expenseRecords),
+    [revenueRecords, expenseRecords]
+  );
+
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 h-full flex flex-col">
       <div className="flex justify-between items-center mb-4">
