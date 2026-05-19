@@ -42,7 +42,7 @@ const MONTH_NAMES = [
   "December",
 ] as const;
 
-export const DEFAULT_FINANCIAL_PERIOD: FinancialPeriod = { kind: "ytd" };
+export const DEFAULT_FINANCIAL_PERIOD: FinancialPeriod = { kind: "all" };
 
 export const FINANCIAL_ALL_DATE_RANGE: DateRange = {
   startDate: null,
@@ -86,6 +86,16 @@ export function getFinancialPeriodLabel(period: FinancialPeriod): string {
 
   const monthName = MONTH_NAMES[period.month - 1];
   return `${monthName} ${period.year}`;
+}
+
+/** Subtitle for the dashboard financial chart */
+export function getFinancialChartSubtitle(period: FinancialPeriod): string {
+  if (period.kind === "all") return "Monthly revenue and expenses · all available months";
+  if (period.kind === "ytd") return `Monthly revenue and expenses · Jan–Jun ${DEMO_FINANCIAL_YEAR}`;
+  if (period.kind === "month") {
+    return `Weekly revenue and expenses · ${getFinancialPeriodLabel(period)}`;
+  }
+  return `Monthly revenue and expenses · ${getFinancialPeriodLabel(period)}`;
 }
 
 /** Value for `<input type="month" />` (YYYY-MM) */

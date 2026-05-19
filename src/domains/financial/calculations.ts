@@ -1,3 +1,10 @@
+import {
+  DEMO_FINANCIAL_YEAR,
+  DEMO_PL_MONTH_LABELS,
+  DEMO_YTD_END_MONTH,
+  getDateRangeForPeriod,
+  type FinancialPeriod,
+} from "./period";
 import type {
   DateRange,
   ExpenseRecord,
@@ -11,15 +18,117 @@ import type {
   RevenueSortKey,
 } from "./types";
 
-/** Jan–Jun 2026 chart months (ISO prefix → short label) */
-const CHART_MONTH_BUCKETS: readonly { isoPrefix: string; label: string }[] = [
-  { isoPrefix: "2026-01", label: "Jan" },
-  { isoPrefix: "2026-02", label: "Feb" },
-  { isoPrefix: "2026-03", label: "Mar" },
-  { isoPrefix: "2026-04", label: "Apr" },
-  { isoPrefix: "2026-05", label: "May" },
-  { isoPrefix: "2026-06", label: "Jun" },
-];
+export type ChartMonthBucket = { isoPrefix: string; label: string };
+
+export type ChartWeekBucket = {
+  startDate: string;
+  endDate: string;
+  label: string;
+};
+
+const SHORT_MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function chartBucket(year: number, month: number): ChartMonthBucket {
+  return {
+    isoPrefix: `${year}-${pad2(month)}`,
+    label: SHORT_MONTH_LABELS[month - 1] ?? `${year}-${pad2(month)}`,
+  };
+}
+
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+function isDateWithinInclusive(isoDate: string, startDate: string, endDate: string): boolean {
+  return isoDate >= startDate && isoDate <= endDate;
+}
+
+/** Splits a calendar month into week buckets (days 1–7, 8–14, 15–21, 22–28, 29–end) */
+export function getChartWeekBuckets(year: number, month: number): ChartWeekBucket[] {
+  const lastDay = lastDayOfMonth(year, month);
+  const weekStarts = [1, 8, 15, 22, 29];
+  const buckets: ChartWeekBucket[] = [];
+
+  for (const startDay of weekStarts) {
+    if (startDay > lastDay) break;
+    const endDay = Math.min(startDay + 6, lastDay);
+    buckets.push({
+      startDate: `${year}-${pad2(month)}-${pad2(startDay)}`,
+      endDate: `${year}-${pad2(month)}-${pad2(endDay)}`,
+      label: `${startDay}–${endDay}`,
+    });
+  }
+
+  return buckets;
+}
+
+/** All demo months with financial data (Jan–Jun 2026) */
+export function getAllDemoChartMonthBuckets(): ChartMonthBucket[] {
+  return DEMO_PL_MONTH_LABELS.map((label, index) => ({
+    isoPrefix: `${DEMO_FINANCIAL_YEAR}-${pad2(index + 1)}`,
+    label,
+  }));
+}
+
+/** Month buckets for charts based on the selected financial period */
+export function getChartMonthBuckets(period: FinancialPeriod): ChartMonthBucket[] {
+  if (period.kind === "month") {
+    return [chartBucket(period.year, period.month)];
+  }
+  if (period.kind === "ytd") {
+    return Array.from({ length: DEMO_YTD_END_MONTH }, (_, i) =>
+      chartBucket(DEMO_FINANCIAL_YEAR, i + 1)
+    );
+  }
+  return getAllDemoChartMonthBuckets();
+}
+
+/** Month buckets for an arbitrary inclusive date range (fills gaps with zero totals) */
+export function getChartMonthBucketsForDateRange(range: DateRange): ChartMonthBucket[] {
+  if (!range.startDate && !range.endDate) {
+    return getAllDemoChartMonthBuckets();
+  }
+  if (!range.startDate || !range.endDate) {
+    return getAllDemoChartMonthBuckets();
+  }
+
+  const startYear = Number(range.startDate.slice(0, 4));
+  const startMonth = Number(range.startDate.slice(5, 7));
+  const endYear = Number(range.endDate.slice(0, 4));
+  const endMonth = Number(range.endDate.slice(5, 7));
+
+  const buckets: ChartMonthBucket[] = [];
+  let year = startYear;
+  let month = startMonth;
+
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    buckets.push(chartBucket(year, month));
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+
+  return buckets.length > 0 ? buckets : getAllDemoChartMonthBuckets();
+}
 
 // ─── Date range ───────────────────────────────────────────────────────────────
 
@@ -185,16 +294,43 @@ export function calculateProfitMargin(
 
 // ─── Monthly aggregation (charts) ─────────────────────────────────────────────
 
-/** Groups revenue and expense records by calendar month for charting */
+/** Groups revenue and expense records by calendar month or week for charting */
 export function computeMonthlyFinancials(
   revenueRecords: RevenueRecord[],
-  expenseRecords: ExpenseRecord[]
+  expenseRecords: ExpenseRecord[],
+  period: FinancialPeriod
 ): MonthlyFinancialSummary[] {
-  return CHART_MONTH_BUCKETS.map(({ isoPrefix, label }) => {
-    const revenue = revenueRecords
+  const dateRange = getDateRangeForPeriod(period);
+  const scopedRevenue = filterRecordsByDateRange(revenueRecords, dateRange);
+  const scopedExpenses = filterRecordsByDateRange(expenseRecords, dateRange);
+
+  if (period.kind === "month") {
+    const weekBuckets = getChartWeekBuckets(period.year, period.month);
+    return weekBuckets.map(({ startDate, endDate, label }) => {
+      const revenue = scopedRevenue
+        .filter(
+          (r) =>
+            isActiveRevenue(r) && isDateWithinInclusive(r.date, startDate, endDate)
+        )
+        .reduce((sum, r) => sum + r.amount, 0);
+      const expenses = scopedExpenses
+        .filter((e) => isDateWithinInclusive(e.date, startDate, endDate))
+        .reduce((sum, e) => sum + e.amount, 0);
+      return {
+        month: label,
+        revenue,
+        expenses,
+        profit: revenue - expenses,
+      };
+    });
+  }
+
+  const buckets = getChartMonthBuckets(period);
+  return buckets.map(({ isoPrefix, label }) => {
+    const revenue = scopedRevenue
       .filter((r) => isActiveRevenue(r) && r.date.startsWith(isoPrefix))
       .reduce((sum, r) => sum + r.amount, 0);
-    const expenses = expenseRecords
+    const expenses = scopedExpenses
       .filter((e) => e.date.startsWith(isoPrefix))
       .reduce((sum, e) => sum + e.amount, 0);
     return {
