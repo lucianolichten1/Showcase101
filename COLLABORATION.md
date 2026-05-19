@@ -26,47 +26,47 @@ git push -u origin feature/your-task-name
 | `docs/` | Documentation only |
 | `chore/` | Tooling, deps, config |
 
-Examples: `feature/date-range-filter`, `fix/kpi-trend-colors`, `docs/roadmap-update`
+Examples: `feature/unified-financial-state`, `fix/dashboard-kpi-revenue`, `docs/roadmap-update`
 
 ## Commit message examples
 
 Use clear, imperative subjects:
 
 ```
-Add receivables types and wire table to mockData
+Add receivables types and wire AR page to App state
 Fix TypeScript path alias for @/ imports
-Document Phase 2 data model in ARCHITECTURE.md
-Update mock KPIs for customer meeting
+Document React Router routes in ARCHITECTURE.md
+Derive dashboard cattle KPI from useAgroData
 ```
 
-## How to divide tasks (now — demo phase)
+## How to divide tasks (current — multi-page demo)
 
-### Developer 1 — UI / product surface
+### Developer A — UI / product surface
 
-- `DashboardPage` layout and header
-- Individual components (`KPICard`, charts, tables)
+- Page layouts (`*Page.tsx`), `AppLayout`, sidebar
+- Presentational components (`KPICard`, charts, tables, dialogs)
 - Tailwind styling, responsive grids
-- Meeting polish (logo, spacing, export button UI)
+- Meeting polish (logo, spacing, placeholder buttons)
 - Recharts configuration
 
-**Typical files:** `src/components/**`, `src/index.css`
+**Typical files:** `src/components/**`, `src/config/navigation.ts`, `src/index.css`
 
-### Developer 2 — Data / structure / future backend
+### Developer B — Data / domains / structure
 
-- `src/data/types.ts` and `mockData.ts`
-- Computed KPIs from underlying records
-- Import/export planning and prototypes
-- Supabase schema drafts and migrations (later)
-- AI insight API design (later)
+- `src/domains/financial/` and `src/domains/agro/`
+- `src/data/mockData.ts`, `types.ts`, legacy re-exports
+- `App.tsx` shared state (receivables, customers)
+- KPI calculations and hook design
+- Supabase schema drafts (later)
 
-**Typical files:** `src/data/**`, `ARCHITECTURE.md`, future `src/lib/`, `src/hooks/`
+**Typical files:** `src/domains/**`, `src/data/**`, `src/App.tsx`, `ARCHITECTURE.md`
 
 ## How to divide tasks (later — full product)
 
-| Developer 1 | Developer 2 |
+| Developer A | Developer B |
 |-------------|---------------|
 | Frontend pages and UX | Supabase schema, RLS, APIs |
-| Component library | Transaction and agro domain logic |
+| Component library | Domain logic and API mappers |
 | Charts and dashboards | Excel import/export pipeline |
 | Auth UI (login, settings) | Edge Functions / AI backend |
 | E2E/UI tests | Integration tests, seeds |
@@ -75,14 +75,15 @@ Update mock KPIs for customer meeting
 
 **Safe to split simultaneously:**
 
-- Developer 1 edits `FinancialChart.tsx` while Developer 2 edits `mockData.ts` (coordinate if chart fields change)
-- Developer 1 styles `LivestockTable` while Developer 2 adds columns to `livestockGroups` data
-- One person on `docs/` while the other on a single component
+- Developer A edits `FinancialChart.tsx` while Developer B edits `domains/financial/mockData.ts`
+- Developer A styles `LivestockTable` while Developer B adds fields to agro `Plot` type
+- One person on `docs/` while the other on a single page component
 
-**Avoid editing the same file at once:**
+**Coordinate before editing together:**
 
-- `DashboardPage.tsx` (layout hub — communicate first)
-- `mockData.ts` (merge conflicts common — pull often, small PRs)
+- `App.tsx` (routes + shared AR/customer state)
+- `DashboardPage.tsx` (many child widgets)
+- `mockData.ts` and domain mock files when KPIs must stay aligned
 - `package.json` (one person owns dep changes per PR)
 
 ## Rules to reduce conflicts
@@ -91,26 +92,24 @@ Update mock KPIs for customer meeting
 2. **Keep PRs small** (< 400 lines when possible)
 3. **One feature per PR**
 4. **Don’t rename files** without syncing in chat
-5. **Mock data changes** — announce in PR description so UI devs can adjust
+5. **Mock or domain data changes** — note in PR description which KPIs/pages to re-test
 6. **Run before push:** `npm run lint && npm run build`
 
-## First-time repo setup (either developer)
+## Local setup
 
 ```bash
 cd "Agro Dashboard MVP"
-git init
-git add .
-git commit -m "Initial commit: Agro Dashboard MVP demo"
-git branch -M main
-git remote add origin <your-repo-url>
-git push -u origin main
+npm install
+npm run dev
 ```
 
-Invite collaborator with write access on GitHub/GitLab.
+Open the URL Vite prints (usually port 3000). Test routes directly, e.g. `/accounts-receivable`.
 
 ## Code review checklist
 
-- [ ] Dashboard still loads at `npm run dev`
+- [ ] App loads at `npm run dev`; `npm run build` passes
 - [ ] No secrets in commits (`.env` ignored)
-- [ ] Mock data changes documented in PR
+- [ ] Data changes documented in PR (which pages/KPIs affected)
 - [ ] TypeScript passes (`npm run lint`)
+- [ ] Sidebar links match `config/navigation.ts` and `App.tsx` routes
+- [ ] New routes documented in README if added

@@ -1,61 +1,76 @@
-# Agro Domain
+# Agro domain
 
-Owns all agricultural and operations data for Showcase101. Mirrors the structure of `src/domains/financial/` built by Person A.
+Agricultural and operations data for the Agro Dashboard MVP. Parallel structure to `src/domains/financial/`.
+
+**No database** — all records are static mock arrays; hooks filter in memory only.
 
 ## Entities
 
 | Entity | File | Description |
-|---|---|---|
-| `Plot` | `types.ts` | A crop field with yield, revenue, cost, profit per season |
-| `Livestock` | `types.ts` | A group of animals (head count, feed/vet costs, herd value) |
-| `Product` | `types.ts` | A tradeable commodity (corn, cattle) with unit price |
-| `Shipment` | `types.ts` | An outgoing/incoming delivery with status and expected revenue |
-| `ExportImportRecord` | `types.ts` | A file uploaded or exported through the Import/Export page |
-| `AgroKPIs` | `types.ts` | Computed KPI shape returned by `useAgroData()` |
+|--------|------|-------------|
+| `Plot` | `types.ts` | Crop field with yield, revenue, cost, profit, season, status |
+| `Livestock` | `types.ts` | Animal group (head count, feed/vet costs, herd value) |
+| `Product` | `types.ts` | Tradeable commodity with unit price |
+| `Shipment` | `types.ts` | Delivery with status and expected revenue |
+| `ExportImportRecord` | `types.ts` | File uploaded or exported on Export/Import page |
+| `AgroKPIs` | `types.ts` | Computed KPI shape from `computeAgroKPIs()` |
 
 ## Mock data (`mockData.ts`)
 
-- **3 plots** — Plot A (25 ha, harvested), Plot B (18 ha, harvested), Plot C (12 ha, active)
+- **3 plots** — Plot A/B (harvested), Plot C (active)
 - **3 livestock groups** — Adult Cows (92), Calves (54), Bulls (40)
-- **8 shipments** — Jan–Jun 2026, mix of Delivered / In Transit / Pending
-- **3 export/import records** — seed rows for the Import/Export page
-- **4 AI insights** — strings displayed in the Dashboard panel
+- **8 shipments** — Jan–Jun 2026 (Delivered / In Transit / Pending)
+- **3 export/import records** — seed rows for Recent Imports on Export/Import page
+- **4 AI insights** — static strings for Dashboard panel
 
-## How KPIs are calculated (`calculations.ts`)
+Legacy `cropPlots` / `livestockGroups` in `src/data/mockData.ts` are **unused**; this module is canonical.
 
-All KPIs are computed from records — nothing is hardcoded as a string:
+## KPI calculations (`calculations.ts`)
+
+Computed from records (not hardcoded strings):
 
 | KPI | Formula |
-|---|---|
+|-----|---------|
 | `totalActualYieldTons` | `sum(plot.actualYield)` |
 | `totalHeadCount` | `sum(livestock.count)` |
 | `totalLivestockValue` | `sum(livestock.estimatedValue)` |
 | `totalCropRevenue` | `sum(plot.revenue)` |
-| `shipmentsInTransit` | `count(shipments where status = "In Transit")` |
-| `shipmentsDelivered` | `count(shipments where status = "Delivered")` |
+| `shipmentsInTransit` | count where `status === "In Transit"` |
+| `shipmentsDelivered` | count where `status === "Delivered"` |
 
 ## Hook (`hooks.ts`)
 
 ```ts
-const { plots, livestock, shipments, exportImportRecords, kpis, dateRange, setDateRange } = useAgroData();
+const {
+  plots,
+  livestock,
+  shipments,
+  exportImportRecords,
+  aiInsights,
+  kpis,
+  dateRange,
+  setDateRange,
+} = useAgroData();
 ```
 
-- `plots` and `livestock` are always the full unfiltered arrays
-- `shipments` and `exportImportRecords` are filtered by `dateRange`
-- `kpis` are always computed from the full dataset (not filtered)
-- `dateRange` defaults to `{ startDate: null, endDate: null }` (no filter)
+- `plots` and `livestock` — full arrays (unfiltered)
+- `shipments` and `exportImportRecords` — filtered by `dateRange`
+- `kpis` — always from **full** dataset (not date-filtered)
+- `dateRange` defaults to `{ startDate: null, endDate: null }` (no filter until UI is wired)
 
 ## Pages that use this domain
 
-| Page | What it uses |
-|---|---|
-| `DashboardPage` | `kpis.totalActualYieldTons`, `kpis.totalHeadCount` (replaces hardcoded strings) |
-| `CropTable` | `plots` array |
-| `LivestockTable` | `livestock` array |
-| `AIInsightsPanel` | `aiInsights` strings |
-| `ReportsPage` | `plots` to derive revenue line labels and amounts |
-| `ExportImportPage` | `exportImportRecords` as seed state for Recent Imports |
+| Page | Usage |
+|------|--------|
+| `DashboardPage` | `kpis.totalActualYieldTons`, `kpis.totalHeadCount` for two KPI cards only |
+| `CropTable` | `plots` |
+| `LivestockTable` | `livestock` |
+| `AIInsightsPanel` | `aiInsights` |
+| `ReportsPage` | `plots` for P&L revenue line items |
+| `ExportImportPage` | `exportImportRecords` as seed for Recent Imports |
+
+**Note:** Dashboard **financial** KPI cards still use hardcoded strings from `mockData.dashboardKPIs`, not this domain.
 
 ## Preparing for a real API
 
-When a backend is ready, replace the exports in `mockData.ts` with API responses and update `hooks.ts` to call the API instead of importing static arrays. The types, calculations, and component interfaces stay the same.
+Replace static exports in `mockData.ts` with fetch calls inside `hooks.ts`. Keep `types.ts`, `calculations.ts`, and component prop shapes stable; map API DTOs at the boundary.

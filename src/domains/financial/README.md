@@ -1,53 +1,73 @@
 # Financial domain
 
-Isolated financial data layer for Revenue, Expenses, and Accounts Receivable. No database yet — all records live in React state seeded from `mockData.ts`.
+Financial data layer for Revenue, Expenses, and Accounts Receivable.
+
+**No database** — records are seeded from `mockData.ts` into React state. Persistence is session-only (lost on full page refresh except where App-level state applies).
 
 ## Record types
 
-| Type | File field | Purpose |
+| Type | Key fields | Purpose |
 |------|------------|---------|
-| `RevenueRecord` | `date` (ISO), `sourceClient`, `productService`, `category`, `status`, … | Sales income lines |
-| `ExpenseRecord` | `date` (ISO), `category`, `description`, `vendor`, `status`, … | Operational costs |
+| `RevenueRecord` | ISO `date`, `sourceClient`, `productService`, `category`, `status`, … | Sales income lines |
+| `ExpenseRecord` | ISO `date`, `category`, `description`, `vendor`, `status`, … | Operating costs |
 | `ReceivableRecord` | `dueDate` (display), `customer`, `amount`, `amountPaid`, `overdueDays`, … | Outstanding invoices |
 
-All revenue and expense rows extend `FinancialTransaction` (`id`, `date`, `amount`, `currency`).
+Revenue and expense rows extend `FinancialTransaction` (`id`, `date`, `amount`, `currency`).
 
-## Mock data
+## Mock data (`mockData.ts`)
 
-- `initialRevenueRecords` — 10 demo revenue lines
-- `initialExpenseRecords` — 10 demo expense lines
+- `initialRevenueRecords` — 10 demo lines
+- `initialExpenseRecords` — 10 demo lines
 - `initialReceivableRecords` — 8 demo AR invoices
+- `defaultDateRange` — `2026-01-01` … `2026-12-31` (used by hook; no date UI on pages yet)
 
-Legacy imports: `src/data/revenue.ts`, `src/data/expenses.ts`, and `receivables` in `src/data/mockData.ts` re-export from this domain.
+**Legacy re-exports:** `src/data/revenue.ts`, `src/data/expenses.ts`, and `receivables` in `src/data/mockData.ts` point here for backward compatibility. Page components import from `@/domains/financial/` directly.
 
 ## KPIs (`calculations.ts`)
 
-KPIs are **derived from records**, never hardcoded:
+Derived from records, not hardcoded:
 
 - **Revenue:** `totalRevenue` (excludes Cancelled), `collectedRevenue`, `pendingRevenue`, `overdueRevenue`, `topRevenueCategory`
 - **Expenses:** `totalExpenses`, `paidExpenses`, `pendingExpenses`, `overdueExpenses`, `largestExpenseCategory`
-- **Profit:** `netProfit` = total revenue − total expenses; `profitMargin` = net / total revenue (%)
-- **Receivables:** outstanding balance, overdue amount, invoice count, collection rate
+- **Profit:** `netProfit`, `profitMargin`
+- **Receivables:** outstanding, overdue amount, overdue count, collection rate
 
-Use `computeFinancialKPIs(revenue, expenses, receivables)` for the full bundle.
+`computeFinancialKPIs(revenue, expenses, receivables)` returns the full bundle.
+
+Sorting: `sortRevenueRecords`, `sortExpenseRecords`.
 
 ## Date range
 
-`DateRange` has optional `startDate` / `endDate` (ISO strings). `filterRecordsByDateRange` applies to revenue and expense rows. Default in the hook is `2026-01-01` → `2026-12-31`.
+`DateRange` optional ISO `startDate` / `endDate`. `filterRecordsByDateRange` applies to revenue and expense rows in the hook.
 
-**UI note:** Pages do not expose date-range controls yet. Revenue and Expenses tables apply the same date filter as KPIs before search/category/status filters and sorting.
-
-Receivable rows use display due dates (`"May 10"`) and are not date-range filtered in the hook.
+Receivable rows use display due dates (`"May 10"`) and are **not** date-range filtered in the hook.
 
 ## Hook: `useFinancialData`
 
-Returns record state, setters, `dateRange` / `setDateRange`, date-filtered revenue/expense slices, and `kpis`.
+Returns record state, setters, `dateRange` / `setDateRange`, filtered revenue/expense slices, and `kpis`.
 
-Revenue and Expenses pages each call the hook independently. Accounts Receivable still receives receivable state from `App.tsx` (shared with Customers) but uses `calculations.ts` for KPIs.
+| Consumer | How receivables are handled |
+|----------|----------------------------|
+| `RevenuePage` | Own hook instance; revenue + expense state |
+| `ExpensesPage` | Own hook instance (separate from Revenue) |
+| `AccountsReceivablePage` | Receivables from **App.tsx** props; KPIs via `calculations.ts` |
+| `CustomersPage` | Receivables from App props for risk/outstanding |
+
+Add Revenue / Add Expense update the **page-local** hook state only. Record Payment on AR updates **App** state via `onUpdateReceivable`.
+
+## Pages
+
+| Route | Domain usage |
+|-------|----------------|
+| `/revenue` | `useFinancialData`, filters, sort, Add Revenue |
+| `/expenses` | `useFinancialData`, filters, sort, Add Expense |
+| `/accounts-receivable` | Calculations + types; state from App |
+
+Dashboard financial KPIs and Reports P&L are **not** wired to this hook yet.
 
 ## Future API / database
 
-1. Replace `mockData.ts` seeds with fetch/loaders in `hooks.ts`.
-2. Keep `types.ts` and `calculations.ts` unchanged — they become the client contract.
-3. Map API DTOs → `RevenueRecord` / `ExpenseRecord` / `ReceivableRecord` at the boundary.
-4. Centralize receivable state in a provider or App-level hook when Customers and AR must stay in sync.
+1. Replace seeds with fetch/loaders in `hooks.ts` (or a provider).
+2. Keep `types.ts` and `calculations.ts` as the client contract.
+3. Map API DTOs → domain records at the boundary.
+4. Centralize receivable + revenue + expense state when Dashboard and Reports must stay in sync.

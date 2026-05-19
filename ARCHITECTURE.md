@@ -4,63 +4,120 @@
 
 ```
 index.html
-    └── src/main.tsx          (ReactDOM.createRoot)
-            └── App.tsx
-                    └── DashboardPage.tsx   (page layout)
-                            ├── KPICard × N
-                            ├── FinancialChart
-                            ├── AIInsightsPanel
-                            ├── CropTable | LivestockTable | ExpenseBreakdown
-                            └── ReceivablesTable
+    └── src/main.tsx              (BrowserRouter + ReactDOM.createRoot)
+            └── App.tsx           (Routes, App-level receivables + customers state)
+                    └── AppLayout (Sidebar + <Outlet />)
+                            ├── DashboardPage
+                            ├── CustomersPage
+                            ├── AccountsReceivablePage
+                            ├── ExportImportPage
+                            ├── ExpensesPage
+                            ├── RevenuePage
+                            └── ReportsPage
 ```
 
-- **Pattern:** Presentational components + static data imports
-- **No router:** Single view only
-- **No global state:** No Redux, Zustand, or Context yet
+- **Pattern:** Page components + domain hooks/calculations + static or App-level state
+- **Routing:** React Router v7 (`react-router-dom`) — URL paths, refresh-safe in dev
+- **Global state:** Minimal — receivables and customers in `App.tsx`; no Redux/Zustand
 - **Path alias:** `@/` → `src/` (Vite + TypeScript)
 
 ## Component structure
 
 | Component | Responsibility |
 |-----------|----------------|
-| `DashboardPage` | Page shell, header, grid layout, maps KPIs from data |
-| `KPICard` | One metric with trend indicator |
-| `FinancialChart` | Recharts bar chart (revenue vs expenses) |
-| `CropTable` | Corn plots table |
-| `LivestockTable` | Cattle groups table |
-| `ExpenseBreakdown` | Horizontal bar list by category |
-| `ReceivablesTable` | AR with overdue badges |
-| `AIInsightsPanel` | Static insight cards |
-| `ui/card` | Reusable card primitives (shadcn-style, minimal use) |
+| `AppLayout` | Sidebar (desktop + mobile), main column with `<Outlet />` |
+| `Sidebar` / `SidebarNavItem` | Navigation from `config/navigation.ts`; Settings disabled |
+| `DashboardPage` | KPI grid, chart, agro tables, expense breakdown, AR snapshot, AI panel |
+| `CustomersPage` | Customer registry; receivables from App props |
+| `AccountsReceivablePage` | AR table, KPIs, aging, Record Payment, Add Invoice, CSV export |
+| `ExportImportPage` | CSV import pipeline, recent imports, export cards (UI) |
+| `ExpensesPage` | Expense table, KPIs, filters, Add Expense (`useFinancialData`) |
+| `RevenuePage` | Revenue table, KPIs, filters, Add Revenue (`useFinancialData`) |
+| `ReportsPage` | P&L, monthly trend, month selector |
+| `KPICard`, `FinancialChart`, etc. | Dashboard widgets |
+
+## Domain modules
+
+### Financial (`src/domains/financial/`)
+
+| File | Role |
+|------|------|
+| `types.ts` | `RevenueRecord`, `ExpenseRecord`, `ReceivableRecord`, categories, sort keys |
+| `mockData.ts` | Seed records (10 revenue, 10 expense, 8 receivables) |
+| `calculations.ts` | KPI helpers, date-range filter, sort functions |
+| `hooks.ts` | `useFinancialData()` — local state + filtered slices + KPIs |
+
+Used by: `RevenuePage`, `ExpensesPage`, `AccountsReceivablePage` (calculations + types). Receivable **state** for AR and Customers lives in `App.tsx`, seeded from `initialReceivableRecords`.
+
+### Agro (`src/domains/agro/`)
+
+| File | Role |
+|------|------|
+| `types.ts` | `Plot`, `Livestock`, `Shipment`, `ExportImportRecord`, `AgroKPIs` |
+| `mockData.ts` | Plots, livestock, shipments, import seeds, AI insight strings |
+| `calculations.ts` | Plot/livestock/shipment KPIs, date-range filters |
+| `hooks.ts` | `useAgroData()` — filtered shipments/imports + full-dataset KPIs |
+
+Used by: `DashboardPage` (partial KPIs), `CropTable`, `LivestockTable`, `AIInsightsPanel`, `ReportsPage`, `ExportImportPage` (seed imports).
 
 ## Data flow (today)
 
 ```
+domains/financial/mockData.ts
+        │
+        ├── useFinancialData() ──► RevenuePage / ExpensesPage (independent instances)
+        └── initialReceivableRecords ──► App.tsx state ──► AccountsReceivablePage, CustomersPage
+
+domains/agro/mockData.ts
+        │
+        ├── useAgroData() ──► DashboardPage (corn + cattle KPIs only)
+        ├── plots ──────────► CropTable, ReportsPage (revenue lines)
+        ├── livestock ──────► LivestockTable
+        ├── aiInsights ─────► AIInsightsPanel
+        └── exportImportRecords ──► ExportImportPage (seed)
+
 src/data/mockData.ts
         │
-        ├── dashboardKPIs ──────────► DashboardPage → KPICard
-        ├── monthlyFinancials ──────► FinancialChart
-        ├── cropPlots ────────────────► CropTable
-        ├── livestockGroups ──────────► LivestockTable
-        ├── expenseCategories ────────► ExpenseBreakdown
-        ├── receivables ──────────────► ReceivablesTable
-        └── aiInsights ───────────────► AIInsightsPanel
+        ├── dashboardKPIs ──────► DashboardPage → KPICard (mostly static strings)
+        ├── monthlyFinancials ──► FinancialChart, ReportsPage
+        ├── expenseCategories ──► ExpenseBreakdown, ReportsPage
+        ├── receivables ────────► ReceivablesTable (static; NOT App state)
+        └── customers ──────────► CustomersPage (+ App receivables for risk)
 ```
 
-To change demo numbers, edit **`src/data/mockData.ts`** first.
+**Gaps:** Dashboard financial KPIs and receivables table are not wired to live domain/App state. Revenue and Expenses do not share one hook instance.
+
+## Routing
+
+Defined in `src/App.tsx`:
+
+| Path | Component |
+|------|-----------|
+| `/` | Redirect → `/dashboard` |
+| `/dashboard` | `DashboardPage` |
+| `/export-import` | `ExportImportPage` |
+| `/expenses` | `ExpensesPage` |
+| `/revenue` | `RevenuePage` |
+| `/accounts-receivable` | `AccountsReceivablePage` |
+| `/reports` | `ReportsPage` |
+| `/customers` | `CustomersPage` |
+
+Settings: sidebar-only in `navigation.ts` (no route). `/settings` renders an empty outlet.
 
 ## Mock data explanation
 
-Mock data simulates a Bolivian agro business with:
+Demo data simulates a Bolivian agro business:
 
-- ~Bs 185k monthly revenue, ~Bs 128k expenses
-- Three corn plots (A, B, C)
-- Three livestock groups (cows, calves, bulls)
-- Seven expense categories
-- Three receivable customers (two overdue)
-- Four static AI insight sentences
+- ~Bs 185k monthly revenue, ~Bs 128k expenses (May in `monthlyFinancials`)
+- Three corn plots (agro domain), three livestock groups
+- Ten revenue and ten expense lines (financial domain)
+- Eight receivable invoices (financial domain seed → App state on AR page)
+- Eight customers in `mockData.ts`
+- Static AI insight sentences (agro `mockData.ts`)
 
-Types live in `src/data/types.ts` to prepare for API responses later.
+Legacy `cropPlots` / `livestockGroups` in `mockData.ts` are unused; agro domain is canonical.
+
+Types: `src/data/types.ts` (shared UI types + `Receivable` alias), domain types in `domains/*/types.ts`.
 
 ## Styling system
 
@@ -70,25 +127,27 @@ Types live in `src/data/types.ts` to prepare for API responses later.
 - **Icons:** `lucide-react`
 - **Utility:** `cn()` in `src/lib/utils.ts` (clsx + tailwind-merge)
 
-## Hardcoded values to make dynamic later
+## Hardcoded or session-only values
 
 | Location | What |
 |----------|------|
-| `DashboardPage` | Header title, period label, export button |
-| `mockData.ts` | All business numbers |
+| `mockData.ts` → `dashboardKPIs` | Financial KPI card strings (revenue, expenses, profit, AR) |
+| `DashboardPage` | Header “This Month”, Export Report button |
 | `AIInsightsPanel` | “Last updated” timestamp |
-| `FinancialChart` | Y-axis `Bs Xk` formatter |
-| `ReceivablesTable` | Due dates as display strings |
+| `ReceivableRecord.dueDate` | Display strings like `"May 10"` (not ISO) |
+| `useFinancialData` per page | Revenue/Expense adds lost on refresh |
+| `App.tsx` receivables | AR payments lost on full refresh |
+| Export/Import | Confirmed imports in component state only |
 
 ## Suggested future architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  React SPA (Vite)                                       │
-│  ├── pages/ (dashboard, settings, imports)              │
+│  ├── routes in App.tsx (or pages/)                      │
 │  ├── components/                                        │
-│  ├── hooks/ (useOrg, useTransactions, useInsights)    │
-│  └── lib/ (supabase client, formatters)                 │
+│  ├── domains/ (financial, agro) + API loaders           │
+│  └── lib/ (supabase client, formatters, csv)            │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -156,3 +215,8 @@ Optional later: separate API service if logic outgrows Edge Functions.
 - `id`, `organization_id`, `period_start`, `period_end`, `content` (jsonb), `model`, `created_at`
 
 All tenant tables should include `organization_id` and RLS policies restricting rows to the user’s org memberships.
+
+## Related docs
+
+- [docs/adr/0001-useState-routing.md](./docs/adr/0001-useState-routing.md) — superseded
+- [docs/adr/0002-react-router.md](./docs/adr/0002-react-router.md) — current routing decision

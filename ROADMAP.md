@@ -4,35 +4,41 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 ---
 
-## Phase 1: Demo dashboard (current)
+## Phase 1: Demo dashboard
 
 **Goal:** Impress the owner in a meeting with a polished, credible UI.
 
-- [x] Single-page dashboard layout
+- [x] Multi-page dashboard layout with sidebar navigation
 - [x] KPI cards, chart, tables, expense breakdown, AI panel
-- [x] Mock data centralized in `src/data/mockData.ts`
-- [x] Sidebar navigation with state-based routing (`App.tsx`)
-- [x] Customers, Accounts Receivable, Reports pages
-- [x] Expenses and Revenue modules (local state + modals)
+- [x] Mock data in `src/data/mockData.ts` plus domain modules
+- [x] React Router (`BrowserRouter`, routes in `App.tsx`, paths in `navigation.ts`)
+- [x] Customers, Accounts Receivable, Reports, Expenses, Revenue, Export/Import pages
+- [x] Expenses and Revenue modules with search, filter, sort, and Add modals
 - [x] Export/Import CSV pipeline (client-side)
-- [ ] Settings page (sidebar item only today)
-- [ ] Align mock numbers with customer’s real ballpark figures
+- [x] Record Payment and Add Invoice on Accounts Receivable (App-level state)
+- [ ] Settings page (sidebar item is disabled placeholder only)
+- [ ] Align dashboard financial KPI strings with computed totals (e.g. fix `Bs 67` revenue typo)
 - [ ] Polish responsive layout for tablet/laptop in meeting
 - [ ] Optional: company name / logo in header
-- [ ] Deploy static build (Vercel, Netlify, or similar) for easy sharing
+- [ ] Deploy static build (Vercel, Netlify, or similar) with SPA fallback for direct URLs
 
 ---
 
-## Phase 2: Real data structure
+## Phase 2: Real data structure (in progress)
 
 **Goal:** Replace ad-hoc mocks with a clear domain model in code (still no DB).
 
-- [ ] Define TypeScript types for transactions, categories, plots, livestock
-- [ ] Split `mockData.ts` into domain modules (`financial`, `agro`, `receivables`)
-- [ ] Add simple data loaders / hooks (`useDashboardData`)
-- [ ] Compute KPIs from underlying records (not hardcoded strings)
-- [ ] Add date-range state and filter mock records
-- [ ] Document data shape for future API parity
+- [x] Define TypeScript types for transactions, categories, plots, livestock (`domains/financial`, `domains/agro`)
+- [x] Split domain modules (`financial/`, `agro/`) with mock data, calculations, hooks
+- [x] Add `useFinancialData()` and `useAgroData()` hooks
+- [x] Compute KPIs from underlying records on Revenue, Expenses, and AR pages
+- [x] Compute agro KPIs (corn yield, cattle count) on Dashboard from agro domain
+- [x] Default date-range filter in financial hook (2026 full year; no UI yet)
+- [x] Document data shapes in domain READMEs
+- [ ] Derive **all** Dashboard financial KPI cards from records (not hardcoded strings)
+- [ ] Single shared financial state across Dashboard, Revenue, Expenses, and Reports
+- [ ] Wire Dashboard receivables table to App-level AR state
+- [ ] Expose date-range picker in UI and filter agro shipments/imports consistently
 
 ---
 
@@ -58,7 +64,7 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 - [ ] Organization (tenant) model — one business per org
 - [ ] Invite team members with roles (owner, manager, viewer)
 - [ ] Protect routes and API by `organization_id`
-- [ ] Basic settings page (org name, currency, fiscal year)
+- [ ] Settings page (org name, currency, fiscal year) with real `/settings` route
 
 ---
 
@@ -91,8 +97,10 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 **Goal:** Deep operational tracking beyond finance-only.
 
-- [ ] Plot registry (hectares, location, soil notes)
-- [ ] Crop cycles (planting, harvest, expected vs actual yield)
+- [x] Plot registry with yield and financial fields (mock domain)
+- [x] Livestock groups with feed/vet costs and estimated value (mock domain)
+- [x] Shipments list with status filtering (mock domain)
+- [ ] Plot map or extended season / variety UI
 - [ ] Livestock events (births, sales, vet, weight)
 - [ ] Cost allocation: assign expenses to plot or livestock group
 - [ ] Seasonal reports and benchmarks

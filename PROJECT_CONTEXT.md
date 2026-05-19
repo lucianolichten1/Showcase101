@@ -11,6 +11,8 @@ We are building an **AI-powered financial and agro management SaaS** for agricul
 
 The product should eventually support P&L reporting, accounts receivable, Excel import/export, AI business insights, crop/land tracking, livestock tracking, expense analytics, role-based permissions, authentication, bank integrations, and modular agro features.
 
+**Today’s MVP has no backend, database, or login** — it runs entirely in the browser with mock and session-local data.
+
 ## First customer context
 
 The first prospect is an **agro company** with:
@@ -30,7 +32,7 @@ Show one screen that answers, at a glance:
 3. **How is corn production performing?** (yield and profit by plot)
 4. **How is livestock doing?** (head count, feed costs, estimated value)
 5. **Where is money going?** (expense breakdown)
-6. **What should the owner pay attention to?** (AI-style insights — currently static demo text)
+6. **What should the owner pay attention to?** (AI-style insights — static demo text today)
 
 Currency in the demo is **Bolivianos (Bs)** to match the local context.
 
@@ -64,31 +66,55 @@ After a 10–15 minute walkthrough, the owner should feel:
 | AI | Insights generated from real business data |
 | Platform | Multi-tenant orgs, roles, subscriptions |
 
-## What is currently mock data
+## Application structure (current)
 
-Everything on the dashboard is static. See `src/data/mockData.ts`:
+| Area | Routes | Data |
+|------|--------|------|
+| Dashboard | `/dashboard` | Mixed: static financial KPIs, agro-computed corn/cattle, charts from `mockData.ts` |
+| Customers | `/customers` | Customers + App-level receivables |
+| Accounts Receivable | `/accounts-receivable` | App state; Record Payment works in session |
+| Export/Import | `/export-import` | CSV pipeline + agro import seeds |
+| Expenses | `/expenses` | `domains/financial` via `useFinancialData()` |
+| Revenue | `/revenue` | `domains/financial` via `useFinancialData()` |
+| Reports | `/reports` | `mockData.ts` + agro plots |
+| Settings | *(no route)* | Sidebar placeholder only |
 
-| Data | Used in |
-|------|---------|
-| `dashboardKPIs` | KPI cards on `DashboardPage` |
-| `monthlyFinancials` | `FinancialChart` |
-| `cropPlots` | `CropTable` |
-| `livestockGroups` | `LivestockTable` |
-| `expenseCategories` | `ExpenseBreakdown` |
-| `receivables` | `ReceivablesTable` |
-| `aiInsights` | `AIInsightsPanel` |
+Navigation uses **React Router**. See [README.md](./README.md) and [DEMO.md](./DEMO.md) for detail.
 
-Also mock / non-functional UI:
+## What is mock or static today
 
-- “This Month” date selector (no logic)
-- “Export Report” button (no download)
-- “Last updated: Today, 08:42 AM” (hardcoded)
+| Data | Source | Used in |
+|------|--------|---------|
+| `dashboardKPIs` (financial strings) | `mockData.ts` | Dashboard KPI cards (except corn/cattle) |
+| `monthlyFinancials` | `mockData.ts` | Chart, Reports |
+| `expenseCategories` | `mockData.ts` | Expense breakdown, Reports |
+| `customers` | `mockData.ts` | Customers page |
+| `plots`, `livestock` | `domains/agro/mockData.ts` | Crop/Livestock tables, partial Dashboard KPIs |
+| `initialRevenueRecords` / `initialExpenseRecords` | `domains/financial/mockData.ts` | Revenue/Expenses pages (per-session) |
+| `initialReceivableRecords` | `domains/financial/mockData.ts` | App seed → AR page (mutable until refresh) |
+| `aiInsights` | `domains/agro/mockData.ts` | AI panel |
+| Dashboard `ReceivablesTable` | Static export from `mockData.ts` | Does not follow AR page payments |
+
+Non-functional UI placeholders:
+
+- Dashboard “This Month” and “Export Report”
+- Customers “Add Customer”
+- Reports “Export” button
+- Settings sidebar item
+- “Last updated” on AI panel
+
+## What is computed or interactive (still client-only)
+
+- Revenue and Expenses KPIs, filters, sort, Add modals (`useFinancialData`)
+- AR KPIs, filters, sort, Record Payment, Add Invoice, CSV export (App state)
+- Agro KPIs for corn tons and cattle head count on Dashboard
+- Reports P&L when switching months (Jan–Jun)
+- CSV import/export on Export/Import page
 
 ## What should eventually become dynamic
 
-- All KPI values computed from transactions and agro records
-- Chart data from monthly aggregates in a database
-- Tables loaded per organization with filters (date range, plot, group)
-- Receivables synced from invoices / payments
-- AI insights generated via API from real metrics
-- User-specific org, permissions, and audit trail
+- All KPI values from one organization’s transactions and agro records
+- Unified state across Dashboard, Reports, Revenue, Expenses, and AR
+- Chart and P&L from database aggregates
+- AI insights from an API with real metrics
+- Persistence across refresh, users, and organizations
