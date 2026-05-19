@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportImportRecords as agroSeedRecords } from "@/domains/agro/mockData";
+import { ExcelImportWizard } from "./ExcelImportWizard";
 import {
   DETECTED_FIELDS,
   detectColumns,
@@ -320,6 +321,8 @@ export function ExportImportPage() {
       </header>
 
       <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6">
+        <ExcelImportWizard />
+
         {(errorMessage || successMessage) && (
           <div className="space-y-2">
             {errorMessage && <MessageBanner variant="error">{errorMessage}</MessageBanner>}
