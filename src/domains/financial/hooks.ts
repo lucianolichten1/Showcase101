@@ -25,6 +25,8 @@ export function useFinancialData(): UseFinancialDataResult {
     setExpenseRecords: ctx.setExpenseRecords,
     receivableRecords: ctx.receivableRecords,
     setReceivableRecords: ctx.setReceivableRecords,
+    customerRecords: ctx.customerRecords,
+    setCustomerRecords: ctx.setCustomerRecords,
     dateRange: ctx.dateRange,
     setDateRange: ctx.setDateRange,
     filteredRevenueRecords: ctx.filteredRevenueRecords,

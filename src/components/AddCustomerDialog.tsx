@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
-import type { Customer } from "@/data/types";
+import type { CustomerRecord } from "@/domains/customers/types";
 import { cn } from "@/lib/utils";
 
 const INDUSTRIES = ["Agriculture", "Retail", "Distribution", "Export"];
@@ -10,7 +10,7 @@ interface Props {
   open: boolean;
   nextId: number;
   onClose: () => void;
-  onConfirm: (customer: Customer) => void;
+  onConfirm: (customer: CustomerRecord) => void;
 }
 
 export function AddCustomerDialog({ open, nextId, onClose, onConfirm }: Props) {
@@ -50,8 +50,6 @@ export function AddCustomerDialog({ open, nextId, onClose, onConfirm }: Props) {
       phone: phone.trim(),
       city: city.trim(),
       industry: industry.trim(),
-      totalInvoiced: 0,
-      totalPaid: 0,
       status,
     });
   };

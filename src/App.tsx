@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
@@ -13,14 +12,12 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
-import type { Customer } from "./data/types";
-import { customers as initialCustomers } from "./data/mockData";
 import { useFinancialData } from "./domains/financial/hooks";
 import type { ReceivableRecord } from "./domains/financial/types";
+import type { CustomerRecord } from "./domains/customers/types";
 
 export default function App() {
-  const { receivableRecords, setReceivableRecords } = useFinancialData();
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const { receivableRecords, setReceivableRecords, customerRecords, setCustomerRecords } = useFinancialData();
 
   const handleUpdateReceivable = (updated: ReceivableRecord) =>
     setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -28,8 +25,8 @@ export default function App() {
   const handleAddReceivable = (newR: ReceivableRecord) =>
     setReceivableRecords((prev) => [...prev, newR]);
 
-  const handleAddCustomer = (newC: Customer) =>
-    setCustomers((prev) => [...prev, newC]);
+  const handleAddCustomer = (newC: CustomerRecord) =>
+    setCustomerRecords((prev) => [...prev, newC]);
 
   return (
     <Routes>
@@ -54,7 +51,7 @@ export default function App() {
           path="/customers"
           element={
             <CustomersPage
-              customers={customers}
+              customers={customerRecords}
               receivables={receivableRecords}
               onAddCustomer={handleAddCustomer}
             />

@@ -1,4 +1,4 @@
-import type { ImportARRecord, ImportedData, ImportExpenseRecord, SalesRecord } from "./types";
+import type { ImportARRecord, ImportCustomerRecord, ImportedData, ImportExpenseRecord, SalesRecord } from "./types";
 
 /** Stable dedupe key for imported sales (ignores generated id). */
 export function salesDedupeKey(row: SalesRecord): string {
@@ -22,6 +22,11 @@ export function arDedupeKey(row: ImportARRecord): string {
   ].join("|");
 }
 
+/** Stable dedupe key for imported customers (ignores generated id). */
+export function customerDedupeKey(row: ImportCustomerRecord): string {
+  return [row.name.toLowerCase().trim(), row.email?.toLowerCase().trim() ?? ""].join("|");
+}
+
 /** Stable dedupe key for imported expenses (ignores generated id). */
 export function expenseDedupeKey(row: ImportExpenseRecord): string {
   return [
@@ -38,9 +43,11 @@ export interface MergeImportResult {
   newSalesCount: number;
   newExpenseCount: number;
   newArCount: number;
+  newCustomerCount: number;
   duplicateSalesCount: number;
   duplicateExpenseCount: number;
   duplicateArCount: number;
+  duplicateCustomerCount: number;
 }
 
 function mergeRowList<T>(
@@ -77,15 +84,18 @@ export function mergeImportedData(
   const baseSales = existing?.sales ?? [];
   const baseExpenses = existing?.expenses ?? [];
   const baseAr = existing?.arReceivables ?? [];
+  const baseCustomers = existing?.customers ?? [];
 
   const salesMerge = mergeRowList(baseSales, incoming.sales, salesDedupeKey);
   const expenseMerge = mergeRowList(baseExpenses, incoming.expenses, expenseDedupeKey);
   const arMerge = mergeRowList(baseAr, incoming.arReceivables, arDedupeKey);
+  const customerMerge = mergeRowList(baseCustomers, incoming.customers, customerDedupeKey);
 
   const merged: ImportedData = {
     sales: salesMerge.merged,
     expenses: expenseMerge.merged,
     arReceivables: arMerge.merged,
+    customers: customerMerge.merged,
     importedAt: incoming.importedAt,
     sourceFileName: incoming.sourceFileName ?? existing?.sourceFileName,
   };
@@ -95,8 +105,10 @@ export function mergeImportedData(
     newSalesCount: salesMerge.newCount,
     newExpenseCount: expenseMerge.newCount,
     newArCount: arMerge.newCount,
+    newCustomerCount: customerMerge.newCount,
     duplicateSalesCount: salesMerge.duplicateCount,
     duplicateExpenseCount: expenseMerge.duplicateCount,
     duplicateArCount: arMerge.duplicateCount,
+    duplicateCustomerCount: customerMerge.duplicateCount,
   };
 }

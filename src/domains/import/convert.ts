@@ -1,5 +1,28 @@
 import type { ExpenseRecord, ReceivableRecord, ReceivablePaymentStatus, RevenueRecord } from "@/domains/financial/types";
-import type { ImportARRecord, ImportExpenseRecord, SalesRecord } from "./types";
+import type { CustomerRecord } from "@/domains/customers/types";
+import type { ImportARRecord, ImportCustomerRecord, ImportExpenseRecord, SalesRecord } from "./types";
+
+// ─── Customer conversion ──────────────────────────────────────────────────────
+
+function normalizeCustomerStatus(raw: string | undefined): "Active" | "Inactive" {
+  const s = (raw ?? "").toLowerCase().trim();
+  if (s === "inactive" || s === "false" || s === "no") return "Inactive";
+  return "Active";
+}
+
+/** Convert imported customer rows into CustomerRecord[] for the Customers page. */
+export function importCustomersToRecords(records: ImportCustomerRecord[]): CustomerRecord[] {
+  return records.map((r, i) => ({
+    id: i + 1,
+    name: r.name,
+    email: r.email,
+    phone: r.phone,
+    city: r.city,
+    industry: r.industry,
+    status: normalizeCustomerStatus(r.status),
+    createdAt: new Date().toISOString().split("T")[0],
+  }));
+}
 
 // ─── AR conversion helpers ────────────────────────────────────────────────────
 
