@@ -11,6 +11,9 @@ import {
 import { runImportFromWorkbook, validateSheetMappings } from "@/domains/import/runImport";
 import type { SheetMapping, SheetRole, WorkbookPreview } from "@/domains/import/types";
 import {
+  AR_FIELD_KEYS,
+  AR_FIELD_LABELS,
+  AR_REQUIRED_FIELDS,
   EXPENSE_FIELD_KEYS,
   EXPENSE_FIELD_LABELS,
   EXPENSE_REQUIRED_FIELDS,
@@ -23,6 +26,7 @@ import { useFinancialData } from "@/domains/financial/hooks";
 const ROLE_OPTIONS: { value: SheetRole; label: string }[] = [
   { value: "sales", label: "Sales" },
   { value: "expenses", label: "Expenses" },
+  { value: "accounts-receivable", label: "Accounts Receivable" },
   { value: "ignore", label: "Ignore" },
 ];
 
@@ -181,7 +185,7 @@ export function ExcelImportWizard() {
     }
 
     const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName);
-    if (result.salesCount === 0 && result.expensesCount === 0) {
+    if (result.salesCount === 0 && result.expensesCount === 0 && result.arCount === 0) {
       setErrorMessage(
         "No valid rows were imported. Check your column mappings and try again."
       );
@@ -200,14 +204,22 @@ export function ExcelImportWizard() {
     setImportWarnings(result.warnings.slice(0, 15));
     const addedSales = mergeResult.newSalesCount;
     const addedExpenses = mergeResult.newExpenseCount;
+    const addedAr = mergeResult.newArCount;
     const duplicates =
-      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount;
+      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount + mergeResult.duplicateArCount;
     const totalSales = mergeResult.merged.sales.length;
     const totalExpenses = mergeResult.merged.expenses.length;
+    const totalAr = mergeResult.merged.arReceivables.length;
+    const parts = [];
+    if (addedSales > 0) parts.push(`${addedSales} sales`);
+    if (addedExpenses > 0) parts.push(`${addedExpenses} expense`);
+    if (addedAr > 0) parts.push(`${addedAr} AR`);
+    const addedStr = parts.length > 0 ? `Added ${parts.join(", ")} rows` : "No new rows added";
+    const totals = [`${totalSales} sales`, `${totalExpenses} expenses`, `${totalAr} AR`].join(", ");
     setSuccessMessage(
-      `Added ${addedSales} sales and ${addedExpenses} expense rows` +
+      addedStr +
         (duplicates > 0 ? ` (${duplicates} duplicates skipped).` : ".") +
-        ` Active dataset: ${totalSales} sales, ${totalExpenses} expenses.` +
+        ` Active dataset: ${totals}.` +
         (result.skipped > 0 ? ` ${result.skipped} rows skipped in file.` : "")
     );
   };
@@ -225,7 +237,8 @@ export function ExcelImportWizard() {
         {usesImportedData && importedData && (
           <p className="text-xs text-green-700 mt-2 font-medium">
             Using imported data ({importedData.sales.length} sales,{" "}
-            {importedData.expenses.length} expenses)
+            {importedData.expenses.length} expenses,{" "}
+            {importedData.arReceivables.length} AR)
             {importedData.sourceFileName
               ? ` from ${importedData.sourceFileName}`
               : ""}
@@ -434,6 +447,20 @@ export function ExcelImportWizard() {
                   />
                 )}
 
+                {activeMapping.role === "accounts-receivable" && (
+                  <FieldMapper
+                    title="Map accounts receivable columns"
+                    fields={AR_FIELD_KEYS}
+                    labels={AR_FIELD_LABELS}
+                    required={AR_REQUIRED_FIELDS}
+                    headers={activeSheet.headers}
+                    columnMap={activeMapping.columnMap}
+                    onChange={(field, col) =>
+                      updateColumnMap(selectedSheet, field, col)
+                    }
+                  />
+                )}
+
                 {activeMapping.role === "ignore" && (
                   <p className="text-sm text-stone-500">
                     This sheet will be skipped during import.
@@ -485,7 +512,7 @@ export function ExcelImportWizard() {
       )}
 
       <p className="text-[10px] text-stone-400 border-t border-stone-100 pt-3">
-        TODO: Customers, Accounts Receivable, and Inventory sheet mapping.
+        Supported sheet roles: Sales, Expenses, Accounts Receivable. Future: Customers, Inventory.
       </p>
     </section>
   );

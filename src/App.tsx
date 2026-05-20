@@ -13,18 +13,20 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
-import type { Receivable, Customer } from "./data/types";
-import { receivables as initialReceivables, customers as initialCustomers } from "./data/mockData";
+import type { Customer } from "./data/types";
+import { customers as initialCustomers } from "./data/mockData";
+import { useFinancialData } from "./domains/financial/hooks";
+import type { ReceivableRecord } from "./domains/financial/types";
 
 export default function App() {
-  const [receivables, setReceivables] = useState<Receivable[]>(initialReceivables);
+  const { receivableRecords, setReceivableRecords } = useFinancialData();
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
 
-  const handleUpdateReceivable = (updated: Receivable) =>
-    setReceivables((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  const handleUpdateReceivable = (updated: ReceivableRecord) =>
+    setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
 
-  const handleAddReceivable = (newR: Receivable) =>
-    setReceivables((prev) => [...prev, newR]);
+  const handleAddReceivable = (newR: ReceivableRecord) =>
+    setReceivableRecords((prev) => [...prev, newR]);
 
   const handleAddCustomer = (newC: Customer) =>
     setCustomers((prev) => [...prev, newC]);
@@ -41,7 +43,7 @@ export default function App() {
           path="/accounts-receivable"
           element={
             <AccountsReceivablePage
-              receivables={receivables}
+              receivables={receivableRecords}
               onUpdateReceivable={handleUpdateReceivable}
               onAddReceivable={handleAddReceivable}
             />
@@ -53,7 +55,7 @@ export default function App() {
           element={
             <CustomersPage
               customers={customers}
-              receivables={receivables}
+              receivables={receivableRecords}
               onAddCustomer={handleAddCustomer}
             />
           }

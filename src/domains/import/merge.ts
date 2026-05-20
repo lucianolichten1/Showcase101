@@ -1,4 +1,4 @@
-import type { ImportedData, ImportExpenseRecord, SalesRecord } from "./types";
+import type { ImportARRecord, ImportedData, ImportExpenseRecord, SalesRecord } from "./types";
 
 /** Stable dedupe key for imported sales (ignores generated id). */
 export function salesDedupeKey(row: SalesRecord): string {
@@ -9,6 +9,16 @@ export function salesDedupeKey(row: SalesRecord): string {
     row.quantity ?? "",
     row.revenue,
     row.cost ?? "",
+  ].join("|");
+}
+
+/** Stable dedupe key for imported AR records (ignores generated id). */
+export function arDedupeKey(row: ImportARRecord): string {
+  return [
+    row.invoiceDate,
+    row.customerName ?? "",
+    row.invoiceNumber ?? "",
+    row.amount,
   ].join("|");
 }
 
@@ -27,8 +37,10 @@ export interface MergeImportResult {
   merged: ImportedData;
   newSalesCount: number;
   newExpenseCount: number;
+  newArCount: number;
   duplicateSalesCount: number;
   duplicateExpenseCount: number;
+  duplicateArCount: number;
 }
 
 function mergeRowList<T>(
@@ -64,17 +76,16 @@ export function mergeImportedData(
 ): MergeImportResult {
   const baseSales = existing?.sales ?? [];
   const baseExpenses = existing?.expenses ?? [];
+  const baseAr = existing?.arReceivables ?? [];
 
   const salesMerge = mergeRowList(baseSales, incoming.sales, salesDedupeKey);
-  const expenseMerge = mergeRowList(
-    baseExpenses,
-    incoming.expenses,
-    expenseDedupeKey
-  );
+  const expenseMerge = mergeRowList(baseExpenses, incoming.expenses, expenseDedupeKey);
+  const arMerge = mergeRowList(baseAr, incoming.arReceivables, arDedupeKey);
 
   const merged: ImportedData = {
     sales: salesMerge.merged,
     expenses: expenseMerge.merged,
+    arReceivables: arMerge.merged,
     importedAt: incoming.importedAt,
     sourceFileName: incoming.sourceFileName ?? existing?.sourceFileName,
   };
@@ -83,7 +94,9 @@ export function mergeImportedData(
     merged,
     newSalesCount: salesMerge.newCount,
     newExpenseCount: expenseMerge.newCount,
+    newArCount: arMerge.newCount,
     duplicateSalesCount: salesMerge.duplicateCount,
     duplicateExpenseCount: expenseMerge.duplicateCount,
+    duplicateArCount: arMerge.duplicateCount,
   };
 }

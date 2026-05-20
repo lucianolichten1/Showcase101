@@ -33,6 +33,7 @@ const base: ImportedData = {
       vendor: "Vendor",
     },
   ],
+  arReceivables: [],
   importedAt: "2025-01-01T00:00:00.000Z",
   sourceFileName: "2025.xlsx",
 };
@@ -67,6 +68,7 @@ test("merges new rows and skips duplicates", () => {
         vendor: "Other",
       },
     ],
+    arReceivables: [],
     importedAt: "2026-01-01T00:00:00.000Z",
     sourceFileName: "2026.xlsx",
   };

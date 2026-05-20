@@ -1,5 +1,47 @@
-import type { ExpenseRecord, RevenueRecord } from "@/domains/financial/types";
-import type { ImportExpenseRecord, SalesRecord } from "./types";
+import type { ExpenseRecord, ReceivableRecord, ReceivablePaymentStatus, RevenueRecord } from "@/domains/financial/types";
+import type { ImportARRecord, ImportExpenseRecord, SalesRecord } from "./types";
+
+// ─── AR conversion helpers ────────────────────────────────────────────────────
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function isoToDisplayDate(isoDate: string): string {
+  const [, month, day] = isoDate.split("-").map(Number);
+  return `${MONTH_NAMES[(month ?? 1) - 1]} ${day}`;
+}
+
+function computeOverdueDays(isoDate: string): number {
+  const due = new Date(isoDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000));
+}
+
+function normalizeARStatus(raw: string | undefined, overdueDays: number): ReceivablePaymentStatus {
+  const s = (raw ?? "").toLowerCase().trim();
+  if (s === "paid") return "Paid";
+  if (s === "partially paid" || s === "partial") return "Partially Paid";
+  if (overdueDays > 0) return "Overdue";
+  return "Pending";
+}
+
+/** Convert imported AR records into ReceivableRecord[] for the AR page. */
+export function arToReceivableRecords(records: ImportARRecord[]): ReceivableRecord[] {
+  return records.map((r, i) => {
+    const dueDateIso = r.dueDate ?? r.invoiceDate;
+    const overdueDays = computeOverdueDays(dueDateIso);
+    return {
+      id: i + 1,
+      customer: r.customerName ?? "—",
+      invoiceNumber: r.invoiceNumber ?? `IMP-${String(i + 1).padStart(3, "0")}`,
+      amount: r.amount,
+      amountPaid: 0,
+      dueDate: isoToDisplayDate(dueDateIso),
+      overdueDays,
+      status: normalizeARStatus(r.status, overdueDays),
+    };
+  });
+}
 
 /** Convert imported sales into financial revenue records (optional cost preserved). */
 export function salesToRevenueRecords(sales: SalesRecord[]): RevenueRecord[] {

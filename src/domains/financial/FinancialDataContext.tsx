@@ -9,6 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  arToReceivableRecords,
   expenseRecordsToImport,
   importExpensesToFinancial,
   revenueRecordsToSales,
@@ -74,7 +75,10 @@ const FinancialDataContext = createContext<FinancialDataContextValue | null>(
 );
 
 function hasActiveImport(data: ImportedData | null): boolean {
-  return Boolean(data && (data.sales.length > 0 || data.expenses.length > 0));
+  return Boolean(
+    data &&
+    (data.sales.length > 0 || data.expenses.length > 0 || data.arReceivables.length > 0)
+  );
 }
 
 function createHistoryItem(
@@ -108,9 +112,13 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     loadImportHistory()
   );
 
-  const [receivableRecords, setReceivableRecords] = useState<ReceivableRecord[]>(
-    initialReceivableRecords
-  );
+  const [receivableRecords, setReceivableRecords] = useState<ReceivableRecord[]>(() => {
+    const persisted = loadImportedData();
+    if (persisted?.arReceivables?.length) {
+      return arToReceivableRecords(persisted.arReceivables);
+    }
+    return initialReceivableRecords;
+  });
   const [dateRange, setDateRange] = useState<DateRange>(
     getDateRangeForPeriod(DEFAULT_FINANCIAL_PERIOD)
   );
@@ -181,6 +189,10 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
         saveImportedData(mergeResult.merged);
         return mergeResult.merged;
       });
+      // Sync receivableRecords when AR data is present in the merged result
+      if (mergeResult.merged.arReceivables.length > 0) {
+        setReceivableRecords(arToReceivableRecords(mergeResult.merged.arReceivables));
+      }
       saveImportMapping(mapping);
       const historyItem = createHistoryItem(
         historyMeta,
@@ -205,6 +217,7 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     clearImportHistory();
     setImportedData(null);
     setImportHistory([]);
+    setReceivableRecords(initialReceivableRecords);
   }, []);
 
   const filteredRevenueRecords = useMemo(

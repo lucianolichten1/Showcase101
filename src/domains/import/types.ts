@@ -9,6 +9,18 @@ export interface SalesRecord {
   cost?: number;
 }
 
+/** Standardized AR/invoice row after Excel import + column mapping */
+export interface ImportARRecord {
+  id: string;
+  invoiceDate: string;     // ISO date — primary date, used as dueDate
+  amount: number;
+  customerName?: string;
+  customerId?: string;
+  dueDate?: string;        // ISO date — overrides invoiceDate when present
+  status?: string;         // raw string; normalized to ReceivablePaymentStatus on convert
+  invoiceNumber?: string;
+}
+
 /** Standardized expense row after Excel import + column mapping */
 export interface ImportExpenseRecord {
   id: string;
@@ -19,7 +31,7 @@ export interface ImportExpenseRecord {
   amount: number;
 }
 
-export type SheetRole = "sales" | "expenses" | "ignore";
+export type SheetRole = "sales" | "expenses" | "accounts-receivable" | "ignore";
 
 export interface SheetPreview {
   sheetName: string;
@@ -47,6 +59,7 @@ export interface ImportMapping {
 export interface ImportedData {
   sales: SalesRecord[];
   expenses: ImportExpenseRecord[];
+  arReceivables: ImportARRecord[];
   importedAt: string;
   sourceFileName?: string;
 }
@@ -115,4 +128,27 @@ export const EXPENSE_FIELD_LABELS: Record<ExpenseFieldKey, string> = {
   category: "Category",
   description: "Description",
   vendor: "Vendor",
+};
+
+export const AR_FIELD_KEYS = [
+  "invoiceDate",
+  "amount",
+  "customerName",
+  "customerId",
+  "dueDate",
+  "status",
+  "invoiceNumber",
+] as const;
+
+export type ARFieldKey = (typeof AR_FIELD_KEYS)[number];
+export const AR_REQUIRED_FIELDS: ARFieldKey[] = ["invoiceDate", "amount"];
+
+export const AR_FIELD_LABELS: Record<ARFieldKey, string> = {
+  invoiceDate: "Invoice Date",
+  amount: "Amount",
+  customerName: "Customer Name",
+  customerId: "Customer ID",
+  dueDate: "Due Date (if different)",
+  status: "Status",
+  invoiceNumber: "Invoice #",
 };
