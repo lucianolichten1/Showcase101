@@ -14,6 +14,7 @@ import {
   Download,
   Sparkles,
   AlertCircle,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -35,13 +36,6 @@ import {
   type DetectedMapping,
   type ParsedRow,
 } from "@/lib/csv";
-
-const importSteps = [
-  { label: "Upload file", step: 1 },
-  { label: "Map columns", step: 2 },
-  { label: "Review imported rows", step: 3 },
-  { label: "Confirm import", step: 4 },
-];
 
 const exportOptions = [
   {
@@ -77,8 +71,6 @@ const aiBullets = [
   "Preview data before saving",
 ];
 
-const PIPELINE_STEPS = ["Upload", "Preview", "Confirm", "Export"] as const;
-
 function StatusBadge({ status }: { status: ImportHistoryDisplayStatus }) {
   return (
     <span
@@ -96,10 +88,12 @@ function StatusBadge({ status }: { status: ImportHistoryDisplayStatus }) {
 
 function SectionCard({
   title,
+  subtitle,
   children,
   className,
 }: {
   title: string;
+  subtitle?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -110,9 +104,10 @@ function SectionCard({
         className
       )}
     >
-      <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-4">
-        {title}
-      </h2>
+      <div className="mb-4">
+        <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-stone-500 mt-1">{subtitle}</p>}
+      </div>
       {children}
     </section>
   );
@@ -144,17 +139,6 @@ function MessageBanner({
   );
 }
 
-function getWorkflowProgress(state: {
-  hasUpload: boolean;
-  hasPreview: boolean;
-  hasConfirmed: boolean;
-}): number {
-  if (state.hasConfirmed) return 4;
-  if (state.hasPreview) return 3;
-  if (state.hasUpload) return 2;
-  return 1;
-}
-
 export function ExportImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -162,6 +146,7 @@ export function ExportImportPage() {
     appendImportHistory,
     usesImportedData,
     importedData,
+    clearImportedData,
   } = useFinancialData();
 
   const recentImports = importHistory.map((item) =>
@@ -170,6 +155,7 @@ export function ExportImportPage() {
       item.fileName.toLowerCase().endsWith(".csv") ? "CSV" : "Excel"
     )
   );
+
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
@@ -183,7 +169,6 @@ export function ExportImportPage() {
   const hasUpload = parsedRows.length > 0 && parsedHeaders.length > 0;
   const hasPreview = hasUpload;
   const hasConfirmed = importedRows.length > 0;
-  const workflowProgress = getWorkflowProgress({ hasUpload, hasPreview, hasConfirmed });
 
   const previewRows = parsedRows.slice(0, 10);
   const importedPreviewRows = importedRows.slice(0, 20);
@@ -204,16 +189,14 @@ export function ExportImportPage() {
         resetUploadState();
         setFileName(file.name);
         setErrorMessage(
-          "For now, please upload a CSV file. Excel support is coming next."
+          "Use the Excel Import section above to import .xlsx files."
         );
         return;
       }
 
       if (!isCsvFile(file)) {
         resetUploadState();
-        setErrorMessage(
-          "For now, please upload a CSV file. Excel support is coming next."
-        );
+        setErrorMessage("Please upload a CSV (.csv) or Excel (.xlsx) file.");
         return;
       }
 
@@ -237,9 +220,7 @@ export function ExportImportPage() {
 
   const handleFileInput = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      void processFile(file);
-    }
+    if (file) void processFile(file);
     event.target.value = "";
   };
 
@@ -248,7 +229,7 @@ export function ExportImportPage() {
     setIsDragging(false);
     const file = event.dataTransfer.files?.[0];
     if (!file) {
-      setErrorMessage("No file was selected. Please choose a CSV file.");
+      setErrorMessage("No file selected.");
       return;
     }
     void processFile(file);
@@ -258,9 +239,7 @@ export function ExportImportPage() {
     resetUploadState();
     setErrorMessage(null);
     setSuccessMessage(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleConfirmImport = () => {
@@ -284,58 +263,66 @@ export function ExportImportPage() {
       skippedRows: 0,
       warningCount: 0,
     });
-    setSuccessMessage(`Imported ${parsedRows.length} rows successfully.`);
+    setSuccessMessage(`Imported ${parsedRows.length} rows from ${fileName}.`);
   };
 
   const handleExportImported = () => {
     setErrorMessage(null);
-
     if (importedRows.length === 0 || importedHeaders.length === 0) {
       setErrorMessage("No imported data to export yet.");
       return;
     }
-
     const csv = rowsToCsv(importedHeaders, importedRows);
     downloadCsvFile(csv, "agro-imported-data.csv");
     setSuccessMessage(`Exported ${importedRows.length} rows to agro-imported-data.csv.`);
   };
 
-  const activePipelineIndex = hasConfirmed
-    ? 3
-    : hasPreview
-      ? 1
-      : fileName
-        ? 0
-        : -1;
-
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0">
+      {/* Page header */}
       <header className="h-auto min-h-14 bg-white border-b border-stone-200 px-6 sm:px-10 py-4 flex items-center shadow-sm flex-shrink-0">
         <div className="w-full max-w-7xl mx-auto">
-          <h1 className="text-lg font-bold text-stone-900 leading-none">Export / Import</h1>
+          <h1 className="text-lg font-bold text-stone-900 leading-none">Import & Export</h1>
           <p className="text-sm text-stone-500 mt-1.5 max-w-2xl">
-            Upload financial data from Excel or CSV, review it, and export clean reports.
+            Import financial data from Excel workbooks to populate your dashboard, reports, and receivables. Export clean summaries when you're done.
           </p>
         </div>
       </header>
 
-      <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6">
+      <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6 overflow-auto">
+
+        {/* Active import banner */}
         {usesImportedData && importedData && (
-          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
-            <p className="font-semibold">Imported data active</p>
-            <p className="text-xs mt-1 text-green-800">
-              Dashboard and charts use {importedData.sales.length} sales and{" "}
-              {importedData.expenses.length} expense rows
-              {importedData.sourceFileName
-                ? ` from ${importedData.sourceFileName}`
-                : ""}
-              . Data is saved in this browser until you clear the import.
-            </p>
+          <div className="rounded-xl border border-green-200 bg-green-50 px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
+              <Database className="h-4 w-4 text-green-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-green-900">Imported data is active</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                {[
+                  importedData.sales.length > 0 && `${importedData.sales.length} sales`,
+                  importedData.expenses.length > 0 && `${importedData.expenses.length} expenses`,
+                  importedData.arReceivables.length > 0 && `${importedData.arReceivables.length} receivables`,
+                ].filter(Boolean).join(" · ")}
+                {importedData.sourceFileName ? ` — from ${importedData.sourceFileName}` : ""}
+                {" · "}Saved in this browser until you clear the import.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => clearImportedData()}
+              className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-green-200 bg-white text-green-800 hover:bg-green-100 transition-colors"
+            >
+              Clear import
+            </button>
           </div>
         )}
 
+        {/* Primary: Excel Import Wizard */}
         <ExcelImportWizard />
 
+        {/* CSV messages */}
         {(errorMessage || successMessage) && (
           <div className="space-y-2">
             {errorMessage && <MessageBanner variant="error">{errorMessage}</MessageBanner>}
@@ -343,28 +330,69 @@ export function ExportImportPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">
-          {PIPELINE_STEPS.map((label, index) => (
-            <div key={label} className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "px-2.5 py-1 rounded-full border",
-                  index <= activePipelineIndex
-                    ? "bg-green-50 text-green-800 border-green-100"
-                    : "bg-stone-50 text-stone-400 border-stone-200"
-                )}
-              >
-                {label}
-              </span>
-              {index < PIPELINE_STEPS.length - 1 && (
-                <span className="text-stone-300">→</span>
-              )}
+        {/* Recent Imports */}
+        <SectionCard
+          title="Recent Imports"
+          subtitle="History of files imported in this browser session."
+        >
+          {recentImports.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-stone-400">
+              <FileSpreadsheet size={28} strokeWidth={1.5} />
+              <p className="text-sm font-medium">No imports yet</p>
+              <p className="text-xs">Complete an Excel import above to see it here.</p>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-left border-collapse min-w-[580px]">
+                <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
+                  <tr className="h-8">
+                    <th className="font-bold pr-4">File</th>
+                    <th className="font-bold pr-4">Added</th>
+                    <th className="font-bold pr-4">Status</th>
+                    <th className="font-bold">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] text-stone-800">
+                  {recentImports.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
+                    >
+                      <td className="pr-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                          <span className="font-medium truncate max-w-[220px]">{row.fileName}</span>
+                          <span className="text-[9px] text-stone-400 uppercase font-bold">{row.type}</span>
+                        </div>
+                      </td>
+                      <td className="pr-4 text-stone-500">
+                        {row.rows > 0 ? `${row.rows} new rows` : "No new rows"}
+                        {row.duplicateRows > 0 && (
+                          <span className="ml-1 text-stone-400">· {row.duplicateRows} skipped</span>
+                        )}
+                      </td>
+                      <td className="pr-4">
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className="text-stone-500">{row.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <SectionCard title="Import Data">
+        {/* Legacy CSV quick import */}
+        <details className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+          <summary className="px-4 sm:px-5 py-4 cursor-pointer list-none flex items-center justify-between">
+            <div>
+              <span className="text-sm font-bold text-stone-800 uppercase tracking-tight">CSV Quick Preview</span>
+              <span className="ml-2 text-[10px] font-medium text-stone-400 normal-case uppercase tracking-wide">(legacy · CSV only)</span>
+            </div>
+            <span className="text-xs text-stone-400">For .csv preview only — use Excel Import above for full import</span>
+          </summary>
+          <div className="px-4 sm:px-5 pb-5 space-y-4 border-t border-stone-100 pt-4">
             <input
               ref={fileInputRef}
               type="file"
@@ -373,285 +401,137 @@ export function ExportImportPage() {
               onChange={handleFileInput}
             />
             <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               className={cn(
                 "border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center transition-colors",
-                fileName ? "p-6 min-h-[120px]" : "p-10 sm:p-12",
-                isDragging
-                  ? "border-green-500 bg-green-50/50"
-                  : "border-stone-200 bg-stone-50/80"
+                fileName ? "p-6 min-h-[80px]" : "p-8",
+                isDragging ? "border-green-500 bg-green-50/50" : "border-stone-200 bg-stone-50/80"
               )}
             >
               {fileName ? (
-                <p className="text-sm font-semibold text-stone-900 break-all px-2">
-                  {fileName}
-                </p>
+                <p className="text-sm font-semibold text-stone-900 break-all px-2">{fileName}</p>
               ) : (
                 <>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white border border-stone-200 shadow-sm mb-3">
-                    <Upload className="h-5 w-5 text-stone-500" />
-                  </div>
-                  <p className="text-sm font-semibold text-stone-800">Upload CSV file</p>
-                  <p className="text-xs text-stone-500 mt-1 mb-4">
-                    Drag and drop your file here, or choose a file from your computer
-                  </p>
+                  <Upload className="h-5 w-5 text-stone-400 mb-2" />
+                  <p className="text-sm font-semibold text-stone-700">Drop a CSV file here</p>
+                  <p className="text-xs text-stone-400 mt-1 mb-3">or choose a file to preview its contents</p>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm"
+                    className="bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors"
                   >
-                    Choose File
+                    Choose CSV File
                   </button>
-                  <p className="text-[10px] text-stone-400 mt-3 font-medium uppercase tracking-wide">
-                    CSV supported now · .xlsx coming next
-                  </p>
                 </>
               )}
             </div>
-            <p className="text-xs text-stone-500 mt-3 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-green-700 shrink-0" />
-              Excel support coming next · AI column mapping coming soon
-            </p>
-          </SectionCard>
 
-          <SectionCard title="Import Workflow">
-            <ol className="space-y-4">
-              {importSteps.map(({ label, step }) => {
-                const isComplete = step < workflowProgress;
-                const isCurrent = step === workflowProgress;
-                return (
-                  <li key={step} className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
-                        isComplete
-                          ? "bg-green-700 border-green-700 text-white"
-                          : isCurrent
-                            ? "bg-white border-green-700 text-green-700"
-                            : "bg-white border-stone-200 text-stone-400"
-                      )}
-                    >
-                      {isComplete ? <CheckCircle2 className="h-4 w-4" /> : <span>{step}</span>}
+            {detectedMapping && parsedHeaders.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">Detected Columns</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {DETECTED_FIELDS.map((field) => (
+                    <div key={field} className="flex items-center justify-between rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 text-xs">
+                      <span className="font-bold text-stone-700">{getFieldLabel(field)}</span>
+                      <span className="text-stone-500">{detectedMapping[field] ? `→ ${detectedMapping[field]}` : "—"}</span>
                     </div>
-                    <div className="pt-0.5 flex-1">
-                      <p
-                        className={cn(
-                          "text-sm font-semibold",
-                          isComplete || isCurrent ? "text-stone-900" : "text-stone-500"
-                        )}
-                      >
-                        {label}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </SectionCard>
-        </div>
-
-        {detectedMapping && parsedHeaders.length > 0 && (
-          <SectionCard title="Detected Columns">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {DETECTED_FIELDS.map((field) => (
-                <div
-                  key={field}
-                  className="flex items-center justify-between rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 text-xs"
-                >
-                  <span className="font-bold text-stone-700">{getFieldLabel(field)}</span>
-                  <span className="text-stone-500">
-                    {detectedMapping[field] ? `→ ${detectedMapping[field]}` : "—"}
-                  </span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </SectionCard>
-        )}
-
-        {hasPreview && (
-          <SectionCard title="Upload Preview">
-            <div className="overflow-x-auto -mx-1 mb-4">
-              <table className="w-full text-left border-collapse min-w-[480px]">
-                <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                  <tr className="h-8">
-                    {parsedHeaders.map((header) => (
-                      <th key={header} className="font-bold pr-4 whitespace-nowrap">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="text-[11px] text-stone-800">
-                  {previewRows.map((row, index) => (
-                    <tr
-                      key={index}
-                      className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-50"
-                    >
-                      {parsedHeaders.map((header) => (
-                        <td key={header} className="pr-4 py-2 whitespace-nowrap">
-                          {row[header] ?? ""}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {parsedRows.length > 10 && (
-              <p className="text-xs text-stone-500 mb-4">
-                Showing first 10 of {parsedRows.length} rows.
-              </p>
+              </div>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleConfirmImport}
-                className="bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-900 transition-colors shadow-sm"
-              >
-                Confirm Import
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelImport}
-                className="bg-white text-stone-700 px-4 py-2 rounded-lg text-xs font-bold border border-stone-200 hover:bg-stone-50 transition-colors"
-              >
-                Cancel Import
-              </button>
-            </div>
-          </SectionCard>
-        )}
 
-        {hasConfirmed && (
-          <SectionCard title="Imported Data Preview">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <p className="text-xs text-stone-500">
-                {importedRows.length} row{importedRows.length === 1 ? "" : "s"} stored in this
-                session
-                {importedRows.length > 20 ? " (showing first 20)" : ""}
-              </p>
-              <button
-                type="button"
-                onClick={handleExportImported}
-                disabled={importedRows.length === 0}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm",
-                  importedRows.length === 0
-                    ? "bg-stone-100 text-stone-400 cursor-not-allowed"
-                    : "bg-stone-800 text-white hover:bg-stone-700"
-                )}
-              >
-                <Download className="h-3 w-3" />
-                Export Imported Data
-              </button>
-            </div>
-            <div className="overflow-x-auto -mx-1">
-              <table className="w-full text-left border-collapse min-w-[480px]">
-                <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                  <tr className="h-8">
-                    {importedHeaders.map((header) => (
-                      <th key={header} className="font-bold pr-4 whitespace-nowrap">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="text-[11px] text-stone-800">
-                  {importedPreviewRows.map((row, index) => (
-                    <tr
-                      key={index}
-                      className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-50"
-                    >
-                      {importedHeaders.map((header) => (
-                        <td key={header} className="pr-4 py-2 whitespace-nowrap">
-                          {row[header] ?? ""}
-                        </td>
+            {hasPreview && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">
+                  Preview ({parsedRows.length} rows{parsedRows.length > 10 ? ", showing first 10" : ""})
+                </p>
+                <div className="overflow-x-auto -mx-1 mb-3">
+                  <table className="w-full text-left border-collapse min-w-[480px]">
+                    <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
+                      <tr className="h-8">
+                        {parsedHeaders.map((header) => (
+                          <th key={header} className="font-bold pr-4 whitespace-nowrap">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="text-[11px] text-stone-800">
+                      {previewRows.map((row, index) => (
+                        <tr key={index} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-50">
+                          {parsedHeaders.map((header) => (
+                            <td key={header} className="pr-4 py-2 whitespace-nowrap">{row[header] ?? ""}</td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {importedRows.length === 0 && (
-              <p className="text-xs text-stone-500 mt-2">No imported data to export yet.</p>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={handleConfirmImport}
+                    className="bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-900 transition-colors shadow-sm">
+                    Confirm Import
+                  </button>
+                  <button type="button" onClick={handleCancelImport}
+                    className="bg-white text-stone-700 px-4 py-2 rounded-lg text-xs font-bold border border-stone-200 hover:bg-stone-50 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
-          </SectionCard>
-        )}
 
-        <SectionCard title="Recent Imports">
-          {recentImports.length === 0 ? (
-            <p className="text-sm text-stone-500">
-              No imports yet. Complete an Excel import above to see it here.
-            </p>
-          ) : (
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-left border-collapse min-w-[640px]">
-              <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                <tr className="h-8">
-                  <th className="font-bold pr-4">File Name</th>
-                  <th className="font-bold pr-4">Type</th>
-                  <th className="font-bold pr-4">Rows</th>
-                  <th className="font-bold pr-4">Status</th>
-                  <th className="font-bold pr-4">Uploaded By</th>
-                  <th className="font-bold">Date</th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-stone-800">
-                {recentImports.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
-                  >
-                    <td className="pr-4 font-medium flex items-center gap-2 py-2">
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-stone-400 shrink-0" />
-                      {row.fileName}
-                    </td>
-                    <td className="pr-4">{row.type}</td>
-                    <td className="pr-4">
-                      {row.rows} new
-                      {(row.salesRows > 0 || row.expenseRows > 0) && (
-                        <span className="block text-[10px] text-stone-500 font-normal">
-                          {row.newSalesRows} sales · {row.newExpenseRows} expenses added
-                          {row.duplicateRows > 0
-                            ? ` · ${row.duplicateRows} duplicates skipped`
-                            : ""}
-                          {row.salesRows !== row.newSalesRows ||
-                          row.expenseRows !== row.newExpenseRows
-                            ? ` (file: ${row.salesRows} sales · ${row.expenseRows} expenses)`
-                            : ""}
-                        </span>
-                      )}
-                    </td>
-                    <td className="pr-4">
-                      <StatusBadge status={row.status} />
-                    </td>
-                    <td className="pr-4">{row.uploadedBy}</td>
-                    <td>{row.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {hasConfirmed && (
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <p className="text-xs text-stone-500">
+                    {importedRows.length} row{importedRows.length === 1 ? "" : "s"} in session
+                    {importedRows.length > 20 ? " (showing first 20)" : ""}
+                  </p>
+                  <button type="button" onClick={handleExportImported} disabled={importedRows.length === 0}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-stone-800 text-white hover:bg-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <Download className="h-3 w-3" />
+                    Export CSV
+                  </button>
+                </div>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-left border-collapse min-w-[480px]">
+                    <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
+                      <tr className="h-8">
+                        {importedHeaders.map((header) => (
+                          <th key={header} className="font-bold pr-4 whitespace-nowrap">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="text-[11px] text-stone-800">
+                      {importedPreviewRows.map((row, index) => (
+                        <tr key={index} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-50">
+                          {importedHeaders.map((header) => (
+                            <td key={header} className="pr-4 py-2 whitespace-nowrap">{row[header] ?? ""}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-          )}
-        </SectionCard>
+        </details>
 
+        {/* Export Reports + AI Assistant */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <SectionCard title="Export Reports" className="xl:col-span-2">
+          <SectionCard title="Export Reports" subtitle="Download clean summaries from your imported data." className="xl:col-span-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {exportOptions.map((option) => (
                 <div
                   key={option.title}
-                  className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 hover:shadow-sm transition-all cursor-pointer"
+                  className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 hover:shadow-sm transition-all"
                 >
                   <p className="text-sm font-bold text-stone-900">{option.title}</p>
                   <p className="text-xs text-stone-500 flex-1">{option.description}</p>
                   <button
                     type="button"
-                    className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                    className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded text-xs font-bold transition-colors"
                   >
                     <Download className="h-3 w-3" />
                     Export
@@ -659,6 +539,7 @@ export function ExportImportPage() {
                 </div>
               ))}
             </div>
+            <p className="text-[10px] text-stone-400 mt-4">Export functionality coming in next release.</p>
           </SectionCard>
 
           <SectionCard title="AI Import Assistant">
@@ -670,8 +551,7 @@ export function ExportImportPage() {
                   <p className="text-xs font-bold uppercase tracking-wider">Coming soon</p>
                 </div>
                 <p className="text-sm font-medium leading-relaxed mb-4">
-                  AI will help detect columns, clean messy files, and suggest categories before
-                  importing.
+                  AI will help detect columns, clean messy files, and suggest categories before importing.
                 </p>
                 <ul className="space-y-2">
                   {aiBullets.map((bullet) => (
