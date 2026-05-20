@@ -86,17 +86,28 @@ function TrendBadge({ pct }: { pct: number | null }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-function groupExpenseAmountsByLabel(
-  records: { category: string; description: string; amount: number }[]
+function groupExpenseAmountsByCategory(
+  records: { category: string; amount: number }[]
 ): { label: string; amount: number }[] {
   const totals = new Map<string, number>();
   for (const record of records) {
-    const label = record.description.trim() || record.category || "Other";
+    const label = record.category || "Other";
     totals.set(label, (totals.get(label) ?? 0) + record.amount);
   }
   return Array.from(totals.entries())
     .map(([label, amount]) => ({ label, amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+function groupExpensesWithPercentage(
+  records: { category: string; amount: number }[]
+): { label: string; amount: number; percentage: number }[] {
+  const grouped = groupExpenseAmountsByCategory(records);
+  const grand = grouped.reduce((s, r) => s + r.amount, 0);
+  return grouped.map((r) => ({
+    ...r,
+    percentage: grand > 0 ? Math.round((r.amount / grand) * 100) : 0,
+  }));
 }
 
 function groupRevenueAmountsByProduct(
@@ -183,9 +194,14 @@ export function ReportsPage() {
     const totalExpenses = calculateTotalExpenses(filteredExpenseRecords);
     const grossProfit = totalRevenue - totalCOGS;
     const netProfit = grossProfit - totalExpenses;
+    const expenseLines = groupExpenseAmountsByCategory(filteredExpenseRecords);
+    const expenseBreakdown = groupExpensesWithPercentage(filteredExpenseRecords);
+    const topExpenseCategory = expenseBreakdown[0]?.label ?? null;
     return {
       revenueLines: groupRevenueAmountsByProduct(filteredRevenueRecords),
-      expenseLines: groupExpenseAmountsByLabel(filteredExpenseRecords),
+      expenseLines,
+      expenseBreakdown,
+      topExpenseCategory,
       totalRevenue,
       totalCOGS,
       grossProfit,
@@ -203,8 +219,8 @@ export function ReportsPage() {
     ? []
     : scaledExpenses.filter((e) => COGS_CATEGORIES.includes(e.category));
   const opexCategories = usesImportedData
-    ? importedPl.expenseLines.map((e) => ({ category: e.label, amount: e.amount }))
-    : scaledExpenses.filter((e) => !COGS_CATEGORIES.includes(e.category));
+    ? importedPl.expenseLines
+    : scaledExpenses.filter((e) => !COGS_CATEGORIES.includes(e.category)).map((e) => ({ label: e.category, amount: e.amount }));
 
   const totalRevenue = usesImportedData ? importedPl.totalRevenue : current.revenue;
   const totalCOGS = usesImportedData ? importedPl.totalCOGS : cogsCategories.reduce((s, e) => s + e.amount, 0);
@@ -232,7 +248,7 @@ export function ReportsPage() {
       ...cogsCategories.map((e) => ({ "Item": e.category, "Category": "COGS", "Amount (Bs)": e.amount.toString() })),
       { "Item": "Total COGS", "Category": "COGS", "Amount (Bs)": totalCOGS.toString() },
       { "Item": "Gross Profit", "Category": "Summary", "Amount (Bs)": grossProfit.toString() },
-      ...opexCategories.map((e) => ({ "Item": e.category, "Category": "Operating Expense", "Amount (Bs)": e.amount.toString() })),
+      ...opexCategories.map((e) => ({ "Item": e.label, "Category": "Operating Expense", "Amount (Bs)": e.amount.toString() })),
       { "Item": "Total OpEx", "Category": "Operating Expense", "Amount (Bs)": totalOpEx.toString() },
       { "Item": "Net Profit", "Category": "Summary", "Amount (Bs)": netProfit.toString() },
     ];
@@ -354,8 +370,8 @@ export function ReportsPage() {
 
         <SectionHeader label="Operating Expenses" />
         {opexCategories.map((e) => (
-          <Fragment key={e.category}>
-            <PLRow label={e.category} amount={e.amount} indent />
+          <Fragment key={e.label}>
+            <PLRow label={e.label} amount={e.amount} indent />
           </Fragment>
         ))}
         <Divider />
@@ -369,13 +385,50 @@ export function ReportsPage() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-lg bg-stone-50 border border-stone-100 px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">AI Insight — coming soon</p>
-          <p className="text-xs text-stone-500 leading-relaxed">
-            Net profit of {formatCurrency(netProfit)} represents a {netMargin}% margin in {current.month} {DEMO_FINANCIAL_YEAR}.
-            Feed and fertilizer costs account for the largest share of COGS at {formatCurrency(totalCOGS)}.
-          </p>
+        {usesImportedData && importedPl.netProfit !== 0 && (
+          <div className="mt-4 rounded-lg bg-stone-50 border border-stone-100 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">Summary</p>
+            <p className="text-xs text-stone-500 leading-relaxed">
+              Net profit of <span className="font-semibold text-stone-700">{formatCurrency(importedPl.netProfit)}</span> represents a <span className="font-semibold text-stone-700">{importedPl.netMargin}%</span> margin for {periodLabel.toLowerCase()}.
+              {importedPl.topExpenseCategory && (
+                <> Largest expense category: <span className="font-semibold text-stone-700">{importedPl.topExpenseCategory}</span> ({formatCurrency(importedPl.expenseLines[0]?.amount ?? 0)}).</>
+              )}
+              {importedPl.grossMargin > 0 && (
+                <> Gross margin after cost of sales: <span className="font-semibold text-stone-700">{importedPl.grossMargin}%</span>.</>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+      )}
+
+      {usesImportedData && importedPl.expenseBreakdown.length > 0 && (
+      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
+        <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-4">
+          Expense Breakdown by Category
+          <span className="ml-2 text-[10px] font-medium normal-case text-stone-400">({periodLabel})</span>
+        </h3>
+        <div className="space-y-3">
+          {importedPl.expenseBreakdown.map((cat) => (
+            <div key={cat.label}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-stone-700">{cat.label}</span>
+                <span className="text-xs text-stone-500">
+                  {formatCurrency(cat.amount)} <span className="text-stone-400">· {cat.percentage}%</span>
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-stone-600 rounded-full transition-all"
+                  style={{ width: `${cat.percentage}%` }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
+        <p className="text-[10px] text-stone-400 mt-4">
+          Total operating expenses: {formatCurrency(importedPl.totalExpenses)} for {periodLabel.toLowerCase()}.
+        </p>
       </div>
       )}
 
