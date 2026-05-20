@@ -14,6 +14,7 @@ import {
   revenueRecordsToSales,
   salesToRevenueRecords,
 } from "@/domains/import/convert";
+import { mergeImportedData, type MergeImportResult } from "@/domains/import/merge";
 import {
   addImportHistoryItem,
   clearImportHistory,
@@ -30,6 +31,8 @@ import type {
   ImportHistoryMeta,
   ImportMapping,
 } from "@/domains/import/types";
+
+export type { MergeImportResult } from "@/domains/import/merge";
 import { computeFinancialKPIs, filterRecordsByDateRange } from "./calculations";
 import { initialReceivableRecords } from "./mockData";
 import { DEFAULT_FINANCIAL_PERIOD, getDateRangeForPeriod } from "./period";
@@ -61,7 +64,7 @@ export interface FinancialDataContextValue {
     data: ImportedData,
     mapping: ImportMapping,
     historyMeta: ImportHistoryMeta
-  ) => void;
+  ) => MergeImportResult;
   appendImportHistory: (item: ImportHistoryItem) => void;
   clearImportedData: () => void;
 }
@@ -76,7 +79,8 @@ function hasActiveImport(data: ImportedData | null): boolean {
 
 function createHistoryItem(
   meta: ImportHistoryMeta,
-  importedAt: string
+  importedAt: string,
+  mergeResult: MergeImportResult
 ): ImportHistoryItem {
   return {
     id: `import-${Date.now()}`,
@@ -84,6 +88,10 @@ function createHistoryItem(
     importedAt,
     salesRows: meta.salesRows,
     expenseRows: meta.expenseRows,
+    newSalesRows: mergeResult.newSalesCount,
+    newExpenseRows: mergeResult.newExpenseCount,
+    duplicateRows:
+      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount,
     skippedRows: meta.skippedRows,
     warningCount: meta.warningCount,
   };
@@ -162,15 +170,27 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
   );
 
   const applyImportedData = useCallback(
-    (data: ImportedData, mapping: ImportMapping, historyMeta: ImportHistoryMeta) => {
-      saveImportedData(data);
+    (
+      incoming: ImportedData,
+      mapping: ImportMapping,
+      historyMeta: ImportHistoryMeta
+    ): MergeImportResult => {
+      let mergeResult!: MergeImportResult;
+      setImportedData((current) => {
+        mergeResult = mergeImportedData(current, incoming);
+        saveImportedData(mergeResult.merged);
+        return mergeResult.merged;
+      });
       saveImportMapping(mapping);
-      const historyItem = createHistoryItem(historyMeta, data.importedAt);
+      const historyItem = createHistoryItem(
+        historyMeta,
+        incoming.importedAt,
+        mergeResult
+      );
       const nextHistory = addImportHistoryItem(historyItem);
-
-      setImportedData(data);
       setImportMapping(mapping);
       setImportHistory(nextHistory);
+      return mergeResult;
     },
     []
   );

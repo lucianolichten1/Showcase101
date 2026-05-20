@@ -56,8 +56,14 @@ export interface ImportHistoryItem {
   id: string;
   fileName: string;
   importedAt: string;
+  /** Rows parsed from the file */
   salesRows: number;
   expenseRows: number;
+  /** Rows added to the combined dataset after dedupe */
+  newSalesRows?: number;
+  newExpenseRows?: number;
+  /** Duplicate rows skipped during merge */
+  duplicateRows?: number;
   skippedRows: number;
   warningCount: number;
 }

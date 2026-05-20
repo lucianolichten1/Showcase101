@@ -27,12 +27,26 @@ export function saveImportMapping(mapping: ImportMapping): void {
   localStorage.setItem(MAPPING_KEY, JSON.stringify(mapping));
 }
 
+function normalizeImportedData(data: Partial<ImportedData>): ImportedData {
+  return {
+    sales: Array.isArray(data.sales) ? data.sales : [],
+    expenses: Array.isArray(data.expenses) ? data.expenses : [],
+    importedAt:
+      typeof data.importedAt === "string"
+        ? data.importedAt
+        : new Date().toISOString(),
+    sourceFileName:
+      typeof data.sourceFileName === "string" ? data.sourceFileName : undefined,
+  };
+}
+
 export function loadImportedData(): ImportedData | null {
   try {
     const raw = localStorage.getItem(DATA_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw) as ImportedData;
-    if (!data.sales?.length && !data.expenses?.length) return null;
+    const parsed = JSON.parse(raw) as Partial<ImportedData>;
+    const data = normalizeImportedData(parsed);
+    if (data.sales.length === 0 && data.expenses.length === 0) return null;
     return data;
   } catch {
     return null;

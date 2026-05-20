@@ -118,7 +118,7 @@ export function DashboardPage() {
               id="dashboard-period"
               period={period}
               onPeriodChange={handlePeriodChange}
-              className="w-full sm:w-52 shrink-0"
+              className="w-full sm:w-52 shrink-0 sm:ml-auto sm:mr-8 lg:mr-16"
             />
           </section>
 

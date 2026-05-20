@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import type { MergeImportResult } from "@/domains/import/merge";
 import type {
   ImportedData,
   ImportHistoryItem,
@@ -213,7 +214,7 @@ export interface UseFinancialDataResult {
     data: ImportedData,
     mapping: ImportMapping,
     historyMeta: ImportHistoryMeta
-  ) => void;
+  ) => MergeImportResult;
   appendImportHistory: (item: ImportHistoryItem) => void;
   clearImportedData: () => void;
 }

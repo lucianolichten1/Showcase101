@@ -190,7 +190,7 @@ export function ExcelImportWizard() {
     }
 
     const mapping = createImportMapping(mappingName.trim() || "Company mapping", sheetMappings);
-    applyImportedData(result.data, mapping, {
+    const mergeResult = applyImportedData(result.data, mapping, {
       fileName,
       salesRows: result.salesCount,
       expenseRows: result.expensesCount,
@@ -198,9 +198,17 @@ export function ExcelImportWizard() {
       warningCount: result.warnings.length,
     });
     setImportWarnings(result.warnings.slice(0, 15));
+    const addedSales = mergeResult.newSalesCount;
+    const addedExpenses = mergeResult.newExpenseCount;
+    const duplicates =
+      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount;
+    const totalSales = mergeResult.merged.sales.length;
+    const totalExpenses = mergeResult.merged.expenses.length;
     setSuccessMessage(
-      `Imported ${result.salesCount} sales and ${result.expensesCount} expense rows` +
-        (result.skipped > 0 ? ` (${result.skipped} rows skipped).` : ".")
+      `Added ${addedSales} sales and ${addedExpenses} expense rows` +
+        (duplicates > 0 ? ` (${duplicates} duplicates skipped).` : ".") +
+        ` Active dataset: ${totalSales} sales, ${totalExpenses} expenses.` +
+        (result.skipped > 0 ? ` ${result.skipped} rows skipped in file.` : "")
     );
   };
 

@@ -612,10 +612,17 @@ export function ExportImportPage() {
                     </td>
                     <td className="pr-4">{row.type}</td>
                     <td className="pr-4">
-                      {row.rows}
+                      {row.rows} new
                       {(row.salesRows > 0 || row.expenseRows > 0) && (
                         <span className="block text-[10px] text-stone-500 font-normal">
-                          {row.salesRows} sales · {row.expenseRows} expenses
+                          {row.newSalesRows} sales · {row.newExpenseRows} expenses added
+                          {row.duplicateRows > 0
+                            ? ` · ${row.duplicateRows} duplicates skipped`
+                            : ""}
+                          {row.salesRows !== row.newSalesRows ||
+                          row.expenseRows !== row.newExpenseRows
+                            ? ` (file: ${row.salesRows} sales · ${row.expenseRows} expenses)`
+                            : ""}
                         </span>
                       )}
                     </td>

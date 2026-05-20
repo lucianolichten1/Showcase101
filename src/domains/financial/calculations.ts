@@ -20,6 +20,29 @@ import type {
 
 export type ChartMonthBucket = { isoPrefix: string; label: string };
 
+/** Maximum month columns shown on the dashboard financial chart */
+export const MAX_CHART_MONTH_BUCKETS = 12;
+
+function limitToLastChartMonths(
+  buckets: ChartMonthBucket[],
+  max = MAX_CHART_MONTH_BUCKETS
+): ChartMonthBucket[] {
+  if (buckets.length <= max) return buckets;
+  return buckets.slice(-max);
+}
+
+/** Dashboard chart X-axis: month number and two-digit year (e.g. 03/25). */
+export function formatChartAxisMonthLabel(
+  isoPrefix: string,
+  fallbackLabel: string
+): string {
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(isoPrefix);
+  if (monthMatch) {
+    return `${monthMatch[2]}/${monthMatch[1].slice(-2)}`;
+  }
+  return fallbackLabel;
+}
+
 export type ChartWeekBucket = {
   startDate: string;
   endDate: string;
@@ -45,11 +68,21 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function chartBucket(year: number, month: number): ChartMonthBucket {
+function chartBucket(
+  year: number,
+  month: number,
+  options?: { includeYearInLabel?: boolean }
+): ChartMonthBucket {
+  const short = SHORT_MONTH_LABELS[month - 1] ?? `${year}-${pad2(month)}`;
   return {
     isoPrefix: `${year}-${pad2(month)}`,
-    label: SHORT_MONTH_LABELS[month - 1] ?? `${year}-${pad2(month)}`,
+    label: options?.includeYearInLabel ? `${short} ${year}` : short,
   };
+}
+
+function datesSpanMultipleYears(dates: string[]): boolean {
+  const years = new Set(dates.map((d) => d.slice(0, 4)).filter(Boolean));
+  return years.size > 1;
 }
 
 function lastDayOfMonth(year: number, month: number): number {
@@ -93,15 +126,20 @@ export function getChartMonthBuckets(period: FinancialPeriod): ChartMonthBucket[
     return [chartBucket(period.year, period.month)];
   }
   if (period.kind === "ytd") {
-    return Array.from({ length: DEMO_YTD_END_MONTH }, (_, i) =>
-      chartBucket(DEMO_FINANCIAL_YEAR, i + 1)
+    return limitToLastChartMonths(
+      Array.from({ length: DEMO_YTD_END_MONTH }, (_, i) =>
+        chartBucket(DEMO_FINANCIAL_YEAR, i + 1)
+      )
     );
   }
-  return getAllDemoChartMonthBuckets();
+  return limitToLastChartMonths(getAllDemoChartMonthBuckets());
 }
 
 /** Month buckets for an arbitrary inclusive date range (fills gaps with zero totals) */
-export function getChartMonthBucketsForDateRange(range: DateRange): ChartMonthBucket[] {
+export function getChartMonthBucketsForDateRange(
+  range: DateRange,
+  options?: { includeYearInLabel?: boolean }
+): ChartMonthBucket[] {
   if (!range.startDate && !range.endDate) {
     return getAllDemoChartMonthBuckets();
   }
@@ -114,12 +152,15 @@ export function getChartMonthBucketsForDateRange(range: DateRange): ChartMonthBu
   const endYear = Number(range.endDate.slice(0, 4));
   const endMonth = Number(range.endDate.slice(5, 7));
 
+  const includeYearInLabel =
+    options?.includeYearInLabel ?? startYear !== endYear;
+
   const buckets: ChartMonthBucket[] = [];
   let year = startYear;
   let month = startMonth;
 
   while (year < endYear || (year === endYear && month <= endMonth)) {
-    buckets.push(chartBucket(year, month));
+    buckets.push(chartBucket(year, month, { includeYearInLabel }));
     month += 1;
     if (month > 12) {
       month = 1;
@@ -127,7 +168,8 @@ export function getChartMonthBucketsForDateRange(range: DateRange): ChartMonthBu
     }
   }
 
-  return buckets.length > 0 ? buckets : getAllDemoChartMonthBuckets();
+  const result = buckets.length > 0 ? buckets : getAllDemoChartMonthBuckets();
+  return limitToLastChartMonths(result);
 }
 
 // ─── Date range ───────────────────────────────────────────────────────────────
@@ -308,19 +350,26 @@ export function calculateProfitMargin(
 
 /** Month buckets derived from actual record dates (for imported data). */
 export function getChartMonthBucketsFromRecordDates(
-  dates: string[]
+  dates: string[],
+  options?: { emptyWhenNoDates?: boolean }
 ): ChartMonthBucket[] {
-  if (dates.length === 0) return getAllDemoChartMonthBuckets();
+  if (dates.length === 0) {
+    return options?.emptyWhenNoDates ? [] : getAllDemoChartMonthBuckets();
+  }
   const sorted = [...dates].sort();
   const startMonth = sorted[0].slice(0, 7);
   const endMonth = sorted[sorted.length - 1].slice(0, 7);
   const [sy, sm] = startMonth.split("-").map(Number);
   const [ey, em] = endMonth.split("-").map(Number);
   const endDay = lastDayOfMonth(ey, em);
-  return getChartMonthBucketsForDateRange({
-    startDate: `${sy}-${pad2(sm)}-01`,
-    endDate: `${ey}-${pad2(em)}-${pad2(endDay)}`,
-  });
+  const fullRange = getChartMonthBucketsForDateRange(
+    {
+      startDate: `${sy}-${pad2(sm)}-01`,
+      endDate: `${ey}-${pad2(em)}-${pad2(endDay)}`,
+    },
+    { includeYearInLabel: datesSpanMultipleYears(dates) }
+  );
+  return limitToLastChartMonths(fullRange);
 }
 
 function resolveChartMonthBuckets(
@@ -336,12 +385,23 @@ function resolveChartMonthBuckets(
     }));
   }
 
+  const allDates = [
+    ...revenueRecords.map((r) => r.date),
+    ...expenseRecords.map((e) => e.date),
+  ];
+  const spansMultipleYears = datesSpanMultipleYears(allDates);
+
   if (useDataDrivenMonths && period.kind === "all") {
-    const dates = [
-      ...revenueRecords.map((r) => r.date),
-      ...expenseRecords.map((e) => e.date),
-    ];
-    return getChartMonthBucketsFromRecordDates(dates);
+    return getChartMonthBucketsFromRecordDates(allDates, {
+      emptyWhenNoDates: true,
+    });
+  }
+
+  if (useDataDrivenMonths && period.kind === "ytd") {
+    const range = getDateRangeForPeriod(period);
+    return getChartMonthBucketsForDateRange(range, {
+      includeYearInLabel: spansMultipleYears,
+    });
   }
 
   return getChartMonthBuckets(period);
@@ -412,7 +472,7 @@ export function computeMonthlyFinancials(
       scopedExpenses,
       (r) => r.date.startsWith(isoPrefix),
       (e) => e.date.startsWith(isoPrefix),
-      label
+      formatChartAxisMonthLabel(isoPrefix, label)
     )
   );
 }

@@ -66,8 +66,21 @@ export function getDemoYtdDateRange(year = DEMO_FINANCIAL_YEAR): DateRange {
   };
 }
 
+/** Calendar YTD for the current year (Jan 1 through today). */
+export function getCurrentYearYtdDateRange(
+  referenceDate = new Date()
+): DateRange {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth() + 1;
+  const day = referenceDate.getDate();
+  return {
+    startDate: `${year}-01-01`,
+    endDate: `${year}-${pad2(month)}-${pad2(day)}`,
+  };
+}
+
 export function getDateRangeForPeriod(period: FinancialPeriod): DateRange {
-  if (period.kind === "ytd") return getDemoYtdDateRange();
+  if (period.kind === "ytd") return getCurrentYearYtdDateRange();
   if (period.kind === "all") return FINANCIAL_ALL_DATE_RANGE;
 
   const startDate = `${period.year}-${pad2(period.month)}-01`;
@@ -81,7 +94,9 @@ export function getFinancialPeriodMode(period: FinancialPeriod): FinancialPeriod
 }
 
 export function getFinancialPeriodLabel(period: FinancialPeriod): string {
-  if (period.kind === "ytd") return `YTD ${DEMO_FINANCIAL_YEAR}`;
+  if (period.kind === "ytd") {
+    return `YTD ${new Date().getFullYear()}`;
+  }
   if (period.kind === "all") return "All records";
 
   const monthName = MONTH_NAMES[period.month - 1];
@@ -90,8 +105,12 @@ export function getFinancialPeriodLabel(period: FinancialPeriod): string {
 
 /** Subtitle for the dashboard financial chart */
 export function getFinancialChartSubtitle(period: FinancialPeriod): string {
-  if (period.kind === "all") return "Monthly revenue and expenses · all available months";
-  if (period.kind === "ytd") return `Monthly revenue and expenses · Jan–Jun ${DEMO_FINANCIAL_YEAR}`;
+  if (period.kind === "all") {
+    return "Monthly revenue and expenses · last 12 months";
+  }
+  if (period.kind === "ytd") {
+    return `Monthly revenue and expenses · ${getFinancialPeriodLabel(period)}`;
+  }
   if (period.kind === "month") {
     return `Weekly revenue and expenses · ${getFinancialPeriodLabel(period)}`;
   }

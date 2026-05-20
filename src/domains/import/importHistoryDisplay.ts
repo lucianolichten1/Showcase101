@@ -12,6 +12,9 @@ export interface ImportHistoryDisplayRow {
   date: string;
   salesRows: number;
   expenseRows: number;
+  newSalesRows: number;
+  newExpenseRows: number;
+  duplicateRows: number;
 }
 
 export function formatImportHistoryDate(iso: string): string {
@@ -29,15 +32,21 @@ export function importHistoryToDisplayRow(
   type: "Excel" | "CSV" = "Excel"
 ): ImportHistoryDisplayRow {
   const needsReview = item.warningCount > 0 || item.skippedRows > 0;
+  const newSalesRows = item.newSalesRows ?? item.salesRows;
+  const newExpenseRows = item.newExpenseRows ?? item.expenseRows;
+  const duplicateRows = item.duplicateRows ?? 0;
   return {
     id: item.id,
     fileName: item.fileName,
     type,
-    rows: item.salesRows + item.expenseRows,
+    rows: newSalesRows + newExpenseRows,
     status: needsReview ? "Needs Review" : "Completed",
     uploadedBy: "Imported",
     date: formatImportHistoryDate(item.importedAt),
     salesRows: item.salesRows,
     expenseRows: item.expenseRows,
+    newSalesRows,
+    newExpenseRows,
+    duplicateRows,
   };
 }
