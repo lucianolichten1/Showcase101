@@ -31,11 +31,7 @@ import type {
   ImportMapping,
 } from "@/domains/import/types";
 import { computeFinancialKPIs, filterRecordsByDateRange } from "./calculations";
-import {
-  initialExpenseRecords,
-  initialReceivableRecords,
-  initialRevenueRecords,
-} from "./mockData";
+import { initialReceivableRecords } from "./mockData";
 import { DEFAULT_FINANCIAL_PERIOD, getDateRangeForPeriod } from "./period";
 import type {
   DateRange,
@@ -104,12 +100,6 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     loadImportHistory()
   );
 
-  const [mockRevenueRecords, setMockRevenueRecords] = useState<RevenueRecord[]>(
-    () => initialRevenueRecords
-  );
-  const [mockExpenseRecords, setMockExpenseRecords] = useState<ExpenseRecord[]>(
-    () => initialExpenseRecords
-  );
   const [receivableRecords, setReceivableRecords] = useState<ReceivableRecord[]>(
     initialReceivableRecords
   );
@@ -119,58 +109,54 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
 
   const usesImportedData = hasActiveImport(importedData);
 
-  /** Active revenue: derived from imported sales when import is active, else mock. */
+  /** Active revenue: imported sales only; empty when no import. */
   const revenueRecords = useMemo(() => {
-    if (!usesImportedData || !importedData) return mockRevenueRecords;
-    if (importedData.sales.length === 0) return [];
+    if (!usesImportedData || !importedData || importedData.sales.length === 0) {
+      return [];
+    }
     return salesToRevenueRecords(importedData.sales);
-  }, [usesImportedData, importedData, mockRevenueRecords]);
+  }, [usesImportedData, importedData]);
 
-  /** Active expenses: derived from imported rows when import is active, else mock. */
+  /** Active expenses: imported rows only; empty when no import. */
   const expenseRecords = useMemo(() => {
-    if (!usesImportedData || !importedData) return mockExpenseRecords;
-    if (importedData.expenses.length === 0) return [];
+    if (!usesImportedData || !importedData || importedData.expenses.length === 0) {
+      return [];
+    }
     return importExpensesToFinancial(importedData.expenses);
-  }, [usesImportedData, importedData, mockExpenseRecords]);
+  }, [usesImportedData, importedData]);
 
   const setRevenueRecords = useCallback(
     (action: SetStateAction<RevenueRecord[]>) => {
-      if (usesImportedData && importedData) {
-        const current =
-          importedData.sales.length > 0
-            ? salesToRevenueRecords(importedData.sales)
-            : [];
-        const next = typeof action === "function" ? action(current) : action;
-        const updated: ImportedData = {
-          ...importedData,
-          sales: revenueRecordsToSales(next),
-        };
-        saveImportedData(updated);
-        setImportedData(updated);
-        return;
-      }
-      setMockRevenueRecords(action);
+      if (!usesImportedData || !importedData) return;
+      const current =
+        importedData.sales.length > 0
+          ? salesToRevenueRecords(importedData.sales)
+          : [];
+      const next = typeof action === "function" ? action(current) : action;
+      const updated: ImportedData = {
+        ...importedData,
+        sales: revenueRecordsToSales(next),
+      };
+      saveImportedData(updated);
+      setImportedData(updated);
     },
     [usesImportedData, importedData]
   );
 
   const setExpenseRecords = useCallback(
     (action: SetStateAction<ExpenseRecord[]>) => {
-      if (usesImportedData && importedData) {
-        const current =
-          importedData.expenses.length > 0
-            ? importExpensesToFinancial(importedData.expenses)
-            : [];
-        const next = typeof action === "function" ? action(current) : action;
-        const updated: ImportedData = {
-          ...importedData,
-          expenses: expenseRecordsToImport(next),
-        };
-        saveImportedData(updated);
-        setImportedData(updated);
-        return;
-      }
-      setMockExpenseRecords(action);
+      if (!usesImportedData || !importedData) return;
+      const current =
+        importedData.expenses.length > 0
+          ? importExpensesToFinancial(importedData.expenses)
+          : [];
+      const next = typeof action === "function" ? action(current) : action;
+      const updated: ImportedData = {
+        ...importedData,
+        expenses: expenseRecordsToImport(next),
+      };
+      saveImportedData(updated);
+      setImportedData(updated);
     },
     [usesImportedData, importedData]
   );

@@ -1,5 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import { plots } from "@/domains/agro/mockData";
@@ -143,12 +144,10 @@ export function ReportsPage() {
   };
 
   const trendRows = useMemo(() => {
-    if (usesImportedData) {
-      return computeMonthlyFinancials(revenueRecords, expenseRecords, { kind: "all" }, {
-        useDataDrivenMonths: true,
-      });
-    }
-    return monthlyFinancials;
+    if (!usesImportedData) return [];
+    return computeMonthlyFinancials(revenueRecords, expenseRecords, { kind: "all" }, {
+      useDataDrivenMonths: true,
+    });
   }, [usesImportedData, revenueRecords, expenseRecords]);
 
   const current = monthlyFinancials[plMonthIdx];
@@ -259,7 +258,8 @@ export function ReportsPage() {
           />
           <button
             onClick={handleExport}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors h-[34px] sm:mb-0 mb-0 self-end"
+            disabled={!usesImportedData}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors h-[34px] sm:mb-0 mb-0 self-end disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={13} />
             Export
@@ -267,36 +267,53 @@ export function ReportsPage() {
         </div>
       </div>
 
+      {!usesImportedData && (
+        <FinancialEmptyBanner
+          title="Import financial data to generate reports"
+          description="Upload an Excel workbook with Sales and Expenses sheets. Profit & Loss and monthly trends will appear here after import."
+        />
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Revenue</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalRevenue)}</span>
-          <span className="text-[10px] text-stone-400">{periodLabel} · from records</span>
+          <span className="text-[10px] text-stone-400">
+            {usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"}
+          </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Gross Profit</span>
-          <span className="text-lg font-bold text-stone-900">{formatCurrency(grossProfit)}</span>
+          <span className="text-lg font-bold text-stone-900">
+            {formatCurrency(usesImportedData ? grossProfit : financialKpis.grossProfit)}
+          </span>
           <span className="text-[10px] text-stone-400 font-medium">
-            {grossMargin}% margin · {plSubtitle}
+            {usesImportedData
+              ? `${grossMargin}% margin · ${plSubtitle}`
+              : "Import Excel to populate"}
           </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Expenses</span>
           <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalExpenses)}</span>
-          <span className="text-[10px] text-stone-400">{periodLabel} · from records</span>
+          <span className="text-[10px] text-stone-400">
+            {usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"}
+          </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Net Profit</span>
           <span className="text-lg font-bold text-green-700">{formatCurrency(financialKpis.netProfit)}</span>
           <span className="text-[10px] text-stone-400 font-medium">
-            {financialKpis.totalRevenue > 0
-              ? `${Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin`
-              : "—"}{" "}
-            · {periodLabel} · from records
+            {usesImportedData
+              ? financialKpis.totalRevenue > 0
+                ? `${Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin · ${periodLabel}`
+                : `— · ${periodLabel}`
+              : "Import Excel to populate"}
           </span>
         </div>
       </div>
 
+      {usesImportedData && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement</h3>
@@ -360,7 +377,9 @@ export function ReportsPage() {
           </p>
         </div>
       </div>
+      )}
 
+      {usesImportedData && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-1">Monthly Trend</h3>
         <p className="text-[10px] text-stone-400 mb-3">
@@ -427,6 +446,7 @@ export function ReportsPage() {
             : `When period is All or YTD, P&L shows the latest demo month (Jun ${DEMO_FINANCIAL_YEAR}) as a sample breakdown.`}
         </p>
       </div>
+      )}
       </div>
     </main>
   );

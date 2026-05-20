@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
+import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { isActiveRevenue, sortRevenueRecords } from "@/domains/financial/calculations";
 import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -86,7 +87,7 @@ function SortIcon({
 }
 
 export function RevenuePage() {
-  const { setRevenueRecords, setDateRange, filteredRevenueRecords, kpis } =
+  const { setRevenueRecords, setDateRange, filteredRevenueRecords, kpis, usesImportedData } =
     useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
@@ -188,12 +189,21 @@ export function RevenuePage() {
           <button
             type="button"
             onClick={handleOpenModal}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
+            disabled={!usesImportedData}
+            title={usesImportedData ? undefined : "Import Excel data before adding revenue"}
+            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Revenue
           </button>
         </div>
+
+        {!usesImportedData && (
+          <FinancialEmptyBanner
+            title="No revenue imported yet"
+            description="Import an Excel workbook with a Sales sheet to view revenue records here."
+          />
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -204,7 +214,9 @@ export function RevenuePage() {
               {formatCurrency(kpis.totalRevenue)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {periodLabel} · {filteredRevenueRecords.filter(isActiveRevenue).length} active records
+              {usesImportedData
+                ? `${periodLabel} · ${filteredRevenueRecords.filter(isActiveRevenue).length} active records`
+                : "Import Excel to populate"}
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -345,8 +357,17 @@ export function RevenuePage() {
               <tbody className="text-[11px] text-stone-800">
                 {sortedRevenue.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-stone-500">
-                      No revenue records match your search or filters.
+                    <td colSpan={9} className="py-12 text-center text-stone-500">
+                      {!usesImportedData ? (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-stone-600">No revenue imported yet</p>
+                          <p className="text-xs max-w-sm mx-auto">
+                            Import an Excel workbook with a Sales sheet to view records.
+                          </p>
+                        </div>
+                      ) : (
+                        "No revenue records match your search or filters."
+                      )}
                     </td>
                   </tr>
                 ) : (

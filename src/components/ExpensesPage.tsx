@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, ReceiptText, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
+import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { sortExpenseRecords } from "@/domains/financial/calculations";
 import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -83,7 +84,7 @@ function SortIcon({
 }
 
 export function ExpensesPage() {
-  const { setExpenseRecords, setDateRange, filteredExpenseRecords, kpis } =
+  const { setExpenseRecords, setDateRange, filteredExpenseRecords, kpis, usesImportedData } =
     useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
@@ -178,12 +179,21 @@ export function ExpensesPage() {
           <button
             type="button"
             onClick={handleOpenModal}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
+            disabled={!usesImportedData}
+            title={usesImportedData ? undefined : "Import Excel data before adding expenses"}
+            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Expense
           </button>
         </div>
+
+        {!usesImportedData && (
+          <FinancialEmptyBanner
+            title="No expenses imported yet"
+            description="Import an Excel workbook with an Expenses sheet to view records here."
+          />
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -194,7 +204,9 @@ export function ExpensesPage() {
               {formatCurrency(kpis.totalExpenses)}
             </span>
             <span className="text-[10px] text-stone-400">
-              {periodLabel} · {filteredExpenseRecords.length} records
+              {usesImportedData
+                ? `${periodLabel} · ${filteredExpenseRecords.length} records`
+                : "Import Excel to populate"}
             </span>
           </div>
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
@@ -338,8 +350,19 @@ export function ExpensesPage() {
                     <td colSpan={8} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-stone-400">
                         <ReceiptText size={32} strokeWidth={1.5} />
-                        <p className="text-sm font-medium">No expenses match your filters</p>
-                        <p className="text-xs">Try adjusting the search or filter options above</p>
+                        {!usesImportedData ? (
+                          <>
+                            <p className="text-sm font-medium">No expenses imported yet</p>
+                            <p className="text-xs max-w-sm">
+                              Import an Excel workbook with an Expenses sheet to view records.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium">No expenses match your filters</p>
+                            <p className="text-xs">Try adjusting the search or filter options above</p>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

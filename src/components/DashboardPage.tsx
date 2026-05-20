@@ -7,6 +7,7 @@ import { LivestockTable } from "./LivestockTable";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { AIInsightsPanel } from "./AIInsightsPanel";
+import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useAgroData } from "@/domains/agro/hooks";
 import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -65,16 +66,38 @@ export function DashboardPage() {
       if (kpi.title === "Cattle Count")
         return { ...kpi, value: `${agroKpis.totalHeadCount} head`, trendStatus: "neutral" as const, trendText: "+2% growth" };
       if (kpi.title === "Total Revenue")
-        return { ...kpi, value: formatCurrency(financialKpis.totalRevenue) };
+        return {
+          ...kpi,
+          value: formatCurrency(financialKpis.totalRevenue),
+          trend: 0,
+          trendText: usesImportedData ? "" : "Import Excel to populate",
+          trendStatus: "neutral" as const,
+        };
       if (kpi.title === "Total Expenses")
-        return { ...kpi, value: formatCurrency(financialKpis.totalExpenses) };
+        return {
+          ...kpi,
+          value: formatCurrency(financialKpis.totalExpenses),
+          trend: 0,
+          trendText: usesImportedData ? "" : "Import Excel to populate",
+          trendStatus: "neutral" as const,
+        };
       if (kpi.title === "Net Profit")
-        return { ...kpi, value: formatCurrency(financialKpis.netProfit) };
+        return {
+          ...kpi,
+          value: formatCurrency(financialKpis.netProfit),
+          trend: 0,
+          trendText: usesImportedData
+            ? financialKpis.totalRevenue > 0
+              ? `${financialKpis.profitMargin}% margin`
+              : ""
+            : "Import Excel to populate",
+          trendStatus: "neutral" as const,
+        };
       if (kpi.title === "Accounts Receivable")
         return { ...kpi, value: formatCurrency(financialKpis.receivablesTotalOutstanding) };
       return kpi;
     });
-  }, [agroKpis, financialKpis]);
+  }, [agroKpis, financialKpis, usesImportedData]);
 
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
@@ -99,6 +122,13 @@ export function DashboardPage() {
             />
           </section>
 
+          {!usesImportedData && (
+            <FinancialEmptyBanner
+              title="No financial data imported yet"
+              description="Upload an Excel workbook to populate the dashboard with revenue, expenses, and financial charts."
+            />
+          )}
+
           {/* KPIs */}
           <section>
             <SectionHeading
@@ -106,7 +136,7 @@ export function DashboardPage() {
               description={
                 usesImportedData && importedData
                   ? `Imported data · ${periodLabel.toLowerCase()}`
-                  : `Snapshot for ${periodLabel.toLowerCase()}`
+                  : "Financial KPIs show $0 until you import Excel data"
               }
             />
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">

@@ -47,9 +47,13 @@ export function FinancialChart({ period }: FinancialChartProps) {
       : monthlyFinancials.length <= 5
         ? 28
         : 16;
-  const hasData = monthlyFinancials.some(
+  const hasData = usesImportedData && monthlyFinancials.some(
     (row) => row.revenue > 0 || row.expenses > 0
   );
+
+  const emptyMessage = !usesImportedData
+    ? "Import Excel data to view monthly financial trends."
+    : "No financial data for this period.";
 
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5 h-full flex flex-col min-h-[360px]">
@@ -83,7 +87,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
       <div className="flex-1 min-h-[280px] w-full">
         {!hasData ? (
           <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/50">
-            <p className="text-sm text-stone-500">No financial data for this period.</p>
+            <p className="text-sm text-stone-500 text-center px-4">{emptyMessage}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
