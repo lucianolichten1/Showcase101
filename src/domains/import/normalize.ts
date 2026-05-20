@@ -1,10 +1,12 @@
 import { parseDateValue } from "./dateUtils";
 import type {
+  ImportARRecord,
   ImportExpenseRecord,
   SalesRecord,
   SheetMapping,
 } from "./types";
 import {
+  AR_REQUIRED_FIELDS,
   EXPENSE_REQUIRED_FIELDS,
   SALES_REQUIRED_FIELDS,
 } from "./types";
@@ -142,6 +144,57 @@ export function normalizeExpenseRows(
         getMappedValue(row, mapping.columnMap, "description")
       ),
       vendor: trimText(getMappedValue(row, mapping.columnMap, "vendor")),
+    });
+  });
+
+  return { records, skipped, warnings };
+}
+
+export function normalizeARRows(
+  rows: Record<string, unknown>[],
+  mapping: SheetMapping,
+  idPrefix: string
+): NormalizeResult<ImportARRecord> {
+  const warnings: string[] = [];
+  const missing = missingRequiredFields(mapping.columnMap, AR_REQUIRED_FIELDS);
+  if (missing.length > 0) {
+    return {
+      records: [],
+      skipped: rows.length,
+      warnings: [`Missing required AR mappings: ${missing.join(", ")}`],
+    };
+  }
+
+  const records: ImportARRecord[] = [];
+  let skipped = 0;
+
+  rows.forEach((row, index) => {
+    const invoiceDate = parseDateValue(
+      getMappedValue(row, mapping.columnMap, "invoiceDate")
+    );
+    const amount = parseNumberValue(
+      getMappedValue(row, mapping.columnMap, "amount")
+    );
+
+    if (!invoiceDate || amount === null) {
+      skipped += 1;
+      warnings.push(`AR row ${index + 2}: invalid invoiceDate or amount`);
+      return;
+    }
+
+    const dueDateRaw = parseDateValue(
+      getMappedValue(row, mapping.columnMap, "dueDate")
+    );
+
+    records.push({
+      id: `${idPrefix}-ar-${index + 1}`,
+      invoiceDate,
+      amount,
+      dueDate: dueDateRaw ?? undefined,
+      customerName: trimText(getMappedValue(row, mapping.columnMap, "customerName")),
+      customerId: trimText(getMappedValue(row, mapping.columnMap, "customerId")),
+      status: trimText(getMappedValue(row, mapping.columnMap, "status")),
+      invoiceNumber: trimText(getMappedValue(row, mapping.columnMap, "invoiceNumber")),
     });
   });
 

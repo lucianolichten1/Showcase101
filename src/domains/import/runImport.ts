@@ -1,5 +1,5 @@
 import { readSheetRows } from "./parseWorkbook";
-import { normalizeExpenseRows, normalizeSalesRows } from "./normalize";
+import { normalizeARRows, normalizeExpenseRows, normalizeSalesRows } from "./normalize";
 import type { ImportedData, SheetMapping } from "./types";
 
 export interface RunImportResult {
@@ -7,6 +7,7 @@ export interface RunImportResult {
   warnings: string[];
   salesCount: number;
   expensesCount: number;
+  arCount: number;
   skipped: number;
 }
 
@@ -19,6 +20,7 @@ export function runImportFromWorkbook(
   const allWarnings: string[] = [];
   const sales: ImportedData["sales"] = [];
   const expenses: ImportedData["expenses"] = [];
+  const arReceivables: ImportedData["arReceivables"] = [];
   let skipped = 0;
 
   for (const mapping of sheetMappings) {
@@ -35,6 +37,11 @@ export function runImportFromWorkbook(
       expenses.push(...result.records);
       skipped += result.skipped;
       allWarnings.push(...result.warnings);
+    } else if (mapping.role === "accounts-receivable") {
+      const result = normalizeARRows(rows, mapping, idPrefix);
+      arReceivables.push(...result.records);
+      skipped += result.skipped;
+      allWarnings.push(...result.warnings);
     }
   }
 
@@ -42,12 +49,14 @@ export function runImportFromWorkbook(
     data: {
       sales,
       expenses,
+      arReceivables,
       importedAt: new Date().toISOString(),
       sourceFileName,
     },
     warnings: allWarnings,
     salesCount: sales.length,
     expensesCount: expenses.length,
+    arCount: arReceivables.length,
     skipped,
   };
 }
@@ -57,9 +66,10 @@ export function validateSheetMappings(
 ): string | null {
   const salesSheets = sheetMappings.filter((m) => m.role === "sales");
   const expenseSheets = sheetMappings.filter((m) => m.role === "expenses");
+  const arSheets = sheetMappings.filter((m) => m.role === "accounts-receivable");
 
-  if (salesSheets.length === 0 && expenseSheets.length === 0) {
-    return "Assign at least one sheet as Sales or Expenses before importing.";
+  if (salesSheets.length === 0 && expenseSheets.length === 0 && arSheets.length === 0) {
+    return "Assign at least one sheet as Sales, Expenses, or Accounts Receivable before importing.";
   }
 
   for (const sheet of salesSheets) {
@@ -71,6 +81,12 @@ export function validateSheetMappings(
   for (const sheet of expenseSheets) {
     if (!sheet.columnMap.date || !sheet.columnMap.amount) {
       return `Expenses sheet "${sheet.sheetName}" requires Date and Amount column mappings.`;
+    }
+  }
+
+  for (const sheet of arSheets) {
+    if (!sheet.columnMap.invoiceDate || !sheet.columnMap.amount) {
+      return `Accounts Receivable sheet "${sheet.sheetName}" requires Invoice Date and Amount column mappings.`;
     }
   }
 
