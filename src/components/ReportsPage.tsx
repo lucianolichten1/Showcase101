@@ -402,7 +402,7 @@ export function ReportsPage() {
       </div>
       )}
 
-      {usesImportedData && importedPl.expenseBreakdown.length > 0 && (
+      {usesImportedData && importedPl.expenseBreakdown.length > 1 && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
         <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-4">
           Expense Breakdown by Category
