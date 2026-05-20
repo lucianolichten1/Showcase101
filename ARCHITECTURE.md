@@ -1,158 +1,115 @@
 # Architecture
 
-## Current frontend architecture
+## Runtime shell
 
 ```
 index.html
-    └── src/main.tsx          (ReactDOM.createRoot)
-            └── App.tsx
-                    └── DashboardPage.tsx   (page layout)
-                            ├── KPICard × N
-                            ├── FinancialChart
-                            ├── AIInsightsPanel
-                            ├── CropTable | LivestockTable | ExpenseBreakdown
-                            └── ReceivablesTable
+  └── src/main.tsx
+        ├── BrowserRouter
+        └── FinancialDataProvider
+              └── App.tsx (Routes)
+                    ├── DashboardPage
+                    ├── ExportImportPage (+ ExcelImportWizard)
+                    ├── ExpensesPage | RevenuePage | ReportsPage
+                    └── CustomersPage | AccountsReceivablePage
 ```
 
-- **Pattern:** Presentational components + static data imports
-- **No router:** Single view only
-- **No global state:** No Redux, Zustand, or Context yet
-- **Path alias:** `@/` → `src/` (Vite + TypeScript)
+- **Routing:** React Router v7 (`src/App.tsx`, paths in `src/config/navigation.ts`)
+- **Financial state:** React Context — not Redux/Zustand
+- **Path alias:** `@/` → `src/`
 
-## Component structure
+> **Note:** [docs/adr/0001-useState-routing.md](./docs/adr/0001-useState-routing.md) described early `useState` routing; the app now uses React Router.
+
+## Financial data flow (import-first)
+
+```
+localStorage: agro-import-data
+        │
+        ▼
+FinancialDataProvider
+  ├── importedData (sales[], expenses[])
+  ├── revenueRecords  ← salesToRevenueRecords() when usesImportedData
+  ├── expenseRecords  ← importExpensesToFinancial() when usesImportedData
+  ├── dateRange       ← period filter (All / YTD / Month)
+  ├── filtered*Records
+  └── kpis            ← computeFinancialKPIs()
+        │
+        ├── DashboardPage / FinancialChart
+        ├── ExpensesPage / RevenuePage
+        └── ReportsPage
+```
+
+**Import path:**
+
+```
+.xlsx file
+  → parseWorkbook / runImportFromWorkbook (domains/import)
+  → applyImportedData → mergeImportedData → save localStorage
+  → provider state update
+```
+
+## Operations / demo data flow
+
+```
+src/data/mockData.ts          ← customers, receivables (App state)
+src/domains/agro/mockData.ts  ← plots, livestock
+Dashboard widgets             ← CropTable, LivestockTable, AIInsightsPanel (static)
+```
+
+These are **not** tied to Excel import in the current MVP.
+
+## Domain folders
+
+| Folder | Responsibility |
+|--------|----------------|
+| `src/domains/financial/` | Types, calculations, period, `FinancialDataContext`, hooks |
+| `src/domains/import/` | Excel parse, map, normalize, merge, storage |
+| `src/domains/agro/` | Crop/livestock demo types and data |
+| `src/components/` | Pages and UI |
+| `src/lib/csv.ts` | Legacy CSV helpers (Export/Import page) |
+
+## Key components
 
 | Component | Responsibility |
 |-----------|----------------|
-| `DashboardPage` | Page shell, header, grid layout, maps KPIs from data |
-| `KPICard` | One metric with trend indicator |
-| `FinancialChart` | Recharts bar chart (revenue vs expenses) |
-| `CropTable` | Corn plots table |
-| `LivestockTable` | Cattle groups table |
-| `ExpenseBreakdown` | Horizontal bar list by category |
-| `ReceivablesTable` | AR with overdue badges |
-| `AIInsightsPanel` | Static insight cards |
-| `ui/card` | Reusable card primitives (shadcn-style, minimal use) |
+| `FinancialDataProvider` | Single source of truth for imported financial records |
+| `ExcelImportWizard` | Upload, map, import Excel |
+| `FinancialPeriodFilter` | All / YTD / Month+year |
+| `FinancialChart` | Recharts bar chart; max 12 months; MM/YY axis |
+| `DashboardPage` | KPIs + chart + operations widgets |
 
-## Data flow (today)
+## Styling
 
-```
-src/data/mockData.ts
-        │
-        ├── dashboardKPIs ──────────► DashboardPage → KPICard
-        ├── monthlyFinancials ──────► FinancialChart
-        ├── cropPlots ────────────────► CropTable
-        ├── livestockGroups ──────────► LivestockTable
-        ├── expenseCategories ────────► ExpenseBreakdown
-        ├── receivables ──────────────► ReceivablesTable
-        └── aiInsights ───────────────► AIInsightsPanel
-```
-
-To change demo numbers, edit **`src/data/mockData.ts`** first.
-
-## Mock data explanation
-
-Mock data simulates a Bolivian agro business with:
-
-- ~Bs 185k monthly revenue, ~Bs 128k expenses
-- Three corn plots (A, B, C)
-- Three livestock groups (cows, calves, bulls)
-- Seven expense categories
-- Three receivable customers (two overdue)
-- Four static AI insight sentences
-
-Types live in `src/data/types.ts` to prepare for API responses later.
-
-## Styling system
-
-- **Tailwind CSS v4** via `@tailwindcss/vite` plugin
-- Global styles: `src/index.css` (`@import "tailwindcss"`)
-- **Design tokens:** Stone palette, green accents (`green-700`, `green-800`), off-white page background `#FBFBF9`
-- **Icons:** `lucide-react`
-- **Utility:** `cn()` in `src/lib/utils.ts` (clsx + tailwind-merge)
-
-## Hardcoded values to make dynamic later
-
-| Location | What |
-|----------|------|
-| `DashboardPage` | Header title, period label, export button |
-| `mockData.ts` | All business numbers |
-| `AIInsightsPanel` | “Last updated” timestamp |
-| `FinancialChart` | Y-axis `Bs Xk` formatter |
-| `ReceivablesTable` | Due dates as display strings |
+- Tailwind CSS v4 (`@tailwindcss/vite`)
+- Global: `src/index.css`
+- Icons: `lucide-react`
+- `cn()` in `src/lib/utils.ts`
 
 ## Suggested future architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  React SPA (Vite)                                       │
-│  ├── pages/ (dashboard, settings, imports)              │
-│  ├── components/                                        │
-│  ├── hooks/ (useOrg, useTransactions, useInsights)    │
-│  └── lib/ (supabase client, formatters)                 │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│  Supabase                                               │
-│  ├── Auth (users, sessions)                             │
-│  ├── Postgres (tables below)                            │
-│  ├── RLS (organization_id on all tenant data)           │
-│  └── Edge Functions (AI insights, Excel parse)          │
-└─────────────────────────────────────────────────────────┘
+React SPA
+  ├── Auth (Supabase or similar)
+  ├── API / Supabase Postgres
+  │     organizations, transactions, imports
+  └── Edge/worker for heavy Excel parse (optional)
 ```
 
-Optional later: separate API service if logic outgrows Edge Functions.
+### Suggested tables (unchanged direction)
 
-## Suggested database tables (Supabase / Postgres)
+See prior sections in this file for `organizations`, `transactions`, `customers`, `invoices`, `agro_plots`, `agro_livestock_groups`, etc. Import jobs might add:
 
-### Core tenancy
+**import_batches**
+- `id`, `organization_id`, `file_name`, `imported_at`, `row_counts`, `mapping_snapshot` (jsonb)
 
-**organizations**
-- `id` (uuid, PK)
-- `name`, `slug`, `currency`, `created_at`
+Tenant rows should use `organization_id` + RLS.
 
-**users**
-- `id` (uuid, PK, links to auth.users)
-- `email`, `full_name`, `created_at`
+## localStorage (current persistence)
 
-**organization_members**
-- `id`, `organization_id`, `user_id`, `role` (owner | manager | viewer)
-- Unique `(organization_id, user_id)`
+| Key | Purpose |
+|-----|---------|
+| `agro-import-data` | Merged sales + expenses |
+| `agro-import-mapping` | Column mapping template |
+| `agro-import-history` | Recent import log |
 
-### Finance
-
-**categories**
-- `id`, `organization_id`, `name`, `type` (income | expense), `parent_id`
-
-**transactions**
-- `id`, `organization_id`, `category_id`, `amount`, `date`, `description`, `reference`
-- Optional: `plot_id`, `livestock_group_id` for allocation
-
-**customers**
-- `id`, `organization_id`, `name`, `contact_info`
-
-**invoices**
-- `id`, `organization_id`, `customer_id`, `amount`, `issued_at`, `due_at`, `status`
-
-**receivables**
-- `id`, `organization_id`, `invoice_id`, `amount_due`, `due_date`, `status`, `paid_at`
-
-### Agro
-
-**agro_plots**
-- `id`, `organization_id`, `name`, `hectares`, `location`, `notes`
-
-**agro_crop_cycles**
-- `id`, `organization_id`, `plot_id`, `crop`, `season`, `expected_yield`, `actual_yield`, `revenue`, `cost`
-
-**agro_livestock_groups**
-- `id`, `organization_id`, `name`, `species`, `count`, `avg_weight`
-
-**agro_costs**
-- `id`, `organization_id`, `transaction_id` or standalone, `plot_id`, `livestock_group_id`, `cost_type`
-
-### AI
-
-**ai_insights**
-- `id`, `organization_id`, `period_start`, `period_end`, `content` (jsonb), `model`, `created_at`
-
-All tenant tables should include `organization_id` and RLS policies restricting rows to the user’s org memberships.
+Replace with API persistence in a later phase; keep client types stable.

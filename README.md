@@ -1,12 +1,19 @@
 # Agro Dashboard MVP
 
-A client-side demo dashboard for agro, import, and export businesses. It combines financial KPIs, customer and receivables visibility, operational modules (expenses, revenue, reports), and a working CSV import/export flow — all in the browser with mock and session-local data.
+A browser-based MVP for agro and export businesses. **Financial KPIs, charts, expenses, and reports are driven by flexible Excel import** — the app starts empty until the user imports `.xlsx` workbooks. Operations sections (crops, livestock, customers, receivables) still use demo data for the meeting UI.
 
-## Business context
+**Currency:** Bolivianos (`Bs`) in labels and formatting.
 
-This MVP targets agricultural operators who manage **corn production**, **livestock**, **customer sales**, and **cross-border trade**. The goal is to show owners and stakeholders a single place to understand cash flow, outstanding invoices, operating costs, and commercial performance — as a foundation for a future SaaS product (similar to a simpler, industry-specific finance tool).
+## Project overview
 
-**Currency in demo data:** Bolivianos (`Bs`), aligned with the first customer context.
+This product demonstrates:
+
+1. **Excel-first onboarding** — any `.xlsx` workbook with Sales and/or Expenses sheets, mapped by the user (no fixed template).
+2. **Local persistence** — imported rows, column mappings, and import history survive refresh in `localStorage`.
+3. **Multi-file merge** — importing 2025 then 2026 **adds** to the active dataset; duplicates are skipped by stable row keys.
+4. **Unified financial views** — Dashboard, Expenses, Revenue, and Reports read the same imported dataset via `FinancialDataProvider`.
+
+There is **no backend**, **no database**, and **no authentication** in this version.
 
 ## Tech stack
 
@@ -16,209 +23,244 @@ This MVP targets agricultural operators who manage **corn production**, **livest
 | Build | Vite 6 |
 | Styling | Tailwind CSS v4 |
 | Charts | Recharts |
-| Icons | Lucide React |
-| Routing | `useState` in `App.tsx` (no React Router) |
-
-This is a **single-page application (SPA)**, not Next.js. There is **no backend**, **no database**, and **no authentication** in this version.
+| Excel | `xlsx` (SheetJS) |
+| Routing | React Router v7 (`BrowserRouter` in `main.tsx`) |
+| Financial state | React Context (`FinancialDataProvider`) |
 
 ## Prerequisites
 
 - Node.js 18+ (20+ recommended)
 - npm
 
-## Run locally
+## Development commands
 
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:3000
+npm run lint         # TypeScript check (tsc --noEmit)
+npm run build        # production build → dist/
+npm run preview      # serve production build
+npm run test:import-dates   # Excel/date parsing unit checks
+npm run test:import-merge   # import merge/dedupe unit checks
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+No API keys required.
 
-Other commands:
+## Routes
 
-```bash
-npm run build    # production build → dist/
-npm run preview  # serve production build locally
-npm run lint     # TypeScript check (tsc --noEmit)
+| Path | Page | Financial data |
+|------|------|----------------|
+| `/dashboard` | Dashboard | Imported KPIs + chart (empty until import) |
+| `/export-import` | Export / Import | Excel wizard + CSV legacy UI + recent imports |
+| `/expenses` | Expenses | Imported expenses when active |
+| `/revenue` | Revenue | Imported sales as revenue rows |
+| `/reports` | Reports | P&L + trend from imported data |
+| `/accounts-receivable` | Accounts Receivable | Demo receivables (`App.tsx` state) |
+| `/customers` | Customers | Demo customers + receivables |
+| Settings (sidebar) | — | Not routed (`href: "#"`) |
+
+## Current working features
+
+### Financial (import-driven)
+
+- **Empty default state** — no mock revenue/expense on Dashboard, Expenses, Revenue, or Reports until Excel import.
+- **Flexible Excel `.xlsx` import** — `ExcelImportWizard` on Export/Import.
+- **Sheet preview** — workbook sheets and column headers.
+- **Column mapping** — per sheet: Sales, Expenses, or Ignore; map required/optional fields.
+- **Saved mappings** — reused on the next import (`agro-import-mapping`).
+- **Import history / Recent imports** — each file listed with row counts and dedupe stats.
+- **Merge on import** — new files append to `agro-import-data`; duplicates skipped.
+- **Clear import** — removes all imported data, history, and mapping persistence; financial pages return to empty.
+- **Dashboard** — KPIs, monthly chart (max 12 months on chart; “All” shows last 12), period filter (All / YTD / Month+Year).
+- **Expenses / Revenue pages** — tables and KPIs from imported records; period filter shared via context.
+- **Reports** — summary KPIs, P&L, monthly trend when imported data exists.
+
+### Operations (demo / partial)
+
+- **Dashboard operations** — corn plots, livestock, expense breakdown (from imported expenses when active), receivables table, static AI insights.
+- **Customers & AR** — demo data in `mockData.ts` / `App.tsx` state (not from Excel import yet).
+
+### Export/Import extras
+
+- Legacy **CSV** upload area (separate from Excel wizard; does not feed financial provider).
+- Export report cards — UI placeholders.
+
+## Excel import flow
+
+1. Open **Export / Import** (`/export-import`).
+2. In **Excel financial import**, upload a `.xlsx` workbook.
+3. Preview sheets; for each sheet choose role: **Sales**, **Expenses**, or **Ignore**.
+4. Map columns to fields (required fields must be assigned).
+5. Click **Import** — data merges into the active dataset; mapping and history are saved.
+6. Open **Dashboard** — KPIs and chart populate from imported rows.
+7. On a later visit, upload another year’s file — data **merges**; saved mapping pre-fills column choices.
+8. **Clear import** (wizard) resets financial data and history.
+
+Implementation lives under `src/domains/import/` and `src/components/ExcelImportWizard.tsx`.
+
+## Supported mapped fields
+
+Internal models: `SalesRecord`, `ImportExpenseRecord` → converted to `RevenueRecord` / `ExpenseRecord`.
+
+### Sales (required)
+
+| Field | Purpose |
+|-------|---------|
+| `date` | ISO date after normalization |
+| `revenue` | Amount |
+
+### Sales (optional)
+
+| Field | Purpose |
+|-------|---------|
+| `customerName` | Client name |
+| `product` | Product / service |
+| `quantity` | Numeric quantity |
+| `cost` | COGS for gross profit |
+
+### Expenses (required)
+
+| Field | Purpose |
+|-------|---------|
+| `date` | ISO date |
+| `amount` | Expense amount |
+
+### Expenses (optional)
+
+| Field | Purpose |
+|-------|---------|
+| `category` | Category label |
+| `description` | Line description |
+| `vendor` | Vendor / payee |
+
+## Multi-file import behavior
+
+- Importing **2025** then **2026** builds **one** combined dataset in `agro-import-data`.
+- **All records** period — KPIs/tables use full imported range; chart shows **last 12 months** max.
+- **Month** period — uses `<input type="month">` (year + month); January 2025 and January 2026 are distinct.
+- **YTD** — current calendar year, Jan 1 through today.
+- **Re-importing the same file** — duplicate rows skipped (stable keys on date, amounts, customer, etc., not generated ids).
+- **Clear import** — wipes data, history, and returns UI to empty financial state.
+
+Dedupe logic: `src/domains/import/merge.ts`.
+
+## LocalStorage
+
+| Key | Contents |
+|-----|----------|
+| `agro-import-data` | Combined `{ sales, expenses, importedAt, sourceFileName? }` |
+| `agro-import-mapping` | Saved sheet/column mapping for reuse |
+| `agro-import-history` | Recent import events (up to 20) |
+
+- Survives browser refresh.
+- **Clear import** removes `agro-import-data` and `agro-import-history` (mapping may remain until overwritten).
+
+Defined in `src/domains/import/storage.ts` as `IMPORT_STORAGE_KEYS`.
+
+## Financial data flow
+
+```
+ExcelImportWizard
+    → runImportFromWorkbook() → ImportedData
+    → FinancialDataProvider.applyImportedData()
+        → mergeImportedData(existing, incoming)
+        → saveImportedData + saveImportMapping + history
+    → revenueRecords / expenseRecords (derived from importedData)
+    → filterRecordsByDateRange(dateRange)
+    → Dashboard, FinancialChart, ExpensesPage, ReportsPage, RevenuePage
 ```
 
-No API keys are required.
-
-## Navigation model
-
-The left sidebar lists eight items. **Seven are fully navigable** via state in `src/App.tsx`. **Settings** appears in the sidebar but does not load a page (sidebar-only placeholder).
-
-| Sidebar label | Route key (`activePage`) | Navigable |
-|---------------|--------------------------|-----------|
-| Dashboard | `dashboard` | Yes |
-| Export/Import | `export-import` | Yes |
-| Expenses | `expenses` | Yes |
-| Revenue | `revenue` | Yes |
-| Accounts Receivable | `accounts-receivable` | Yes |
-| Reports | `reports` | Yes |
-| Customers | `customers` | Yes |
-| Settings | `settings` | **No** (sidebar-only) |
-
-## Feature summary
-
-| Module | Purpose | Key features | Data source | Status |
-|--------|---------|--------------|-------------|--------|
-| **Dashboard** | Executive overview | KPI cards, revenue vs expenses chart, corn/livestock tables, expense breakdown, receivables snapshot, static AI insights | `src/data/mockData.ts` | Demo-complete (UI) |
-| **Customers** | Customer registry | KPIs, customer table, outstanding/risk derived from receivables, static AI insight cards | `mockData.ts` (customers + receivables) | Demo-complete (Add Customer button is UI-only) |
-| **Accounts Receivable** | Invoice collections | Outstanding KPIs, full invoice table, aging buckets, risk badges | `mockData.ts` (receivables) | Demo-complete (Record Payment is UI-only) |
-| **Export/Import** | Data exchange | CSV upload, column detection, preview, confirm import, export imported CSV, recent imports list, export report cards (UI) | Session state + `src/lib/csv.ts`; seed recent imports | **CSV pipeline works**; Excel not implemented |
-| **Expenses** | Operating costs | KPIs, search/filter, expense table, Add Expense modal (local state) | `src/data/expenses.ts` + React state | Demo-complete (client-side CRUD) |
-| **Revenue** | Income tracking | KPIs, search/filter, revenue table, Add Revenue modal (local state) | `src/data/revenue.ts` + React state | Demo-complete (client-side CRUD) |
-| **Reports** | Financial reporting | P&L statement (May 2026), summary KPIs, monthly trend table | `mockData.ts` (derived) | Demo-complete (Export button UI-only) |
-| **Settings** | App configuration | — | — | **Sidebar-only** (not routed) |
-
-## Module details
-
-### Dashboard (`DashboardPage.tsx`)
-
-- Six KPI cards: revenue, expenses, net profit, receivables, corn production, cattle count.
-- Bar chart: monthly revenue vs expenses (`FinancialChart`).
-- Tables: corn plots, livestock groups, expense categories, accounts receivable.
-- AI insights panel: **static text** (not generated by an API).
-- Header: “This Month” and “Export Report” are **non-functional** UI placeholders.
-
-### Customers (`CustomersPage.tsx`)
-
-- Lists customers with contact info, invoiced/paid totals, status, and risk (computed from receivables).
-- KPIs: total customers, active count, total outstanding, at-risk count.
-- AI-style insight cards: static copy.
-- **Add Customer** does not open a form yet.
-
-### Accounts Receivable (`AccountsReceivablePage.tsx`)
-
-- Invoice-level view with paid/balance, due date, overdue days, status, risk.
-- KPIs: total outstanding, overdue amount, invoice count, average days overdue.
-- Aging summary: Current, 1–30, 31–60, 60+ days.
-- **Record Payment** is UI-only.
-
-### Export/Import (`ExportImportPage.tsx`)
-
-- **Working:** CSV file pick / drag-drop, parse, column detection, preview (10 rows), confirm import, recent imports list updates, export `agro-imported-data.csv`.
-- **Not working:** Excel (`.xlsx`), export report cards, real AI mapping.
-- Data persists only for the browser session (refresh clears imports).
-
-### Expenses (`ExpensesPage.tsx`)
-
-- Tracks transport, labor, supplier payments, fuel, etc.
-- Search + category/status filters; KPIs computed from list.
-- **Add Expense** modal appends to local state (lost on refresh).
-
-### Revenue (`RevenuePage.tsx`)
-
-- Tracks export sales, wholesale, commissions, service fees, etc.
-- Search + filters; KPIs exclude cancelled records from totals.
-- **Add Revenue** modal appends to local state (lost on refresh).
-
-### Reports (`ReportsPage.tsx`)
-
-- Profit & Loss for May 2026 built from `monthlyFinancials` and `expenseCategories`.
-- Monthly trend table (Jan–Jun).
-- **Export** and period selector are UI-only; AI insight is template text.
-
-### Settings
-
-- Listed in sidebar only; clicking it does **not** change the main view.
+- `usesImportedData` is true when `sales` or `expenses` arrays are non-empty.
+- Without import: financial record arrays are **empty** (not mock).
+- Mock seeds remain in `src/domains/financial/mockData.ts` for development/receivables only.
 
 ## Project structure
 
 ```
-├── index.html
-├── vite.config.ts
-├── package.json
-├── README.md                 ← this file
-├── DEMO.md                   ← presenter walkthrough
-├── PROJECT_CONTEXT.md        ← product vision
-├── ARCHITECTURE.md           ← technical design
-├── ROADMAP.md                ← phased plan
-├── COLLABORATION.md          ← team Git workflow
-├── TODO.md                   ← developer tasks
+├── README.md
+├── DEMO.md                 ← customer meeting script
+├── ARCHITECTURE.md
+├── ROADMAP.md
+├── TODO.md
+├── PROJECT_CONTEXT.md
 ├── src/
-│   ├── main.tsx
-│   ├── App.tsx               ← page routing (useState)
-│   ├── index.css
-│   ├── config/
-│   │   └── navigation.ts     ← sidebar items & ids
-│   ├── data/
-│   │   ├── mockData.ts       ← dashboard, AR, customers, reports
-│   │   ├── expenses.ts       ← expense seed data
-│   │   ├── revenue.ts        ← revenue seed data
-│   │   └── types.ts          ← shared TS types
-│   ├── lib/
-│   │   ├── csv.ts            ← CSV parse/export helpers
-│   │   └── utils.ts          ← cn() Tailwind helper
-│   └── components/
-│       ├── AppLayout.tsx
-│       ├── Sidebar.tsx
-│       ├── SidebarNavItem.tsx
-│       ├── DashboardPage.tsx
-│       ├── CustomersPage.tsx
-│       ├── AccountsReceivablePage.tsx
-│       ├── ExportImportPage.tsx
-│       ├── ExpensesPage.tsx
-│       ├── RevenuePage.tsx
-│       ├── ReportsPage.tsx
-│       ├── KPICard.tsx, FinancialChart.tsx, …  ← dashboard widgets
-│       └── ui/card.tsx
-└── docs/adr/                 ← architecture decision records
+│   ├── main.tsx            ← BrowserRouter + FinancialDataProvider
+│   ├── App.tsx             ← React Router routes
+│   ├── config/navigation.ts
+│   ├── components/
+│   │   ├── DashboardPage.tsx
+│   │   ├── ExcelImportWizard.tsx
+│   │   ├── ExportImportPage.tsx
+│   │   ├── FinancialChart.tsx
+│   │   └── …
+│   ├── domains/
+│   │   ├── financial/      ← context, calculations, period, hooks
+│   │   ├── import/         ← parse, map, merge, storage
+│   │   └── agro/           ← crop/livestock demo data
+│   └── data/mockData.ts    ← dashboard layout KPIs template, AR, customers, ops
+└── docs/adr/
 ```
 
-## Data model (mock / local)
+## Testing checklist
 
-| File | Contents |
-|------|----------|
-| `mockData.ts` | Dashboard KPIs, monthly financials, crop plots, livestock, receivables, customers, expense categories (dashboard chart), AI insight strings |
-| `expenses.ts` | `INITIAL_EXPENSES` (10 rows) |
-| `revenue.ts` | `INITIAL_REVENUE` (10 rows) |
-| Component state | Expenses/Revenue additions; Export/Import confirmed rows |
+Manual:
 
-**Important:** Dashboard KPI card *values* are still hardcoded strings in `dashboardKPIs`; charts and tables use structured mock arrays. Expenses and Revenue modules maintain their own lists independently of `mockData.ts`.
+- [ ] Fresh browser / clear import → Dashboard shows empty financial state + import banner
+- [ ] Import 2025 Excel file → Dashboard KPIs and chart update
+- [ ] Import 2026 Excel file → combined 2025+2026 data
+- [ ] Period **All** → chart shows at most last 12 months (MM/YY labels)
+- [ ] Period **Month** → select 2025 month vs 2026 month; data matches
+- [ ] Expenses page lists imported expenses
+- [ ] Reports P&L and trend when imported
+- [ ] Refresh page → data persists
+- [ ] Re-import same 2025 file → duplicates skipped; history shows new/duplicate counts
+- [ ] Clear import → empty financial state; history cleared
 
-## Known limitations
+Automated:
 
-- No persistence across page refresh (except browser session for Export/Import import buffer).
-- No user accounts, roles, or multi-tenant organizations.
-- No real API, Supabase, or bank integrations.
-- AI panels and insights are **static demo copy**, not LLM-generated.
-- Simple CSV parser (comma-separated; quoted commas not supported).
-- Excel import/export not implemented.
-- Many primary buttons are visual only (Export Report, Record Payment, Add Customer, Settings, report Export).
-- Settings page not built.
-- Revenue and Expenses data are **not** synced with Dashboard or Reports figures.
+```bash
+npm run lint
+npm run build
+npm run test:import-dates
+npx tsx src/domains/import/merge.test.ts
+```
 
-## Future roadmap
+## Known limitations / next steps
 
-See [ROADMAP.md](./ROADMAP.md) for phased detail. High-level next steps:
+- **Customers** — not imported from Excel; demo list only.
+- **Accounts Receivable** — demo data; no AR sheet mapping.
+- **Inventory** — not implemented.
+- **Operations** — crops, livestock, static AI insights use demo/static data.
+- **No Supabase / API** — browser-only persistence.
+- **No authentication** or multi-tenant orgs.
+- **CSV path** on Export/Import does not merge into financial dataset (Excel wizard does).
+- **Reports P&L** — category breakdown is simplified for imported data; may need customer-specific COGS rules later.
+- **Settings** — sidebar only.
+- **Add Expense / Add Revenue** — only persist when import is already active (updates merged store).
 
-1. **Backend / database** — Supabase (or similar) for organizations, transactions, invoices, agro entities.
-2. **Authentication** — login, org membership, role-based access.
-3. **Real CRUD persistence** — wire forms to API; unify data across Dashboard, Reports, Expenses, Revenue.
-4. **Import improvements** — robust CSV (e.g. Papa Parse), Excel (SheetJS), validation UI.
-5. **Real financial reporting** — live P&L from transactions, export PDF/Excel.
-6. **Supplier management** — vendors linked to expenses and payments.
-7. **Inventory & logistics** — stock, shipments, plot-level inventory.
-8. **Deployment polish** — hosted demo URL, CI, preview environments.
+See [ROADMAP.md](./ROADMAP.md) and [TODO.md](./TODO.md).
 
-Do not assume any of the above is complete unless listed under **Status** in the feature table.
+## Customer demo (short)
 
-## Demo walkthrough
+1. Show **empty Dashboard** — “starts clean.”
+2. **Export / Import** → upload customer Excel → map columns (no rigid template).
+3. **Dashboard** fills — KPIs + chart.
+4. **Expenses** and **Reports** — same data.
+5. Optional: second file (another year) → merged dataset.
+6. **Clear import** → back to empty.
 
-A step-by-step presenter script is in **[DEMO.md](./DEMO.md)**.
-
-Suggested order: Dashboard → Customers → Accounts Receivable → Export/Import → Expenses → Revenue → Reports.
+Full script: **[DEMO.md](./DEMO.md)**.
 
 ## Related documentation
 
-- [DEMO.md](./DEMO.md) — meeting demo script
-- [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) — business problem and vision
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — components and suggested DB schema
-- [COLLABORATION.md](./COLLABORATION.md) — Git workflow for two developers
-- [TODO.md](./TODO.md) — active task list
+| File | Purpose |
+|------|---------|
+| [DEMO.md](./DEMO.md) | Presenter walkthrough |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical layout and future DB sketch |
+| [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) | Business vision |
+| [src/domains/financial/README.md](./src/domains/financial/README.md) | Financial domain |
+| [src/domains/import/README.md](./src/domains/import/README.md) | Import domain |
+| [docs/adr/0001-useState-routing.md](./docs/adr/0001-useState-routing.md) | Historical routing ADR (superseded) |
 
 ## License
 

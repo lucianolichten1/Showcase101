@@ -1,19 +1,23 @@
 # ADR 0001 — useState-based page routing (no React Router)
 
-**Status:** Accepted  
-**Date:** 2026-05-17
+**Status:** Superseded  
+**Date:** 2026-05-17  
+**Superseded by:** React Router in `src/main.tsx` + `src/App.tsx` (2026)
 
 ## Context
 
-The app needs to navigate between multiple pages (Dashboard, Accounts Receivable, Reports, Customers). We are in the UI demo phase — no real users, no auth, no need for shareable URLs yet.
+Early MVP used `useState<NavItemId>` in `App.tsx` to switch pages without shareable URLs.
 
-## Decision
+## Decision (historical)
 
-Use a single `useState<NavItemId>` in `App.tsx` to track the active page and conditionally render the correct page component. No React Router.
+Use conditional render from sidebar state. No React Router.
 
-## Consequences
+## Current state
 
-- Simple to implement, zero added dependencies
-- Browser back button does not work
-- URLs do not reflect the current page (cannot share a link to a specific page)
-- **Must be replaced with React Router** when auth, real users, or deep-linking are introduced (Phase 3 / Supabase integration)
+The app now uses **React Router v7** with paths such as `/dashboard`, `/export-import`, etc. See `src/config/navigation.ts`.
+
+`FinancialDataProvider` wraps the router tree in `main.tsx`.
+
+## Why this ADR remains
+
+Documents the original choice. New work should assume **URL-based routing**, not `useState` page switching.

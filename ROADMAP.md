@@ -4,49 +4,46 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 ---
 
-## Phase 1: Demo dashboard (current)
+## Phase 1: Demo dashboard + Excel import (current)
 
-**Goal:** Impress the owner in a meeting with a polished, credible UI.
+**Goal:** Customer meeting with import-driven financials and credible operations UI.
 
-- [x] Single-page dashboard layout
-- [x] KPI cards, chart, tables, expense breakdown, AI panel
-- [x] Mock data centralized in `src/data/mockData.ts`
-- [x] Sidebar navigation with state-based routing (`App.tsx`)
-- [x] Customers, Accounts Receivable, Reports pages
-- [x] Expenses and Revenue modules (local state + modals)
-- [x] Export/Import CSV pipeline (client-side)
-- [ ] Settings page (sidebar item only today)
-- [ ] Align mock numbers with customer’s real ballpark figures
-- [ ] Polish responsive layout for tablet/laptop in meeting
-- [ ] Optional: company name / logo in header
-- [ ] Deploy static build (Vercel, Netlify, or similar) for easy sharing
-
----
-
-## Phase 2: Real data structure
-
-**Goal:** Replace ad-hoc mocks with a clear domain model in code (still no DB).
-
-- [ ] Define TypeScript types for transactions, categories, plots, livestock
-- [ ] Split `mockData.ts` into domain modules (`financial`, `agro`, `receivables`)
-- [ ] Add simple data loaders / hooks (`useDashboardData`)
-- [ ] Compute KPIs from underlying records (not hardcoded strings)
-- [ ] Add date-range state and filter mock records
-- [ ] Document data shape for future API parity
+- [x] Multi-page app with React Router
+- [x] `FinancialDataProvider` for shared financial state
+- [x] Empty default financial state (no mock KPIs until import)
+- [x] Flexible Excel `.xlsx` import (sheet roles + column mapping)
+- [x] Saved mappings + import history in `localStorage`
+- [x] Merge multiple imports + duplicate detection
+- [x] Dashboard KPIs + chart from imported data
+- [x] Expenses, Revenue, Reports wired to imported data
+- [x] Clear import resets financial UI
+- [x] Period filter: All / YTD / Month+year; chart max 12 months
+- [ ] Settings page (sidebar only)
+- [ ] Deploy static build for sharing (Vercel/Netlify)
+- [ ] Polish responsive layout for meeting devices
 
 ---
 
-## Phase 3: Excel import/export
+## Phase 2: Data model & operations alignment
 
-**Goal:** Meet customers where they are — spreadsheets today.
+**Goal:** Clear domain boundaries and less demo/ops confusion.
 
-- [x] Import CSV in browser with preview and confirm (Export/Import page)
-- [x] Export confirmed rows to CSV download
-- [ ] Robust CSV parsing (quoted commas, Papa Parse)
-- [ ] Excel (.xlsx) import and export
-- [ ] Export dashboard summary to Excel (.xlsx)
-- [ ] Map columns to categories with validation UI
-- [ ] Persist imports to database (not session-only)
+- [ ] Import Customers / AR sheets (or link sales to customer entities)
+- [ ] Unify or label demo operations data vs imported financials in UI
+- [ ] Deeper Reports P&L mapping to customer chart of accounts
+- [ ] Export P&L / expenses to Excel or PDF from real data
+- [ ] Server-side or worker-based Excel validation
+
+---
+
+## Phase 3: Persistence & import hardening
+
+**Goal:** Beyond single-browser `localStorage`.
+
+- [ ] Supabase (or API) for organizations and transactions
+- [ ] Import batches stored per org (not only local)
+- [ ] Robust CSV path merged into same financial pipeline (or deprecate)
+- [ ] Background re-import / scheduled sync (future)
 
 ---
 
@@ -54,11 +51,11 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 **Goal:** Multi-user access per farm/business.
 
-- [ ] Sign up / login (email or OAuth)
-- [ ] Organization (tenant) model — one business per org
-- [ ] Invite team members with roles (owner, manager, viewer)
-- [ ] Protect routes and API by `organization_id`
-- [ ] Basic settings page (org name, currency, fiscal year)
+- [ ] Sign up / login
+- [ ] Organization (tenant) model
+- [ ] Roles (owner, manager, viewer)
+- [ ] RLS on all tenant data
+- [ ] Settings page (org name, currency, fiscal year)
 
 ---
 
@@ -66,37 +63,29 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 **Goal:** Persistent, queryable data.
 
-- [ ] Supabase project setup (Postgres + Auth optional overlap with Phase 4)
 - [ ] Migrations for core tables (see `ARCHITECTURE.md`)
-- [ ] Row Level Security (RLS) per organization
-- [ ] CRUD APIs for transactions, categories, receivables, agro entities
-- [ ] Replace mock loaders with Supabase queries
+- [ ] Replace `FinancialDataProvider` loaders with API
 - [ ] Seed script for demo org
 
 ---
 
 ## Phase 6: AI insights connected to real data
 
-**Goal:** Insights that reflect actual business performance.
+**Goal:** Replace static insight cards with metrics-based summaries.
 
-- [ ] Aggregate metrics server-side (or Edge Function)
-- [ ] Prompt template with KPIs, overdue AR, top expenses, plot variance
-- [ ] Call LLM API (Gemini or other) with structured context
-- [ ] Cache insights per org / period; show “last updated” from DB
-- [ ] Guardrails: no hallucinated numbers; cite metrics used
+- [ ] Aggregate metrics from imported + operational data
+- [ ] LLM insights with guardrails
+- [ ] Cache per org / period
 
 ---
 
 ## Phase 7: Agro module expansion
 
-**Goal:** Deep operational tracking beyond finance-only.
+**Goal:** Deep operational tracking.
 
-- [ ] Plot registry (hectares, location, soil notes)
-- [ ] Crop cycles (planting, harvest, expected vs actual yield)
-- [ ] Livestock events (births, sales, vet, weight)
-- [ ] Cost allocation: assign expenses to plot or livestock group
-- [ ] Seasonal reports and benchmarks
-- [ ] Optional: weather or market price integrations
+- [ ] Plot registry, crop cycles, livestock events
+- [ ] Cost allocation to plot / group
+- [ ] Inventory / logistics (if required by customer)
 
 ---
 
@@ -104,8 +93,4 @@ Phased plan from demo to SaaS. Adjust timelines as you learn from the first cust
 
 **Goal:** Sustainable SaaS.
 
-- [ ] Pricing tiers (solo farm, team, enterprise)
-- [ ] Stripe (or local payment) integration
-- [ ] Usage limits (users, plots, transactions)
-- [ ] Onboarding flow and in-app help
-- [ ] Customer feedback loop from first paying users
+- [ ] Pricing tiers, payments, onboarding

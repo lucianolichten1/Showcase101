@@ -1,206 +1,171 @@
 # Demo Walkthrough — Agro Dashboard MVP
 
-Use this script for a **10–15 minute** owner or class presentation. Run `npm run dev` and open [http://localhost:3000](http://localhost:3000) before you start.
+Use this script for a **10–15 minute** customer or class presentation.
 
-**Tip:** Use a laptop or tablet in landscape. If the sidebar is hidden on mobile, tap the menu icon (☰) top-left.
+**Before you start:**
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Have the customer’s **Excel workbook(s)** ready (e.g. 2025 full year, 2026 English test file).
+
+**Tip:** Clear any old import first (Export/Import → **Clear import**) so the audience sees the empty → filled story.
 
 ---
 
-## 1. Dashboard
+## 1. Empty Dashboard (30 seconds)
 
-**Click:** Sidebar → **Dashboard** (default landing page).
+**Click:** Sidebar → **Dashboard**
 
 **Say:**
 
-> “This is the command center for the business — financial health and farm operations on one screen.”
+> “The app starts with no financial data — nothing is fabricated. Your numbers appear only after we import your Excel.”
 
 **Show:**
 
-- **KPI row** — monthly revenue, expenses, profit, receivables, corn output, cattle headcount.
-- **Financial chart** — revenue vs expenses trend (Jan–Jun).
-- **Corn production** — profit by plot (A, B, C).
-- **Livestock** — groups, feed cost, estimated value.
-- **Expense breakdown** — where money goes (feed, labor, fertilizer, etc.).
-- **Accounts receivable** — who owes money and overdue status.
-- **AI insights** (green panel) — example of future automated advice *(explain these are demo text today)*.
-
-**Business value:** One glance answers “How are we doing this month?” without spreadsheets.
-
-**Limitation to mention if asked:** Numbers are demo data; date filter and Export Report are not wired yet.
+- Banner: **No financial data imported yet**
+- Financial KPIs at **Bs 0** with “Import Excel to populate”
+- Chart empty state: “Import Excel data to view monthly financial trends.”
+- Operations widgets (corn, livestock, receivables) may still show **demo** operational data — clarify that financial KPIs/chart are import-driven.
 
 ---
 
-## 2. Customers
+## 2. Excel Import (5–7 minutes) — main demo
 
-**Click:** Sidebar → **Customers**.
-
-**Say:**
-
-> “Every buyer and partner in one place, with payment behavior and risk visible.”
-
-**Show:**
-
-- KPIs: total customers, active accounts, total outstanding, at-risk count.
-- **Customer table** — city, industry, invoiced vs paid, outstanding, status, risk badge.
-- Scroll to **AI-style insight cards** (opportunities and risks per customer).
-
-**Business value:** Sales and collections teams know who to call first.
-
-**Limitation:** “Add Customer” is a placeholder button — no form yet.
-
----
-
-## 3. Accounts Receivable
-
-**Click:** Sidebar → **Accounts Receivable**.
+**Click:** Sidebar → **Export/Import**
 
 **Say:**
 
-> “Here we manage cash collection — every invoice, what’s paid, what’s late, and how old the debt is.”
+> “We don’t force one rigid template. You upload your real workbook, tell us which sheet is Sales or Expenses, and map your column headers once. The app remembers the mapping for next time.”
 
-**Show:**
+**Live steps:**
 
-- KPIs: total outstanding, overdue amount, count of overdue invoices, average days overdue.
-- **Invoice table** — invoice #, customer, paid vs balance, due date, status, risk.
-- **Aging summary** — Current, 1–30, 31–60, 60+ day buckets.
-
-**Business value:** Reduces surprise cash gaps; supports follow-up before debts go critical.
-
-**Limitation:** “Record Payment” does not save yet.
-
----
-
-## 4. Export/Import
-
-**Click:** Sidebar → **Export/Import**.
-
-**Say:**
-
-> “Many agro businesses still live in Excel. This module shows how we bring their files into the platform and export clean data back out.”
-
-**Show (live demo recommended):**
-
-1. **Import Data** — click **Choose File** or drag a simple `.csv` (e.g. headers: `Fecha,Monto,Detalle,Cliente`).
-2. **Detected Columns** — auto-mapping to date, amount, etc.
-3. **Upload Preview** — first rows; click **Confirm Import**.
-4. **Imported Data Preview** — click **Export Imported Data** → downloads `agro-imported-data.csv`.
-5. **Recent Imports** — new row appears at top.
+1. Scroll to **Excel financial import**.
+2. **Upload** the customer `.xlsx` file.
+3. For each sheet, set role: **Sales**, **Expenses**, or **Ignore**.
+4. Map required columns:
+   - Sales: **Date**, **Revenue**
+   - Expenses: **Date**, **Amount**
+5. Optional: customer, product, quantity, cost, vendor, description.
+6. Click **Import** — note success message (rows added, active dataset totals).
+7. Point to **Recent imports** table (file name, new rows, duplicates skipped if re-import).
 
 **Also mention:**
 
-- Pipeline chips: Upload → Preview → Confirm → Export.
-- Excel: “coming next” (only CSV works today).
-- Export report cards at bottom are UI previews only.
-
-**Business value:** Lowers friction for onboarding real customer data without manual re-entry.
+- Data is saved in the **browser** (`localStorage`) — refresh keeps it.
+- **Clear import** removes everything and returns to empty financial state.
 
 ---
 
-## 5. Expenses
+## 3. Dashboard after import (2 minutes)
 
-**Click:** Sidebar → **Expenses**.
+**Click:** Sidebar → **Dashboard**
 
 **Say:**
 
-> “All operating costs — transport, labor, fuel, customs, supplier payments — tracked by category and status.”
+> “Now the dashboard reflects your file — revenue, expenses, profit, and trends from your data.”
 
 **Show:**
 
-- KPIs: total, paid, pending, largest category.
-- **Search** — try `fuel` or a vendor name.
-- **Filters** — category (e.g. Transport) or status (Overdue).
-- **Add Expense** — open modal, fill a row, **Save Expense** → appears in table; KPIs update.
-
-**Business value:** Owners see burn rate and what’s still owed to suppliers.
-
-**Limitation:** Data is session-only (refresh clears new rows unless you re-add).
+- KPI cards with real totals
+- **Period** filter: All (chart shows last 12 months, MM/YY labels), pick a specific month/year, or YTD
+- Financial chart — revenue vs expenses
+- Expense breakdown from imported expenses (if any)
 
 ---
 
-## 6. Revenue
+## 4. Second file / another year (optional, 2 minutes)
 
-**Click:** Sidebar → **Revenue**.
+**Click:** Export/Import again; import a second workbook (e.g. 2026).
 
 **Say:**
 
-> “Income from export deals, local sales, wholesale, and services — linked to clients and invoices.”
+> “We can add another year without losing the first. The system merges files and skips duplicate rows if you import the same file twice.”
 
 **Show:**
 
-- KPIs: total, collected, pending, top revenue source (category).
-- Search by client, product, or invoice # (e.g. `INV-2026`).
-- **Add Revenue** — demo adding a new sale; table and KPIs update.
-
-**Business value:** Complements expenses and AR for a full P&L story.
-
-**Limitation:** Not yet tied to Dashboard totals; session-local additions only.
+- Dashboard with combined years
+- Month picker: January 2025 vs January 2026 show different months
 
 ---
 
-## 7. Reports
+## 5. Expenses (1 minute)
 
-**Click:** Sidebar → **Reports**.
+**Click:** Sidebar → **Expenses**
 
-**Say:**
+**Show:** Table and KPIs from imported expense rows; period filter matches Dashboard behavior.
 
-> “Formal financial reporting — profit and loss and month-over-month trends.”
+---
+
+## 6. Reports (1–2 minutes)
+
+**Click:** Sidebar → **Reports**
 
 **Show:**
 
-- Summary KPIs for May 2026 (revenue, gross profit, expenses, net profit).
-- **Profit & Loss statement** — revenue lines, COGS (feed, fertilizer), operating expenses, net profit and margins.
-- **Monthly trend table** — Jan–Jun with current month highlighted.
+- Summary KPIs from imported records
+- Profit & Loss and monthly trend (when import active)
+- Empty/hint state if no import yet
 
-**Business value:** What accountants and owners need for decisions and bank conversations.
-
-**Limitation:** Period fixed to May demo; Export button not functional; figures derived from mock data, not Expenses/Revenue modules.
+**Limitation to mention:** P&L category lines are simplified vs a full accounting chart of accounts.
 
 ---
 
-## 8. Settings (sidebar-only)
+## 7. Revenue (optional, 1 minute)
 
-**Click:** Sidebar → **Settings**.
+**Click:** Sidebar → **Revenue**
+
+**Show:** Imported sales as revenue lines with filters.
+
+---
+
+## 8. Customers & Accounts Receivable (1 minute)
 
 **Say:**
 
-> “Settings will cover company profile, users, currency, and integrations. It’s listed in the menu for the product vision but not built in this MVP — clicking it won’t change the page.”
+> “Customer registry and invoice tracking are still demo modules in this MVP — Excel import today covers Sales and Expenses financial sheets. AR and customers are on the roadmap.”
 
-*(If nothing happens, that’s expected — stay on the last page you visited.)*
+Briefly show Customers / AR if useful for the product vision.
 
-**Business value:** Sets expectation for a complete SaaS product roadmap.
+---
+
+## 9. Settings
+
+**Click:** Settings in sidebar (no route).
+
+**Say:** Settings is planned; not built in this MVP.
 
 ---
 
 ## Closing (30 seconds)
 
-**Say:**
-
-> “Today this runs entirely in the browser with demo data, but the structure is ready for a real database, login, and live imports. Next steps are connecting these modules to one data source and deploying a hosted demo link for your team.”
+> “You’ve seen an empty app become your dashboard from your own Excel — no fixed template. Next steps are connecting customers and receivables to import, cloud storage, and login for your team.”
 
 ---
 
-## Quick reference — what works vs placeholder
+## Quick reference — what works today
 
 | Action | Works? |
 |--------|--------|
-| Navigate all pages except Settings | Yes |
-| Dashboard charts & tables | Yes (mock) |
-| CSV import / export on Export/Import | Yes |
-| Add Expense / Add Revenue (session) | Yes |
-| Add Customer / Record Payment / Export Report | No (UI only) |
-| Settings page | No (sidebar only) |
-| Real AI / backend / login | No |
+| Excel `.xlsx` import with mapping | Yes |
+| Merge multiple imports | Yes |
+| Duplicate detection on re-import | Yes |
+| Persist after refresh | Yes |
+| Clear import → empty financial UI | Yes |
+| Dashboard / Expenses / Reports from import | Yes |
+| CSV upload (legacy section) | Partial (does not feed financial KPIs) |
+| Customers / AR from Excel | No (demo data) |
+| Backend / login / real AI | No |
 
 ---
 
-## Optional: sample CSV for live import
+## Testing before the meeting
 
-Save as `demo-transactions.csv`:
+See **Testing checklist** in [README.md](./README.md).
 
-```csv
-Fecha,Monto,Detalle,Cliente
-2026-05-01,1500,Venta maíz,Cliente Santa Cruz
-2026-05-02,800,Compra alimento,Distribuidora Norte
+```bash
+npm run lint
+npm run build
 ```
-
-Use on the Export/Import page during the demo.

@@ -2,93 +2,74 @@
 
 ## Business idea
 
-We are building an **AI-powered financial and agro management SaaS** for agricultural businesses in Latin America (starting in Bolivia). Think of it as a simpler, industry-specific alternative to QuickBooks — designed for owners who manage:
-
-- Crop production (e.g. corn on multiple plots)
-- Livestock (cattle and related costs)
-- Mixed farm expenses (feed, fertilizer, labor, transport, veterinary, fuel)
-- Customer receivables and cash flow
-
-The product should eventually support P&L reporting, accounts receivable, Excel import/export, AI business insights, crop/land tracking, livestock tracking, expense analytics, role-based permissions, authentication, bank integrations, and modular agro features.
+We are building an **AI-powered financial and agro management SaaS** for agricultural businesses in Latin America (starting in Bolivia). The product should eventually cover P&L, receivables, Excel import/export, AI insights, crop/livestock tracking, and multi-tenant access.
 
 ## First customer context
 
-The first prospect is an **agro company** with:
+An **agro company** with corn plots, cattle, and mixed expenses. The owner needs a **clear dashboard** in meetings — not a full accounting system yet.
 
-- Land under corn cultivation (multiple plots)
-- Cattle / livestock operations
-- Other agro-related activities
+## What this MVP demonstrates today
 
-The owner is not deeply technical. They need a **clear, professional dashboard** in a meeting — not a full accounting system yet.
+### Financial (import-driven)
 
-## Agro dashboard goal (this MVP)
+1. **Empty start** — no fake revenue/expense until Excel is imported.
+2. **Flexible Excel import** — any `.xlsx` with mappable Sales/Expenses sheets.
+3. **Persistent local data** — refresh keeps imports; multiple files merge.
+4. **Dashboard, Expenses, Revenue, Reports** — one active dataset from import.
 
-Show one screen that answers, at a glance:
+### Operations (still largely demo)
 
-1. **How is the business doing financially this month?** (revenue, expenses, net profit)
-2. **How much money is owed to us?** (accounts receivable, overdue customers)
-3. **How is corn production performing?** (yield and profit by plot)
-4. **How is livestock doing?** (head count, feed costs, estimated value)
-5. **Where is money going?** (expense breakdown)
-6. **What should the owner pay attention to?** (AI-style insights — currently static demo text)
+- Corn plots, livestock tables, static AI insight text.
+- Customers and Accounts Receivable lists (demo data in `mockData.ts` / `App.tsx`).
+- Not yet loaded from customer Excel.
 
-Currency in the demo is **Bolivianos (Bs)** to match the local context.
+Currency: **Bolivianos (Bs)**.
 
 ## Problem we are solving
 
-Agro owners often track finances in spreadsheets, notebooks, or memory. They lack:
+Owners track finances in spreadsheets. This MVP shows:
 
-- A single view of financial + operational performance
-- Easy receivables visibility
-- Plot-level and livestock-level profitability
-- Actionable summaries without hiring an analyst
+- A single view after import (KPIs, trends, expenses).
+- That **their** Excel structure can be mapped without a rigid template.
+- A path to receivables, customers, and cloud data later.
 
-This MVP proves we understand their world and can present data clearly before investing in backend, auth, and integrations.
+## What the owner should understand from a demo
 
-## What the owner should understand from the dashboard
-
-After a 10–15 minute walkthrough, the owner should feel:
-
-- “I can see my month’s profit and biggest costs.”
-- “I know who owes me money and who is late.”
-- “I can compare my corn plots and cattle groups.”
-- “The system could eventually give me advice, not just numbers.”
+- “The app starts empty — then **my** Excel fills it.”
+- “I can add another year’s file and still see everything together.”
+- “I know who owes me money” (AR demo) and “I see farm operations” (plots/livestock demo).
+- “This could grow into advice and team access, not just numbers.”
 
 ## Long-term product vision
 
 | Area | Vision |
 |------|--------|
 | Finance | Transactions, categories, P&L, invoicing, receivables |
-| Agro | Plots, crop cycles, livestock groups, cost allocation |
-| Data | Excel import/export, later bank feeds |
-| AI | Insights generated from real business data |
+| Agro | Plots, crop cycles, livestock, cost allocation |
+| Data | Excel import (done locally), later bank feeds + API |
+| AI | Insights from real business data |
 | Platform | Multi-tenant orgs, roles, subscriptions |
 
-## What is currently mock data
+## What is mock / demo vs imported
 
-Everything on the dashboard is static. See `src/data/mockData.ts`:
+| Data | Source | Used in |
+|------|--------|---------|
+| Sales & expenses (financial) | **Excel import** → `agro-import-data` | Dashboard KPIs/chart, Expenses, Revenue, Reports |
+| Customers, receivables (AR) | `mockData.ts` / `App` state | Customers, AR pages, dashboard receivables table |
+| Crop plots, livestock | `domains/agro/mockData.ts` | Dashboard operations |
+| AI insight strings | Static arrays | `AIInsightsPanel` |
+| `dashboardKPIs` template | `mockData.ts` | KPI card layout/trends for non-financial cards |
 
-| Data | Used in |
-|------|---------|
-| `dashboardKPIs` | KPI cards on `DashboardPage` |
-| `monthlyFinancials` | `FinancialChart` |
-| `cropPlots` | `CropTable` |
-| `livestockGroups` | `LivestockTable` |
-| `expenseCategories` | `ExpenseBreakdown` |
-| `receivables` | `ReceivablesTable` |
-| `aiInsights` | `AIInsightsPanel` |
+**Financial KPI values** are computed from imported records when `usesImportedData` is true; otherwise they show zero with import prompts.
 
-Also mock / non-functional UI:
+## What should become dynamic next
 
-- “This Month” date selector (no logic)
-- “Export Report” button (no download)
-- “Last updated: Today, 08:42 AM” (hardcoded)
+- Customers and AR from import or API.
+- Operations tables optionally fed from import or manual entry.
+- Cloud persistence and auth.
+- AI insights from aggregated metrics.
 
-## What should eventually become dynamic
+## Related docs
 
-- All KPI values computed from transactions and agro records
-- Chart data from monthly aggregates in a database
-- Tables loaded per organization with filters (date range, plot, group)
-- Receivables synced from invoices / payments
-- AI insights generated via API from real metrics
-- User-specific org, permissions, and audit trail
+- [README.md](./README.md) — setup, import flow, localStorage keys, testing
+- [DEMO.md](./DEMO.md) — meeting script (Excel-first)

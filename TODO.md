@@ -1,63 +1,57 @@
 # Developer TODO
 
-Practical task list for the two-person team. Check items off in PRs or commits.
+Practical task list. Check items off in PRs.
+
+## Import & financial (recent — verify / harden)
+
+- [x] Excel `.xlsx` import with flexible mapping
+- [x] Merge imports + dedupe (`merge.ts`)
+- [x] Empty default financial state
+- [x] localStorage persistence + clear import
+- [ ] Add `npm run test:import-merge` script to `package.json` (optional)
+- [ ] E2E smoke test checklist in CI (manual doc in README for now)
+- [ ] Wire legacy CSV confirm path to financial merge (or remove CSV UI)
 
 ## UI improvements
 
-- [ ] Add company logo and customer name to header
-- [ ] Improve mobile layout (KPI grid, table horizontal scroll labels)
-- [ ] Wire “This Month” to a date-range picker (UI state only at first)
-- [ ] Implement “Export Report” (PDF or Excel stub)
-- [ ] Consistent empty/loading states for tables
-- [ ] Use or remove `src/components/ui/card.tsx` (currently unused by most widgets)
-- [ ] Dark mode (low priority for MVP meeting)
+- [ ] Settings page route and placeholder content
+- [ ] Improve mobile chart axis density when 12 months shown
+- [ ] Export Report / P&L PDF from imported data
+- [ ] Consistent empty states on all financial pages
+- [ ] Dark mode (low priority)
 
-## Data / model improvements
+## Data / domain
 
-- [ ] Update `mockData.ts` with real customer ballpark numbers
-- [ ] Derive KPI card values from `monthlyFinancials` (May row) programmatically
-- [ ] Add `organization` and `period` types in `types.ts`
-- [ ] Validate expense percentages sum to 100%
-- [ ] Use ISO dates for receivables instead of strings like "May 10"
-- [ ] Add `src/data/index.ts` re-exports for cleaner imports
+- [ ] Import mapping for Customers sheet
+- [ ] Import mapping for Accounts Receivable
+- [ ] Inventory module (future)
+- [ ] Receivable due dates as ISO in demo data
+- [ ] Document customer-specific COGS categories for Reports
 
 ## Backend / database (future)
 
-- [ ] Choose Supabase region and create project
-- [ ] Write SQL migrations for core tables
-- [ ] Implement RLS policies
-- [ ] Create seed data for demo tenant
-- [ ] API layer or Supabase client in `src/lib/supabase.ts`
+- [ ] Supabase project + migrations
+- [ ] RLS policies
+- [ ] API layer; sync `FinancialDataProvider` with fetch
 
 ## AI features
 
-- [ ] Design insight prompt template
-- [ ] Add server route or Edge Function for LLM calls
-- [ ] Replace static `aiInsights` array with API response
-- [ ] Add loading and error states on `AIInsightsPanel`
-- [ ] Store insight history per period
+- [ ] Replace static `AIInsightsPanel` with metrics-driven copy or LLM
+- [ ] Loading/error states on insights
 
-## Agro module features
+## Agro module
 
-- [ ] Expand crop table with season / variety columns
-- [ ] Show vet cost column in livestock table (data exists, UI hidden)
-- [ ] Plot map or simple list view for land assets
-- [ ] Link expenses to plot or livestock group in data model
+- [ ] Link plot/livestock widgets to real data or hide when import-only demo
+- [ ] Vet cost column in livestock table (data exists)
 
 ## Collaboration / Git
 
-- [ ] `git init` and first commit
-- [ ] Create GitHub/GitLab repo and push
-- [ ] Add branch protection on `main` (optional)
-- [ ] Agree on PR review rule: one approval before merge
-- [ ] Set up preview deploys on PR (Vercel/Netlify)
+- [ ] Run `npm run lint` and `npm run build` in CI
+- [ ] Preview deploys on PR
 
 ## Bugs / cleanup
 
-- [x] Fix TypeScript `@/` path alias in `tsconfig.json`
-- [x] Centralize mock data in `src/data/`
-- [x] Remove unused Gemini/Express/Motion dependencies from `package.json`
-- [ ] Run `npm run lint` in CI
-- [ ] Reduce Recharts bundle size (code-split chart if needed)
-- [ ] Fix `vite.config.ts` encoding artifact in comment (optional)
-- [ ] Remove `metadata.json` from repo if not needed outside AI Studio
+- [x] React Router + `FinancialDataProvider` in `main.tsx`
+- [x] Centralize import storage keys
+- [ ] Update/supersede ADR 0001 (routing) — see docs
+- [ ] Reduce Recharts bundle (code-split if needed)
