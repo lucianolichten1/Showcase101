@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { MergeImportResult } from "@/domains/import/merge";
+import type { CustomerRecord } from "@/domains/customers/types";
 import type {
   ImportedData,
   ImportHistoryItem,
@@ -201,6 +202,8 @@ export interface UseFinancialDataResult {
   setExpenseRecords: Dispatch<SetStateAction<ExpenseRecord[]>>;
   receivableRecords: ReceivableRecord[];
   setReceivableRecords: Dispatch<SetStateAction<ReceivableRecord[]>>;
+  customerRecords: CustomerRecord[];
+  setCustomerRecords: Dispatch<SetStateAction<CustomerRecord[]>>;
   dateRange: DateRange;
   setDateRange: Dispatch<SetStateAction<DateRange>>;
   filteredRevenueRecords: RevenueRecord[];

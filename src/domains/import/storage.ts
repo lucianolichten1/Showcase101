@@ -32,6 +32,7 @@ function normalizeImportedData(data: Partial<ImportedData>): ImportedData {
     sales: Array.isArray(data.sales) ? data.sales : [],
     expenses: Array.isArray(data.expenses) ? data.expenses : [],
     arReceivables: Array.isArray(data.arReceivables) ? data.arReceivables : [],
+    customers: Array.isArray(data.customers) ? data.customers : [],
     importedAt:
       typeof data.importedAt === "string"
         ? data.importedAt
@@ -47,7 +48,7 @@ export function loadImportedData(): ImportedData | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<ImportedData>;
     const data = normalizeImportedData(parsed);
-    if (data.sales.length === 0 && data.expenses.length === 0 && data.arReceivables.length === 0) return null;
+    if (data.sales.length === 0 && data.expenses.length === 0 && data.arReceivables.length === 0 && data.customers.length === 0) return null;
     return data;
   } catch {
     return null;

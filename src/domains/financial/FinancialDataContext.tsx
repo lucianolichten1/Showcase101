@@ -11,10 +11,13 @@ import {
 import {
   arToReceivableRecords,
   expenseRecordsToImport,
+  importCustomersToRecords,
   importExpensesToFinancial,
   revenueRecordsToSales,
   salesToRevenueRecords,
 } from "@/domains/import/convert";
+import type { CustomerRecord } from "@/domains/customers/types";
+import { initialCustomerRecords } from "@/domains/customers/mockData";
 import { mergeImportedData, type MergeImportResult } from "@/domains/import/merge";
 import {
   addImportHistoryItem,
@@ -52,6 +55,8 @@ export interface FinancialDataContextValue {
   setExpenseRecords: Dispatch<SetStateAction<ExpenseRecord[]>>;
   receivableRecords: ReceivableRecord[];
   setReceivableRecords: Dispatch<SetStateAction<ReceivableRecord[]>>;
+  customerRecords: CustomerRecord[];
+  setCustomerRecords: Dispatch<SetStateAction<CustomerRecord[]>>;
   dateRange: DateRange;
   setDateRange: Dispatch<SetStateAction<DateRange>>;
   filteredRevenueRecords: RevenueRecord[];
@@ -119,6 +124,15 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     }
     return initialReceivableRecords;
   });
+
+  const [customerRecords, setCustomerRecords] = useState<CustomerRecord[]>(() => {
+    const persisted = loadImportedData();
+    if (persisted?.customers?.length) {
+      return importCustomersToRecords(persisted.customers);
+    }
+    return initialCustomerRecords;
+  });
+
   const [dateRange, setDateRange] = useState<DateRange>(
     getDateRangeForPeriod(DEFAULT_FINANCIAL_PERIOD)
   );
@@ -193,6 +207,10 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
       if (mergeResult.merged.arReceivables.length > 0) {
         setReceivableRecords(arToReceivableRecords(mergeResult.merged.arReceivables));
       }
+      // Sync customerRecords when customer data is present in the merged result
+      if (mergeResult.merged.customers.length > 0) {
+        setCustomerRecords(importCustomersToRecords(mergeResult.merged.customers));
+      }
       saveImportMapping(mapping);
       const historyItem = createHistoryItem(
         historyMeta,
@@ -218,6 +236,7 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     setImportedData(null);
     setImportHistory([]);
     setReceivableRecords(initialReceivableRecords);
+    setCustomerRecords(initialCustomerRecords);
   }, []);
 
   const filteredRevenueRecords = useMemo(
@@ -254,6 +273,8 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
       setExpenseRecords,
       receivableRecords,
       setReceivableRecords,
+      customerRecords,
+      setCustomerRecords,
       dateRange,
       setDateRange,
       filteredRevenueRecords,
@@ -271,6 +292,7 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
       revenueRecords,
       expenseRecords,
       receivableRecords,
+      customerRecords,
       dateRange,
       filteredRevenueRecords,
       filteredExpenseRecords,

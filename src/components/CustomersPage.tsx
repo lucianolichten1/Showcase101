@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Sparkles } from "lucide-react";
-import type { Customer, Receivable } from "@/data/types";
+import type { CustomerRecord } from "@/domains/customers/types";
+import type { ReceivableRecord } from "@/domains/financial/types";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { AddCustomerDialog } from "./AddCustomerDialog";
@@ -13,22 +14,22 @@ type SortKey = "name" | "invoiced" | "paid" | "outstanding" | "risk";
 type RiskLevel = "Low" | "Medium" | "High";
 
 interface Props {
-  customers: Customer[];
-  receivables: Receivable[];
-  onAddCustomer: (c: Customer) => void;
+  customers: CustomerRecord[];
+  receivables: ReceivableRecord[];
+  onAddCustomer: (c: CustomerRecord) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const RISK_ORDER: Record<RiskLevel, number> = { Low: 0, Medium: 1, High: 2 };
 
-function getOutstandingBalance(customerName: string, receivables: Receivable[]): number {
+function getOutstandingBalance(customerName: string, receivables: ReceivableRecord[]): number {
   return receivables
     .filter((r) => r.customer === customerName && r.status !== "Paid")
     .reduce((sum, r) => sum + (r.amount - r.amountPaid), 0);
 }
 
-function getCustomerRisk(customerName: string, receivables: Receivable[]): RiskLevel {
+function getCustomerRisk(customerName: string, receivables: ReceivableRecord[]): RiskLevel {
   const worst = receivables
     .filter((r) => r.customer === customerName && r.status === "Overdue")
     .sort((a, b) => b.overdueDays - a.overdueDays)[0];
@@ -98,7 +99,7 @@ export function CustomersPage({ customers, receivables, onAddCustomer }: Props) 
 
   // Dialog / panel state
   const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
 
   // ── KPIs (full unfiltered) ───────────────────────────────────────────────────
 
@@ -119,6 +120,9 @@ export function CustomersPage({ customers, receivables, onAddCustomer }: Props) 
       ...c,
       outstanding: getOutstandingBalance(c.name, receivables),
       risk: getCustomerRisk(c.name, receivables),
+      // Compute from live receivable records — not stored on customer
+      totalInvoiced: receivables.filter((r) => r.customer === c.name).reduce((s, r) => s + r.amount, 0),
+      totalPaid: receivables.filter((r) => r.customer === c.name).reduce((s, r) => s + r.amountPaid, 0),
     }));
 
     if (search.trim())
@@ -155,8 +159,8 @@ export function CustomersPage({ customers, receivables, onAddCustomer }: Props) 
     Array.from(new Set(customers.map((c) => c.industry))).map((ind) => ({
       industry: ind,
       count: customers.filter((c) => c.industry === ind).length,
-      total: customers.filter((c) => c.industry === ind).reduce((s, c) => s + c.totalInvoiced, 0),
-    })), [customers]);
+      total: customers.filter((c) => c.industry === ind).reduce((s, c) => s + receivables.filter((r) => r.customer === c.name).reduce((rs, r) => rs + r.amount, 0), 0),
+    })), [customers, receivables]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -165,7 +169,7 @@ export function CustomersPage({ customers, receivables, onAddCustomer }: Props) 
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const handleAddCustomer = (c: Customer) => {
+  const handleAddCustomer = (c: CustomerRecord) => {
     onAddCustomer(c);
     setShowAddCustomer(false);
   };

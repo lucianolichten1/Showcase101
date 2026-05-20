@@ -21,6 +21,17 @@ export interface ImportARRecord {
   invoiceNumber?: string;
 }
 
+/** Standardized customer row after Excel import + column mapping */
+export interface ImportCustomerRecord {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  industry?: string;
+  status?: string;  // raw string, normalized to "Active"|"Inactive" on convert
+}
+
 /** Standardized expense row after Excel import + column mapping */
 export interface ImportExpenseRecord {
   id: string;
@@ -31,7 +42,7 @@ export interface ImportExpenseRecord {
   amount: number;
 }
 
-export type SheetRole = "sales" | "expenses" | "accounts-receivable" | "ignore";
+export type SheetRole = "sales" | "expenses" | "accounts-receivable" | "customers" | "ignore";
 
 export interface SheetPreview {
   sheetName: string;
@@ -60,6 +71,7 @@ export interface ImportedData {
   sales: SalesRecord[];
   expenses: ImportExpenseRecord[];
   arReceivables: ImportARRecord[];
+  customers: ImportCustomerRecord[];
   importedAt: string;
   sourceFileName?: string;
 }
@@ -151,4 +163,25 @@ export const AR_FIELD_LABELS: Record<ARFieldKey, string> = {
   dueDate: "Due Date (if different)",
   status: "Status",
   invoiceNumber: "Invoice #",
+};
+
+export const CUSTOMER_FIELD_KEYS = [
+  "name",
+  "email",
+  "phone",
+  "city",
+  "industry",
+  "status",
+] as const;
+
+export type CustomerImportFieldKey = (typeof CUSTOMER_FIELD_KEYS)[number];
+export const CUSTOMER_REQUIRED_FIELDS: CustomerImportFieldKey[] = ["name"];
+
+export const CUSTOMER_FIELD_LABELS: Record<CustomerImportFieldKey, string> = {
+  name: "Name",
+  email: "Email",
+  phone: "Phone",
+  city: "City / Location",
+  industry: "Industry / Category",
+  status: "Status",
 };

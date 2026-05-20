@@ -14,6 +14,9 @@ import {
   AR_FIELD_KEYS,
   AR_FIELD_LABELS,
   AR_REQUIRED_FIELDS,
+  CUSTOMER_FIELD_KEYS,
+  CUSTOMER_FIELD_LABELS,
+  CUSTOMER_REQUIRED_FIELDS,
   EXPENSE_FIELD_KEYS,
   EXPENSE_FIELD_LABELS,
   EXPENSE_REQUIRED_FIELDS,
@@ -27,6 +30,7 @@ const ROLE_OPTIONS: { value: SheetRole; label: string }[] = [
   { value: "sales", label: "Sales" },
   { value: "expenses", label: "Expenses" },
   { value: "accounts-receivable", label: "Accounts Receivable" },
+  { value: "customers", label: "Customers" },
   { value: "ignore", label: "Ignore (skip)" },
 ];
 
@@ -34,6 +38,7 @@ const ROLE_LABELS: Record<SheetRole, string> = {
   sales: "Sales",
   expenses: "Expenses",
   "accounts-receivable": "Accounts Receivable",
+  customers: "Customers",
   ignore: "Ignored",
 };
 
@@ -192,7 +197,7 @@ export function ExcelImportWizard() {
     }
 
     const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName);
-    if (result.salesCount === 0 && result.expensesCount === 0 && result.arCount === 0) {
+    if (result.salesCount === 0 && result.expensesCount === 0 && result.arCount === 0 && result.customerCount === 0) {
       setErrorMessage(
         "No valid rows were imported. Check your column mappings and try again."
       );
@@ -212,17 +217,21 @@ export function ExcelImportWizard() {
     const addedSales = mergeResult.newSalesCount;
     const addedExpenses = mergeResult.newExpenseCount;
     const addedAr = mergeResult.newArCount;
+    const addedCustomers = mergeResult.newCustomerCount;
     const duplicates =
-      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount + mergeResult.duplicateArCount;
+      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount +
+      mergeResult.duplicateArCount + mergeResult.duplicateCustomerCount;
     const totalSales = mergeResult.merged.sales.length;
     const totalExpenses = mergeResult.merged.expenses.length;
     const totalAr = mergeResult.merged.arReceivables.length;
+    const totalCustomers = mergeResult.merged.customers.length;
     const parts = [];
     if (addedSales > 0) parts.push(`${addedSales} sales`);
     if (addedExpenses > 0) parts.push(`${addedExpenses} expense`);
     if (addedAr > 0) parts.push(`${addedAr} AR`);
+    if (addedCustomers > 0) parts.push(`${addedCustomers} customer`);
     const addedStr = parts.length > 0 ? `Added ${parts.join(", ")} rows` : "No new rows added";
-    const totals = [`${totalSales} sales`, `${totalExpenses} expenses`, `${totalAr} AR`].join(", ");
+    const totals = [`${totalSales} sales`, `${totalExpenses} expenses`, `${totalAr} AR`, `${totalCustomers} customers`].join(", ");
     setSuccessMessage(
       addedStr +
         (duplicates > 0 ? ` (${duplicates} duplicates skipped).` : ".") +
@@ -251,6 +260,7 @@ export function ExcelImportWizard() {
                 importedData.sales.length > 0 && `${importedData.sales.length} sales`,
                 importedData.expenses.length > 0 && `${importedData.expenses.length} expenses`,
                 importedData.arReceivables.length > 0 && `${importedData.arReceivables.length} AR`,
+                importedData.customers.length > 0 && `${importedData.customers.length} customers`,
               ].filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -494,6 +504,20 @@ export function ExcelImportWizard() {
                   />
                 )}
 
+                {activeMapping.role === "customers" && (
+                  <FieldMapper
+                    title="Map customer columns"
+                    fields={CUSTOMER_FIELD_KEYS}
+                    labels={CUSTOMER_FIELD_LABELS}
+                    required={CUSTOMER_REQUIRED_FIELDS}
+                    headers={activeSheet.headers}
+                    columnMap={activeMapping.columnMap}
+                    onChange={(field, col) =>
+                      updateColumnMap(selectedSheet, field, col)
+                    }
+                  />
+                )}
+
                 {activeMapping.role === "ignore" && (
                   <p className="text-sm text-stone-500">
                     This sheet will be skipped during import.
@@ -544,7 +568,7 @@ export function ExcelImportWizard() {
             </div>
           </div>
           <p className="text-[10px] text-stone-400">
-            Sheet roles: <span className="text-stone-500">Sales, Expenses, Accounts Receivable</span> — assign each sheet before importing.
+            Sheet roles: <span className="text-stone-500">Sales, Expenses, Accounts Receivable, Customers</span> — assign each sheet before importing.
           </p>
         </div>
       )}

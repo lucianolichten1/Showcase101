@@ -1,12 +1,14 @@
 import { parseDateValue } from "./dateUtils";
 import type {
   ImportARRecord,
+  ImportCustomerRecord,
   ImportExpenseRecord,
   SalesRecord,
   SheetMapping,
 } from "./types";
 import {
   AR_REQUIRED_FIELDS,
+  CUSTOMER_REQUIRED_FIELDS,
   EXPENSE_REQUIRED_FIELDS,
   SALES_REQUIRED_FIELDS,
 } from "./types";
@@ -195,6 +197,47 @@ export function normalizeARRows(
       customerId: trimText(getMappedValue(row, mapping.columnMap, "customerId")),
       status: trimText(getMappedValue(row, mapping.columnMap, "status")),
       invoiceNumber: trimText(getMappedValue(row, mapping.columnMap, "invoiceNumber")),
+    });
+  });
+
+  return { records, skipped, warnings };
+}
+
+
+export function normalizeCustomerRows(
+  rows: Record<string, unknown>[],
+  mapping: SheetMapping,
+  idPrefix: string
+): NormalizeResult<ImportCustomerRecord> {
+  const warnings: string[] = [];
+  const missing = missingRequiredFields(mapping.columnMap, CUSTOMER_REQUIRED_FIELDS);
+  if (missing.length > 0) {
+    return {
+      records: [],
+      skipped: rows.length,
+      warnings: [`Missing required customer mappings: ${missing.join(", ")}`],
+    };
+  }
+
+  const records: ImportCustomerRecord[] = [];
+  let skipped = 0;
+
+  rows.forEach((row, index) => {
+    const name = trimText(getMappedValue(row, mapping.columnMap, "name"));
+    if (!name) {
+      skipped += 1;
+      warnings.push(`Customer row ${index + 2}: missing name`);
+      return;
+    }
+
+    records.push({
+      id: `${idPrefix}-customer-${index + 1}`,
+      name,
+      email: trimText(getMappedValue(row, mapping.columnMap, "email")),
+      phone: trimText(getMappedValue(row, mapping.columnMap, "phone")),
+      city: trimText(getMappedValue(row, mapping.columnMap, "city")),
+      industry: trimText(getMappedValue(row, mapping.columnMap, "industry")),
+      status: trimText(getMappedValue(row, mapping.columnMap, "status")),
     });
   });
 

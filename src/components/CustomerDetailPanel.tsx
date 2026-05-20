@@ -1,11 +1,12 @@
 import { X, Mail, Phone, MapPin, Building2 } from "lucide-react";
-import type { Customer, Receivable } from "@/data/types";
+import type { CustomerRecord } from "@/domains/customers/types";
+import type { ReceivableRecord } from "@/domains/financial/types";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  customer: Customer | null;
-  receivables: Receivable[];
+  customer: CustomerRecord | null;
+  receivables: ReceivableRecord[];
   onClose: () => void;
 }
 
