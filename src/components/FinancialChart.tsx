@@ -38,13 +38,13 @@ interface SeriesConfig {
 
 const SERIES: SeriesConfig[] = [
   { key: "revenue",  label: "Revenue",    color: REVENUE_COLOR,    type: "bar" },
-  { key: "expenses", label: "Expenses",   color: EXPENSES_COLOR,   type: "bar" },
+  { key: "expenses", label: "Total Costs", color: EXPENSES_COLOR,   type: "bar" },
   { key: "profit",   label: "Net Profit", color: NET_PROFIT_COLOR, type: "line" },
 ];
 
 function tooltipLabel(name: string): string {
   if (name.toLowerCase() === "revenue") return "Revenue";
-  if (name.toLowerCase() === "expenses") return "Expenses";
+  if (name.toLowerCase() === "expenses") return "Total Costs";
   if (name.toLowerCase() === "profit") return "Net Profit";
   return name;
 }
@@ -66,12 +66,19 @@ export function FinancialChart({ period }: FinancialChartProps) {
     setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const monthlyFinancials = useMemo(
+  const rawMonthly = useMemo(
     () =>
       computeMonthlyFinancials(revenueRecords, expenseRecords, period, {
         useDataDrivenMonths: usesImportedData,
       }),
     [revenueRecords, expenseRecords, period, usesImportedData]
+  );
+
+  // Merge COGS (cost on revenue records) into the expenses bar so that
+  // Revenue bar − Expenses bar = Net Profit line is visually consistent.
+  const monthlyFinancials = useMemo(
+    () => rawMonthly.map((row) => ({ ...row, expenses: row.cost + row.expenses })),
+    [rawMonthly]
   );
 
   const chartSubtitle = getFinancialChartSubtitle(period);
