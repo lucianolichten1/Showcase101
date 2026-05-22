@@ -74,7 +74,16 @@ export default function App() {
         />
         <Route
           path="/admin/companies/:companyId"
-          element={<AdminCompanyDetailsPage companies={companyRecords} />}
+          element={
+            <AdminCompanyDetailsPage
+              companies={companyRecords}
+              onUpdateCompany={(updated) =>
+                setCompanyRecords((prev) =>
+                  prev.map((c) => (c.id === updated.id ? updated : c))
+                )
+              }
+            />
+          }
         />
       </Route>
     </Routes>

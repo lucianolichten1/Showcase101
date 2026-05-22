@@ -1,3 +1,4 @@
+import { DEFAULT_ENABLED_MODULES } from "./modules";
 import type { CompanyRecord } from "./types";
 
 export const initialCompanies: CompanyRecord[] = [
@@ -8,6 +9,7 @@ export const initialCompanies: CompanyRecord[] = [
     ownerEmail: "owner@santafe.com",
     status: "Active",
     createdAt: "2025-11-12",
+    enabledModules: [...DEFAULT_ENABLED_MODULES],
   },
   {
     id: "co-2",
@@ -16,6 +18,7 @@ export const initialCompanies: CompanyRecord[] = [
     ownerEmail: "admin@ganadera.com",
     status: "Active",
     createdAt: "2026-01-08",
+    enabledModules: [...DEFAULT_ENABLED_MODULES],
   },
   {
     id: "co-3",
@@ -24,5 +27,6 @@ export const initialCompanies: CompanyRecord[] = [
     ownerEmail: "demo@example.com",
     status: "Inactive",
     createdAt: "2026-03-20",
+    enabledModules: [...DEFAULT_ENABLED_MODULES],
   },
 ];

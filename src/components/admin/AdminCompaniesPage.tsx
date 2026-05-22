@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Building2, Eye } from "lucide-react";
+import { DEFAULT_ENABLED_MODULES } from "@/domains/admin/modules";
 import type { CompanyRecord, NewCompanyInput } from "@/domains/admin/types";
 import { formatCreatedDate, nextCompanyId, statusBadgeClass } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
       ownerEmail: input.ownerEmail,
       status: input.status,
       createdAt,
+      enabledModules: [...DEFAULT_ENABLED_MODULES],
     });
     setShowAddCompany(false);
   };

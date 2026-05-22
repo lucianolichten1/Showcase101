@@ -9,6 +9,8 @@ export interface CompanyRecord {
   ownerEmail: string;
   status: CompanyStatus;
   createdAt: string;
+  /** Module keys enabled for this company (financial/accounting base). */
+  enabledModules: string[];
 }
 
 export interface NewCompanyInput {
