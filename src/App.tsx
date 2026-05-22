@@ -10,6 +10,7 @@ import { ExportImportPage } from "./components/ExportImportPage";
 import { AccountsReceivablePage } from "./components/AccountsReceivablePage";
 import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
+import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import { useFinancialData } from "./domains/financial/hooks";
@@ -57,6 +58,7 @@ export default function App() {
             />
           }
         />
+        <Route path="/admin/companies" element={<AdminCompaniesPage />} />
       </Route>
     </Routes>
   );

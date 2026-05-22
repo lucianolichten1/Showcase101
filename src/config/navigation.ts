@@ -7,6 +7,7 @@ import {
   HandCoins,
   FileBarChart,
   Users,
+  Building2,
   Settings,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ export type NavItemId =
   | "accounts-receivable"
   | "reports"
   | "customers"
+  | "admin-companies"
   | "settings";
 
 export interface NavItem {
@@ -37,6 +39,7 @@ export const navPaths: Record<Exclude<NavItemId, "settings">, string> = {
   "accounts-receivable": "/accounts-receivable",
   reports: "/reports",
   customers: "/customers",
+  "admin-companies": "/admin/companies",
 };
 
 export function isNavigableNavItem(id: NavItemId): id is Exclude<NavItemId, "settings"> {
@@ -56,5 +59,11 @@ export const navigationItems: NavItem[] = [
   },
   { id: "reports", label: "Reports", href: navPaths.reports, icon: FileBarChart },
   { id: "customers", label: "Customers", href: navPaths.customers, icon: Users },
+  {
+    id: "admin-companies",
+    label: "Companies",
+    href: navPaths["admin-companies"],
+    icon: Building2,
+  },
   { id: "settings", label: "Settings", href: "#", icon: Settings },
 ];
