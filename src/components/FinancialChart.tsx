@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import { formatCurrency } from "@/data/mockData";
 import { computeMonthlyFinancials } from "@/domains/financial/calculations";
@@ -22,10 +24,12 @@ interface FinancialChartProps {
 
 const REVENUE_COLOR = "#15803d";
 const EXPENSES_COLOR = "#d6d3d1";
+const NET_PROFIT_COLOR = "#3b82f6";
 
 function tooltipLabel(name: string): string {
   if (name.toLowerCase() === "revenue") return "Revenue";
   if (name.toLowerCase() === "expenses") return "Expenses";
+  if (name.toLowerCase() === "profit") return "Net Profit";
   return name;
 }
 
@@ -81,6 +85,14 @@ export function FinancialChart({ period }: FinancialChartProps) {
             />
             Expenses
           </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-4 h-0.5 rounded-full"
+              style={{ backgroundColor: NET_PROFIT_COLOR }}
+              aria-hidden
+            />
+            Net Profit
+          </span>
         </div>
       </div>
 
@@ -91,7 +103,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
+            <ComposedChart
               data={monthlyFinancials}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               barSize={barSize}
@@ -113,6 +125,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
                 tickFormatter={(val) => `Bs ${val / 1000}k`}
                 dx={-10}
               />
+              <ReferenceLine y={0} stroke="#e7e5e4" strokeWidth={1} />
               <Tooltip
                 formatter={(value: number, name: string) => [
                   formatCurrency(value),
@@ -138,7 +151,16 @@ export function FinancialChart({ period }: FinancialChartProps) {
                 fill={EXPENSES_COLOR}
                 radius={[4, 4, 0, 0]}
               />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="profit"
+                name="Profit"
+                stroke={NET_PROFIT_COLOR}
+                strokeWidth={2}
+                dot={{ r: 4, fill: NET_PROFIT_COLOR, strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6, fill: NET_PROFIT_COLOR, stroke: "#fff", strokeWidth: 2 }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
