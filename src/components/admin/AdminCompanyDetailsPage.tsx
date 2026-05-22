@@ -1,12 +1,17 @@
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Layers, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Database, Layers, Sparkles } from "lucide-react";
 import type { CompanyRecord } from "@/domains/admin/types";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
   DASHBOARD_MODULE_KEY,
   isModuleEnabled,
 } from "@/domains/admin/modules";
+import {
+  getNicheByKey,
+  getNicheDisplayName,
+  nicheStatusLabel,
+} from "@/domains/admin/niches";
 import { formatCreatedDate, findCompanyById, statusBadgeClass } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
 
@@ -92,6 +97,8 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
     );
   }
 
+  const nicheConfig = getNicheByKey(company.niche);
+
   const totalModules = BASE_FINANCIAL_MODULE_DEFINITIONS.length;
   const enabledCount = BASE_FINANCIAL_MODULE_DEFINITIONS.filter((m) =>
     isModuleEnabled(company.enabledModules, m.key)
@@ -165,7 +172,7 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
           label="Niche"
           value={
             <span className="inline-flex items-center rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-800">
-              {company.niche}
+              {getNicheDisplayName(company.niche)}
             </span>
           }
         />
@@ -184,6 +191,51 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
           }
         />
         <InfoRow label="Created Date" value={formatCreatedDate(company.createdAt)} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Database size={14} className="text-stone-400" />
+          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
+            Niche Configuration
+          </h2>
+        </div>
+        {nicheConfig ? (
+          <>
+            <InfoRow label="Niche" value={nicheConfig.name} />
+            <InfoRow
+              label="Niche Status"
+              value={
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                    nicheConfig.status === "active"
+                      ? "bg-green-50 text-green-700 border-green-100"
+                      : "bg-stone-100 text-stone-600 border-stone-200"
+                  )}
+                >
+                  {nicheStatusLabel(nicheConfig.status)}
+                </span>
+              }
+            />
+            <InfoRow label="Description" value={nicheConfig.description} />
+            <InfoRow
+              label="Supabase Project Key"
+              value={
+                <code className="text-[10px] font-mono text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded">
+                  {nicheConfig.supabaseProjectKey}
+                </code>
+              }
+            />
+            <p className="text-[10px] text-stone-400 mt-2 pt-2 border-t border-stone-100">
+              Database routing will be connected later.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-stone-500">
+            Unknown niche &quot;{company.niche}&quot;. Registry entry not found.
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">

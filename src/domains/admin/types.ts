@@ -1,4 +1,6 @@
-export type CompanyNiche = "Agro";
+import type { NicheKey } from "./niches";
+
+export type CompanyNiche = NicheKey;
 
 export type CompanyStatus = "Active" | "Inactive";
 

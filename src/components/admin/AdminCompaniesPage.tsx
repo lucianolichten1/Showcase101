@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Building2, Eye } from "lucide-react";
 import { DEFAULT_ENABLED_MODULES } from "@/domains/admin/modules";
+import { getNicheDisplayName } from "@/domains/admin/niches";
 import type { CompanyRecord, NewCompanyInput } from "@/domains/admin/types";
 import { formatCreatedDate, nextCompanyId, statusBadgeClass } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
@@ -117,7 +118,7 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
                       </td>
                       <td className="py-2.5 pr-4">
                         <span className="inline-flex items-center rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-800">
-                          {company.niche}
+                          {getNicheDisplayName(company.niche)}
                         </span>
                       </td>
                       <td className="py-2.5 pr-4 text-stone-600">{company.ownerEmail}</td>

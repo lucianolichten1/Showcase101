@@ -1,10 +1,15 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
-import type { CompanyNiche, CompanyStatus, NewCompanyInput } from "@/domains/admin/types";
+import {
+  DEFAULT_NICHE_KEY,
+  getActiveNiches,
+  type NicheKey,
+} from "@/domains/admin/niches";
+import type { CompanyStatus, NewCompanyInput } from "@/domains/admin/types";
 import { cn } from "@/lib/utils";
 
-const NICHES: CompanyNiche[] = ["Agro"];
 const STATUSES: CompanyStatus[] = ["Active", "Inactive"];
+const activeNiches = getActiveNiches();
 
 interface Props {
   open: boolean;
@@ -15,7 +20,7 @@ interface Props {
 export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
   const [name, setName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
-  const [niche, setNiche] = useState<CompanyNiche>("Agro");
+  const [niche, setNiche] = useState<NicheKey>(DEFAULT_NICHE_KEY);
   const [status, setStatus] = useState<CompanyStatus>("Active");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -23,7 +28,7 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
     if (open) {
       setName("");
       setOwnerEmail("");
-      setNiche("Agro");
+      setNiche(DEFAULT_NICHE_KEY);
       setStatus("Active");
       setErrors({});
     }
@@ -125,12 +130,12 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
           <Field label="Niche">
             <select
               value={niche}
-              onChange={(e) => setNiche(e.target.value as CompanyNiche)}
+              onChange={(e) => setNiche(e.target.value as NicheKey)}
               className={inputClass()}
             >
-              {NICHES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
+              {activeNiches.map((n) => (
+                <option key={n.key} value={n.key}>
+                  {n.name}
                 </option>
               ))}
             </select>
