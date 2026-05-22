@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -17,6 +17,7 @@ import {
   getFinancialChartSubtitle,
   type FinancialPeriod,
 } from "@/domains/financial/period";
+import { cn } from "@/lib/utils";
 
 interface FinancialChartProps {
   period: FinancialPeriod;
@@ -25,6 +26,21 @@ interface FinancialChartProps {
 const REVENUE_COLOR = "#15803d";
 const EXPENSES_COLOR = "#d6d3d1";
 const NET_PROFIT_COLOR = "#3b82f6";
+
+type SeriesKey = "revenue" | "expenses" | "profit";
+
+interface SeriesConfig {
+  key: SeriesKey;
+  label: string;
+  color: string;
+  type: "bar" | "line";
+}
+
+const SERIES: SeriesConfig[] = [
+  { key: "revenue",  label: "Revenue",    color: REVENUE_COLOR,    type: "bar" },
+  { key: "expenses", label: "Expenses",   color: EXPENSES_COLOR,   type: "bar" },
+  { key: "profit",   label: "Net Profit", color: NET_PROFIT_COLOR, type: "line" },
+];
 
 function tooltipLabel(name: string): string {
   if (name.toLowerCase() === "revenue") return "Revenue";
@@ -35,6 +51,20 @@ function tooltipLabel(name: string): string {
 
 export function FinancialChart({ period }: FinancialChartProps) {
   const { revenueRecords, expenseRecords, usesImportedData } = useFinancialData();
+
+  // Which series are currently visible — all on by default
+  const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({
+    revenue: true,
+    expenses: true,
+    profit: true,
+  });
+
+  const toggleSeries = (key: SeriesKey) => {
+    // Keep at least one series visible
+    const activeCount = Object.values(visible).filter(Boolean).length;
+    if (activeCount === 1 && visible[key]) return;
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const monthlyFinancials = useMemo(
     () =>
@@ -68,31 +98,38 @@ export function FinancialChart({ period }: FinancialChartProps) {
           </h3>
           <p className="text-xs text-stone-500 mt-1">{chartSubtitle}</p>
         </div>
-        <div className="flex gap-4 text-[10px] font-bold uppercase shrink-0">
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: REVENUE_COLOR }}
-              aria-hidden
-            />
-            Revenue
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: EXPENSES_COLOR }}
-              aria-hidden
-            />
-            Expenses
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-4 h-0.5 rounded-full"
-              style={{ backgroundColor: NET_PROFIT_COLOR }}
-              aria-hidden
-            />
-            Net Profit
-          </span>
+
+        {/* Clickable series toggles */}
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {SERIES.map(({ key, label, color, type }) => {
+            const isActive = visible[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleSeries(key)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wide transition-all",
+                  isActive
+                    ? "bg-white border-stone-300 text-stone-800 shadow-sm"
+                    : "bg-stone-50 border-stone-200 text-stone-400"
+                )}
+              >
+                {type === "bar" ? (
+                  <span
+                    className="w-2 h-2 rounded-sm shrink-0"
+                    style={{ backgroundColor: isActive ? color : "#d6d3d1" }}
+                  />
+                ) : (
+                  <span
+                    className="inline-block w-4 h-0.5 rounded-full shrink-0"
+                    style={{ backgroundColor: isActive ? color : "#d6d3d1" }}
+                  />
+                )}
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -144,12 +181,14 @@ export function FinancialChart({ period }: FinancialChartProps) {
                 name="Revenue"
                 fill={REVENUE_COLOR}
                 radius={[4, 4, 0, 0]}
+                hide={!visible.revenue}
               />
               <Bar
                 dataKey="expenses"
                 name="Expenses"
                 fill={EXPENSES_COLOR}
                 radius={[4, 4, 0, 0]}
+                hide={!visible.expenses}
               />
               <Line
                 type="monotone"
@@ -159,6 +198,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
                 strokeWidth={2}
                 dot={{ r: 4, fill: NET_PROFIT_COLOR, strokeWidth: 2, stroke: "#fff" }}
                 activeDot={{ r: 6, fill: NET_PROFIT_COLOR, stroke: "#fff", strokeWidth: 2 }}
+                hide={!visible.profit}
               />
             </ComposedChart>
           </ResponsiveContainer>
