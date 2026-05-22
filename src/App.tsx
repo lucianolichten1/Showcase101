@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
@@ -11,14 +12,18 @@ import { AccountsReceivablePage } from "./components/AccountsReceivablePage";
 import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
+import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import { useFinancialData } from "./domains/financial/hooks";
+import { initialCompanies } from "./domains/admin/mockData";
+import type { CompanyRecord } from "./domains/admin/types";
 import type { ReceivableRecord } from "./domains/financial/types";
 import type { CustomerRecord } from "./domains/customers/types";
 
 export default function App() {
   const { receivableRecords, setReceivableRecords, customerRecords, setCustomerRecords } = useFinancialData();
+  const [companyRecords, setCompanyRecords] = useState<CompanyRecord[]>(initialCompanies);
 
   const handleUpdateReceivable = (updated: ReceivableRecord) =>
     setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -58,7 +63,19 @@ export default function App() {
             />
           }
         />
-        <Route path="/admin/companies" element={<AdminCompaniesPage />} />
+        <Route
+          path="/admin/companies"
+          element={
+            <AdminCompaniesPage
+              companies={companyRecords}
+              onAddCompany={(company) => setCompanyRecords((prev) => [...prev, company])}
+            />
+          }
+        />
+        <Route
+          path="/admin/companies/:companyId"
+          element={<AdminCompanyDetailsPage companies={companyRecords} />}
+        />
       </Route>
     </Routes>
   );

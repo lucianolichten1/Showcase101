@@ -1,55 +1,33 @@
 import { useState } from "react";
-import { Plus, Building2, MoreHorizontal } from "lucide-react";
-import { initialCompanies } from "@/domains/admin/mockData";
+import { Link } from "react-router-dom";
+import { Plus, Building2, Eye } from "lucide-react";
 import type { CompanyRecord, NewCompanyInput } from "@/domains/admin/types";
+import { formatCreatedDate, nextCompanyId, statusBadgeClass } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
 import { AddCompanyDialog } from "./AddCompanyDialog";
 
 // TODO: Restrict this page to super_admin users only.
 
-function formatCreatedDate(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+interface Props {
+  companies: CompanyRecord[];
+  onAddCompany: (company: CompanyRecord) => void;
 }
 
-function statusBadgeClass(status: CompanyRecord["status"]) {
-  return status === "Active"
-    ? "bg-green-50 text-green-700 border-green-100"
-    : "bg-stone-100 text-stone-600 border-stone-200";
-}
-
-function nextCompanyId(companies: CompanyRecord[]): string {
-  const nums = companies
-    .map((c) => /^co-(\d+)$/.exec(c.id)?.[1])
-    .filter(Boolean)
-    .map((n) => Number(n));
-  const max = nums.length ? Math.max(...nums) : 0;
-  return `co-${max + 1}`;
-}
-
-export function AdminCompaniesPage() {
-  const [companies, setCompanies] = useState<CompanyRecord[]>(initialCompanies);
+export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
   const [showAddCompany, setShowAddCompany] = useState(false);
 
   const activeCount = companies.filter((c) => c.status === "Active").length;
 
   const handleAddCompany = (input: NewCompanyInput) => {
     const createdAt = new Date().toISOString().slice(0, 10);
-    setCompanies((prev) => [
-      ...prev,
-      {
-        id: nextCompanyId(prev),
-        name: input.name,
-        niche: input.niche,
-        ownerEmail: input.ownerEmail,
-        status: input.status,
-        createdAt,
-      },
-    ]);
+    onAddCompany({
+      id: nextCompanyId(companies),
+      name: input.name,
+      niche: input.niche,
+      ownerEmail: input.ownerEmail,
+      status: input.status,
+      createdAt,
+    });
     setShowAddCompany(false);
   };
 
@@ -155,15 +133,13 @@ export function AdminCompaniesPage() {
                         {formatCreatedDate(company.createdAt)}
                       </td>
                       <td className="py-2.5 text-right">
-                        <button
-                          type="button"
-                          disabled
-                          title="Company actions (coming soon)"
-                          className="inline-flex items-center justify-center rounded-md p-1.5 text-stone-300 cursor-not-allowed"
-                          aria-label="Actions (coming soon)"
+                        <Link
+                          to={`/admin/companies/${company.id}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-[10px] font-semibold text-stone-600 hover:border-green-200 hover:text-green-800 hover:bg-green-50 transition-colors"
                         >
-                          <MoreHorizontal size={14} />
-                        </button>
+                          <Eye size={12} />
+                          View
+                        </Link>
                       </td>
                     </tr>
                   ))
