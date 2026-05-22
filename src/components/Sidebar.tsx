@@ -1,4 +1,4 @@
-import { Tractor, X } from "lucide-react";
+import { BarChart3, X } from "lucide-react";
 import { navigationItems } from "@/config/navigation";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,10 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
       <div className="flex h-14 items-center justify-between gap-2 border-b border-stone-200 px-4">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-800 text-white">
-            <Tractor className="h-4 w-4" />
+            <BarChart3 className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-stone-900 leading-tight">Agro Dashboard</p>
+            <p className="truncate text-sm font-bold text-stone-900 leading-tight">Financial Suite</p>
             <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-stone-500">
               Financial SaaS
             </p>

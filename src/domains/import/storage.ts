@@ -1,10 +1,14 @@
 import type { ImportedData, ImportHistoryItem, ImportMapping } from "./types";
 
-/** Centralized localStorage keys for import persistence */
+/**
+ * Centralized localStorage keys for import persistence.
+ * TODO: When Supabase company system is ready, scope these keys per company:
+ *   `app-${companyId}-import-data` etc.
+ */
 export const IMPORT_STORAGE_KEYS = {
-  mapping: "agro-import-mapping",
-  data: "agro-import-data",
-  history: "agro-import-history",
+  mapping: "app-import-mapping",
+  data: "app-import-data",
+  history: "app-import-history",
 } as const;
 
 const MAPPING_KEY = IMPORT_STORAGE_KEYS.mapping;

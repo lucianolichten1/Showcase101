@@ -173,7 +173,7 @@ export function ExpensesPage() {
             <h1 className="text-xl font-bold text-stone-900 tracking-tight">Expenses</h1>
             <p className="text-sm text-stone-500 mt-1 max-w-xl leading-relaxed">
               Track operational costs, supplier payments, logistics, and pending expenses for your
-              agro and export operations.
+              your business operations.
             </p>
           </div>
           <button
