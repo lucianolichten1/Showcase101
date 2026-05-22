@@ -38,20 +38,6 @@ export const dashboardKPIs: KPIData[] = [
     trendText: "Stable",
     trendStatus: "neutral",
   },
-  {
-    title: "Corn Production",
-    value: "42 tons",
-    trend: -4,
-    trendText: "",
-    trendStatus: "negative",
-  },
-  {
-    title: "Cattle Count",
-    value: "186 head",
-    trend: 2,
-    trendText: "",
-    trendStatus: "positive",
-  },
 ];
 
 export const monthlyFinancials: MonthlyFinancial[] = [
@@ -77,13 +63,13 @@ export const customers: Customer[] = [
 ];
 
 export const expenseCategories: ExpenseCategory[] = [
-  { category: "Feed", amount: 48583, percentage: 38 },
-  { category: "Labor", amount: 28127, percentage: 22 },
-  { category: "Fertilizer", amount: 20456, percentage: 16 },
-  { category: "Transport", amount: 11506, percentage: 9 },
-  { category: "Veterinary", amount: 8949, percentage: 7 },
-  { category: "Fuel", amount: 6392, percentage: 5 },
-  { category: "Maintenance", amount: 3837, percentage: 3 },
+  { category: "Labor", amount: 48583, percentage: 38 },
+  { category: "Rent & Facilities", amount: 28127, percentage: 22 },
+  { category: "Transport", amount: 20456, percentage: 16 },
+  { category: "Marketing", amount: 11506, percentage: 9 },
+  { category: "Utilities", amount: 8949, percentage: 7 },
+  { category: "Technology", amount: 6392, percentage: 5 },
+  { category: "Other", amount: 3837, percentage: 3 },
 ];
 
 export function formatCurrency(value: number): string {

@@ -2,14 +2,11 @@ import { Fragment, useMemo, useState } from "react";
 import { FinancialPeriodFilter } from "./FinancialPeriodFilter";
 import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
-import { CropTable } from "./CropTable";
-import { LivestockTable } from "./LivestockTable";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { AIInsightsPanel } from "./AIInsightsPanel";
 import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
-import { useAgroData } from "@/domains/agro/hooks";
 import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import {
   DEFAULT_FINANCIAL_PERIOD,
@@ -24,7 +21,6 @@ function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefin
     return periodLabel;
   }
   if (title === "Accounts Receivable") return "Outstanding receivables (all open invoices)";
-  if (title === "Corn Production" || title === "Cattle Count") return "Current operation data";
   return undefined;
 }
 
@@ -46,7 +42,6 @@ function SectionHeading({
 }
 
 export function DashboardPage() {
-  const { kpis: agroKpis } = useAgroData();
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
     useFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
@@ -61,10 +56,6 @@ export function DashboardPage() {
 
   const kpiCards = useMemo((): KPIData[] => {
     return dashboardKPIs.map((kpi) => {
-      if (kpi.title === "Corn Production")
-        return { ...kpi, value: `${agroKpis.totalActualYieldTons} tons`, trendStatus: "neutral" as const, trendText: "−4% vs last season" };
-      if (kpi.title === "Cattle Count")
-        return { ...kpi, value: `${agroKpis.totalHeadCount} head`, trendStatus: "neutral" as const, trendText: "+2% growth" };
       if (kpi.title === "Total Revenue")
         return {
           ...kpi,
@@ -97,7 +88,7 @@ export function DashboardPage() {
         return { ...kpi, value: formatCurrency(financialKpis.receivablesTotalOutstanding) };
       return kpi;
     });
-  }, [agroKpis, financialKpis, usesImportedData]);
+  }, [financialKpis, usesImportedData]);
 
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
@@ -107,11 +98,11 @@ export function DashboardPage() {
           <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
-                Agro Dashboard
+                Financial Dashboard
               </h1>
               <p className="text-sm text-stone-600 mt-1 max-w-xl">
-                Financial and operational overview for your farm. Use the period
-                selector to focus KPIs and the chart on a specific timeframe.
+                Financial overview for your company. Use the period selector to focus
+                KPIs and charts on a specific timeframe.
               </p>
             </div>
             <FinancialPeriodFilter
@@ -139,7 +130,7 @@ export function DashboardPage() {
                   : "Financial KPIs show $0 until you import Excel data"
               }
             />
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {kpiCards.map((kpi) => (
                 <Fragment key={kpi.title}>
                   <KPICard
@@ -175,18 +166,14 @@ export function DashboardPage() {
             </div>
           </section>
 
-          {/* Operations */}
+          {/* Expenses + Receivables */}
           <section>
             <SectionHeading
-              title="Operations"
-              description="Crops, livestock, expenses, and receivables"
+              title="Expenses & Receivables"
+              description="Category breakdown and outstanding invoices"
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-              <CropTable />
-              <LivestockTable />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
               <ExpenseBreakdown />
-            </div>
-            <div className="mt-4 lg:mt-6">
               <ReceivablesTable />
             </div>
           </section>

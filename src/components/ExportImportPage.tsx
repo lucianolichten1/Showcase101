@@ -44,23 +44,15 @@ const exportOptions = [
   },
   {
     title: "Expense Breakdown",
-    description: "Category-level spending across feed, labor, and operations.",
+    description: "Category-level spending breakdown across all business operations.",
   },
   {
     title: "Revenue Report",
-    description: "Sales and income by customer, crop, or time period.",
+    description: "Sales and income by customer, product, or time period.",
   },
   {
     title: "Accounts Receivable Report",
     description: "Outstanding invoices, due dates, and overdue balances.",
-  },
-  {
-    title: "Crop Performance Report",
-    description: "Yield, cost, and profit per plot and season.",
-  },
-  {
-    title: "Livestock Report",
-    description: "Head count, feed costs, and estimated herd value.",
   },
 ];
 

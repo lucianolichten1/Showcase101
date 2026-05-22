@@ -3,7 +3,6 @@ import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
-import { plots } from "@/domains/agro/mockData";
 import {
   calculateTotalCost,
   calculateTotalExpenses,
@@ -31,12 +30,13 @@ const MAY_IDX = 4;
 const MAY_REVENUE = monthlyFinancials[MAY_IDX].revenue;
 const MAY_EXPENSES = monthlyFinancials[MAY_IDX].expenses;
 
-const COGS_CATEGORIES = ["Feed", "Fertilizer"];
+const COGS_CATEGORIES = ["Cost of Goods", "Direct Materials"];
 
-const plotRevenue = plots.reduce((sum, p) => sum + p.revenue, 0);
+// Generic revenue breakdown for demo P&L — replaced by imported data when available
 const BASE_REVENUE_LINES = [
-  ...plots.map((p) => ({ label: `Corn Sales — ${p.name}`, amount: p.revenue })),
-  { label: "Livestock Sales", amount: MAY_REVENUE - plotRevenue },
+  { label: "Product Sales", amount: Math.round(MAY_REVENUE * 0.75) },
+  { label: "Service Revenue", amount: Math.round(MAY_REVENUE * 0.15) },
+  { label: "Other Income", amount: MAY_REVENUE - Math.round(MAY_REVENUE * 0.75) - Math.round(MAY_REVENUE * 0.15) },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

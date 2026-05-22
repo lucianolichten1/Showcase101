@@ -42,7 +42,7 @@ export function AppLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-bold text-stone-900">Agro Dashboard</span>
+          <span className="text-sm font-bold text-stone-900">Financial Suite</span>
         </div>
 
         <Outlet />
