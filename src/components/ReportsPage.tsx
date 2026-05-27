@@ -12,7 +12,8 @@ import {
   isActiveRevenue,
 } from "@/domains/financial/calculations";
 import type { RevenueRecord } from "@/domains/financial/types";
-import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   DEMO_FINANCIAL_YEAR,
@@ -134,7 +135,7 @@ export function ReportsPage() {
     filteredExpenseRecords,
     revenueRecords,
     expenseRecords,
-  } = useFinancialData();
+  } = useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
   const plMonthIdx = getDemoPlMonthIndex(period);

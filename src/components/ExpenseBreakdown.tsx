@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import type { ExpenseRecord } from "@/domains/financial/types";
 
 function groupByCategory(records: ExpenseRecord[]): { category: string; amount: number; percentage: number }[] {
@@ -18,7 +18,7 @@ function groupByCategory(records: ExpenseRecord[]): { category: string; amount: 
 }
 
 export function ExpenseBreakdown() {
-  const { expenseRecords, usesImportedData } = useFinancialData();
+  const { expenseRecords, usesImportedData } = useCompanyScopedFinancialData();
 
   const breakdown = useMemo(() => groupByCategory(expenseRecords), [expenseRecords]);
 

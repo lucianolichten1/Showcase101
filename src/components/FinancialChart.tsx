@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/data/mockData";
 import { computeMonthlyFinancials } from "@/domains/financial/calculations";
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   getFinancialChartSubtitle,
   type FinancialPeriod,
@@ -50,7 +50,7 @@ function tooltipLabel(name: string): string {
 }
 
 export function FinancialChart({ period }: FinancialChartProps) {
-  const { revenueRecords, expenseRecords, usesImportedData } = useFinancialData();
+  const { revenueRecords, expenseRecords, usesImportedData } = useCompanyScopedFinancialData();
 
   // Which series are currently visible — all on by default
   const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({

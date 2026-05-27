@@ -16,6 +16,7 @@ import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { AddInvoiceDialog } from "./AddInvoiceDialog";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,9 +24,8 @@ type SortKey = "customer" | "amount" | "balance" | "overdueDays" | "dueDate";
 type RiskLevel = "Low" | "Medium" | "High";
 
 interface Props {
-  receivables: ReceivableRecord[];
-  onUpdateReceivable: (updated: ReceivableRecord) => void;
-  onAddReceivable: (newR: ReceivableRecord) => void;
+  onUpdateReceivable?: (updated: ReceivableRecord) => void;
+  onAddReceivable?: (newR: ReceivableRecord) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,7 +110,24 @@ function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: Sort
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function AccountsReceivablePage({ receivables, onUpdateReceivable, onAddReceivable }: Props) {
+export function AccountsReceivablePage({
+  onUpdateReceivable: onUpdateReceivableProp,
+  onAddReceivable: onAddReceivableProp,
+}: Props = {}) {
+  const {
+    receivableRecords: receivables,
+    setReceivableRecords,
+  } = useCompanyScopedFinancialData();
+
+  const onUpdateReceivable =
+    onUpdateReceivableProp ??
+    ((updated: ReceivableRecord) =>
+      setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r))));
+
+  const onAddReceivable =
+    onAddReceivableProp ??
+    ((newR: ReceivableRecord) => setReceivableRecords((prev) => [...prev, newR]));
+
   // Filter state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [riskFilters, setRiskFilters] = useState<Set<string>>(new Set());

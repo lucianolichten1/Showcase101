@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Sparkles } from "lucide-react";
 import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { AddCustomerDialog } from "./AddCustomerDialog";
@@ -15,9 +16,7 @@ type SortKey = "name" | "invoiced" | "paid" | "outstanding" | "risk";
 type RiskLevel = "Low" | "Medium" | "High";
 
 interface Props {
-  customers: CustomerRecord[];
-  receivables: ReceivableRecord[];
-  onAddCustomer: (c: CustomerRecord) => void;
+  onAddCustomer?: (c: CustomerRecord) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,7 +85,16 @@ const customerAiInsights = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CustomersPage({ customers, receivables, onAddCustomer }: Props) {
+export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) {
+  const {
+    customerRecords: customers,
+    receivableRecords: receivables,
+    setCustomerRecords,
+  } = useCompanyScopedFinancialData();
+
+  const onAddCustomer =
+    onAddCustomerProp ??
+    ((customer: CustomerRecord) => setCustomerRecords((prev) => [...prev, customer]));
   // Filter state
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");

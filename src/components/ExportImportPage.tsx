@@ -21,7 +21,7 @@ import {
   importHistoryToDisplayRow,
   type ImportHistoryDisplayStatus,
 } from "@/domains/import/importHistoryDisplay";
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { ExcelImportWizard } from "./ExcelImportWizard";
 import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import {
@@ -140,7 +140,7 @@ export function ExportImportPage() {
     usesImportedData,
     importedData,
     clearImportedData,
-  } = useFinancialData();
+  } = useCompanyScopedFinancialData();
 
   const recentImports = importHistory.map((item) =>
     importHistoryToDisplayRow(

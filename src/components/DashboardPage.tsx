@@ -8,7 +8,8 @@ import { AIInsightsPanel } from "./AIInsightsPanel";
 import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
 import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
-import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -44,7 +45,7 @@ function SectionHeading({
 
 export function DashboardPage() {
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
-    useFinancialData();
+    useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
 

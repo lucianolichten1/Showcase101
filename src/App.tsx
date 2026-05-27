@@ -17,24 +17,11 @@ import { CompanyWorkspacePage } from "./components/company/CompanyWorkspacePage"
 import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
-import { useFinancialData } from "./domains/financial/hooks";
 import { initialCompanies } from "./domains/admin/mockData";
 import type { CompanyRecord } from "./domains/admin/types";
-import type { ReceivableRecord } from "./domains/financial/types";
-import type { CustomerRecord } from "./domains/customers/types";
 
 export default function App() {
-  const { receivableRecords, setReceivableRecords, customerRecords, setCustomerRecords } = useFinancialData();
   const [companyRecords, setCompanyRecords] = useState<CompanyRecord[]>(initialCompanies);
-
-  const handleUpdateReceivable = (updated: ReceivableRecord) =>
-    setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-
-  const handleAddReceivable = (newR: ReceivableRecord) =>
-    setReceivableRecords((prev) => [...prev, newR]);
-
-  const handleAddCustomer = (newC: CustomerRecord) =>
-    setCustomerRecords((prev) => [...prev, newC]);
 
   return (
     <CompanyDataProvider companies={companyRecords}>
@@ -45,27 +32,9 @@ export default function App() {
         <Route path="/export-import" element={<ExportImportPage />} />
         <Route path="/expenses" element={<ExpensesPage />} />
         <Route path="/revenue" element={<RevenuePage />} />
-        <Route
-          path="/accounts-receivable"
-          element={
-            <AccountsReceivablePage
-              receivables={receivableRecords}
-              onUpdateReceivable={handleUpdateReceivable}
-              onAddReceivable={handleAddReceivable}
-            />
-          }
-        />
+        <Route path="/accounts-receivable" element={<AccountsReceivablePage />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route
-          path="/customers"
-          element={
-            <CustomersPage
-              customers={customerRecords}
-              receivables={receivableRecords}
-              onAddCustomer={handleAddCustomer}
-            />
-          }
-        />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route
           path="/admin/companies"
           element={

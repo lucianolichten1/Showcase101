@@ -5,7 +5,8 @@ import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { sortExpenseRecords } from "@/domains/financial/calculations";
-import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -86,7 +87,7 @@ function SortIcon({
 
 export function ExpensesPage() {
   const { setExpenseRecords, setDateRange, filteredExpenseRecords, kpis, usesImportedData } =
-    useFinancialData();
+    useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
 

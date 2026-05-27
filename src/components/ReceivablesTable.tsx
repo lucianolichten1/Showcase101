@@ -1,8 +1,8 @@
-import { useFinancialData } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { cn } from "@/lib/utils";
 
 export function ReceivablesTable() {
-  const { receivableRecords } = useFinancialData();
+  const { receivableRecords } = useCompanyScopedFinancialData();
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden flex flex-col w-full h-full">
       <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">Accounts Receivable</h3>
