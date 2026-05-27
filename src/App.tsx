@@ -14,6 +14,7 @@ import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
 import { CompanyWorkspacePage } from "./components/company/CompanyWorkspacePage";
+import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import { useFinancialData } from "./domains/financial/hooks";
@@ -36,6 +37,7 @@ export default function App() {
     setCustomerRecords((prev) => [...prev, newC]);
 
   return (
+    <CompanyDataProvider companies={companyRecords}>
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route element={<AppLayout />}>
@@ -96,5 +98,6 @@ export default function App() {
         />
       </Route>
     </Routes>
+    </CompanyDataProvider>
   );
 }

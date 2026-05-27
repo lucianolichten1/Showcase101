@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, ReceiptText, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
+import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { sortExpenseRecords } from "@/domains/financial/calculations";
 import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -168,6 +169,7 @@ export function ExpensesPage() {
     <>
       <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
+        <CompanyContextBanner />
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-stone-900 tracking-tight">Expenses</h1>

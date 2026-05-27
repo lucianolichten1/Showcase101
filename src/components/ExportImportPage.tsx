@@ -23,6 +23,7 @@ import {
 } from "@/domains/import/importHistoryDisplay";
 import { useFinancialData } from "@/domains/financial/hooks";
 import { ExcelImportWizard } from "./ExcelImportWizard";
+import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import {
   DETECTED_FIELDS,
   detectColumns,
@@ -282,6 +283,7 @@ export function ExportImportPage() {
       </header>
 
       <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6 overflow-auto">
+        <CompanyContextBanner />
 
         {/* Active import banner */}
         {usesImportedData && importedData && (
