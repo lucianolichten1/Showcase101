@@ -77,10 +77,10 @@ function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: Sort
 }
 
 const customerAiInsights = [
-  { type: "Opportunity", text: "Finca El Palmar has partially paid 2 invoices on time. High potential for upsell — consider offering a larger crop cycle contract next season." },
-  { type: "Risk", text: "Exportadora Oriente is 45 days overdue with no payment activity. Recommend a direct follow-up call before escalating to collections." },
-  { type: "Opportunity", text: "Agro Bolivia SRL has a perfect payment record. They are your most reliable customer — prioritize relationship and offer early access to new services." },
-  { type: "Watch", text: "Cooperativa Yungas is currently inactive. Their last payment was partial. A re-engagement offer or discount could recover this account." },
+  { type: "Opportunity", text: "Customers with consistent partial payments show buying intent. Consider offering flexible payment plans to convert them to full payers." },
+  { type: "Risk", text: "Customers overdue by 45+ days with no payment activity are high collection risk. Prioritize direct outreach before escalating." },
+  { type: "Opportunity", text: "Your highest-paying customers deserve priority service. Nurture these relationships with early access to new offerings and dedicated support." },
+  { type: "Watch", text: "Inactive customers who made partial payments may respond to re-engagement offers or targeted discounts. Review their history before reaching out." },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
