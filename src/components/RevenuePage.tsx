@@ -189,9 +189,7 @@ export function RevenuePage() {
           <button
             type="button"
             onClick={handleOpenModal}
-            disabled={!usesImportedData}
-            title={usesImportedData ? undefined : "Import Excel data before adding revenue"}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Revenue
@@ -200,8 +198,8 @@ export function RevenuePage() {
 
         {!usesImportedData && (
           <FinancialEmptyBanner
-            title="No revenue imported yet"
-            description="Import an Excel workbook with a Sales sheet to view revenue records here."
+            title="No revenue yet"
+            description="Add revenue manually using the button above, or import an Excel workbook with a Sales sheet."
           />
         )}
 
@@ -358,16 +356,14 @@ export function RevenuePage() {
                 {sortedRevenue.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-12 text-center text-stone-500">
-                      {!usesImportedData ? (
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-stone-600">No revenue imported yet</p>
-                          <p className="text-xs max-w-sm mx-auto">
-                            Import an Excel workbook with a Sales sheet to view records.
-                          </p>
-                        </div>
-                      ) : (
-                        "No revenue records match your search or filters."
-                      )}
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-stone-600">No revenue records yet</p>
+                        <p className="text-xs max-w-sm mx-auto">
+                          {sortedRevenue.length === 0 && !usesImportedData
+                            ? "Add revenue manually with the button above, or import an Excel workbook."
+                            : "No revenue records match your search or filters."}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (

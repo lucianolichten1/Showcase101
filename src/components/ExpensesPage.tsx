@@ -182,9 +182,7 @@ export function ExpensesPage() {
           <button
             type="button"
             onClick={handleOpenModal}
-            disabled={!usesImportedData}
-            title={usesImportedData ? undefined : "Import Excel data before adding expenses"}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Expense
@@ -193,8 +191,8 @@ export function ExpensesPage() {
 
         {!usesImportedData && (
           <FinancialEmptyBanner
-            title="No expenses imported yet"
-            description="Import an Excel workbook with an Expenses sheet to view records here."
+            title="No expenses yet"
+            description="Add expenses manually using the button above, or import an Excel workbook with an Expenses sheet."
           />
         )}
 
@@ -353,11 +351,11 @@ export function ExpensesPage() {
                     <td colSpan={8} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-stone-400">
                         <ReceiptText size={32} strokeWidth={1.5} />
-                        {!usesImportedData ? (
+                        {sortedExpenses.length === 0 && !usesImportedData ? (
                           <>
-                            <p className="text-sm font-medium">No expenses imported yet</p>
-                            <p className="text-xs max-w-sm">
-                              Import an Excel workbook with an Expenses sheet to view records.
+                            <p className="text-sm font-medium">No expenses yet</p>
+                            <p className="text-xs max-w-sm text-center">
+                              Add expenses manually with the button above, or import an Excel workbook.
                             </p>
                           </>
                         ) : (
