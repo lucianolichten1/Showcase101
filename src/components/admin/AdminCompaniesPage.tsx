@@ -191,18 +191,19 @@ export function AdminCompaniesPage() {
                 <tbody className="text-[11px] text-stone-800">
                   {companies.length === 0 && !error ? (
                     <tr>
-                      <td colSpan={7} className="py-10 text-center">
+                      <td colSpan={7} className="py-12 text-center">
                         <Building2
-                          size={24}
-                          className="mx-auto text-stone-300 mb-2"
+                          size={32}
+                          className="mx-auto text-stone-300 mb-3"
+                          strokeWidth={1.5}
                           aria-hidden
                         />
-                        <p className="text-xs font-semibold text-stone-600">
+                        <p className="text-sm font-semibold text-stone-600">
                           No companies yet
                         </p>
-                        <p className="text-[11px] text-stone-400 mt-1 max-w-xs mx-auto">
-                          Add your first company to get started. Owner assignment will be
-                          available in a later step.
+                        <p className="text-xs text-stone-400 mt-1 max-w-xs mx-auto leading-relaxed">
+                          Create your first company using the <strong>+ Add Company</strong> button above.
+                          You can assign an owner after creation.
                         </p>
                       </td>
                     </tr>

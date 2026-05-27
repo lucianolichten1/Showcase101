@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Sparkles } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Sparkles, Users } from "lucide-react";
 import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
@@ -352,8 +352,16 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
               <tbody className="text-[11px] text-stone-800">
                 {displayed.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-xs text-stone-400">
-                      No customers match your filters.
+                    <td colSpan={9}>
+                      <div className="flex flex-col items-center gap-2 py-12 text-stone-400">
+                        <Users size={32} strokeWidth={1.5} />
+                        <p className="text-sm font-medium text-stone-600">No customers found</p>
+                        <p className="text-xs text-center max-w-xs">
+                          {customers.length === 0
+                            ? "Add your first customer using the button above."
+                            : "No customers match your current filters."}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
