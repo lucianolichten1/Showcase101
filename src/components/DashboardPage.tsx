@@ -1,4 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Upload, PlusCircle, BarChart3 } from "lucide-react";
 import { FinancialPeriodFilter } from "./FinancialPeriodFilter";
 import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
@@ -40,6 +42,65 @@ function SectionHeading({
         <p className="text-sm text-stone-600 mt-1">{description}</p>
       )}
     </div>
+  );
+}
+
+function DashboardGetStarted() {
+  const navigate = useNavigate();
+  const steps = [
+    {
+      icon: Upload,
+      title: "Import your data",
+      description: "Upload an Excel workbook with Sales, Expenses, or AR sheets to populate all charts and KPIs automatically.",
+      action: "Go to Import",
+      onClick: () => navigate("/export-import"),
+      primary: true,
+    },
+    {
+      icon: PlusCircle,
+      title: "Add revenue manually",
+      description: "Record sales and income one entry at a time. No file needed — just type in the details.",
+      action: "Add Revenue",
+      onClick: () => navigate("/revenue"),
+      primary: false,
+    },
+    {
+      icon: BarChart3,
+      title: "Add expenses manually",
+      description: "Track operational costs, supplier payments, and business expenses by entering them directly.",
+      action: "Add Expense",
+      onClick: () => navigate("/expenses"),
+      primary: false,
+    },
+  ];
+
+  return (
+    <section className="rounded-xl border border-stone-200 bg-white shadow-sm p-6 sm:p-8">
+      <div className="mb-6">
+        <h2 className="text-base font-bold text-stone-900 tracking-tight">Get started with your financial data</h2>
+        <p className="text-sm text-stone-500 mt-1">Choose how you'd like to populate your dashboard. You can always mix both methods.</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {steps.map(({ icon: Icon, title, description, action, onClick, primary }) => (
+          <div key={title} className={`rounded-lg border p-4 flex flex-col gap-3 ${primary ? "border-green-200 bg-green-50/50" : "border-stone-200 bg-stone-50/50"}`}>
+            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${primary ? "bg-green-800 text-white" : "bg-stone-200 text-stone-600"}`}>
+              <Icon size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-stone-900">{title}</p>
+              <p className="text-xs text-stone-500 mt-1 leading-relaxed">{description}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClick}
+              className={`mt-auto self-start px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${primary ? "bg-green-800 text-white hover:bg-green-700" : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-50"}`}
+            >
+              {action} →
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -116,12 +177,7 @@ export function DashboardPage() {
             />
           </section>
 
-          {!usesImportedData && (
-            <FinancialEmptyBanner
-              title="No financial data imported yet"
-              description="Upload an Excel workbook to populate the dashboard with revenue, expenses, and financial charts."
-            />
-          )}
+          {!usesImportedData && <DashboardGetStarted />}
 
           {/* KPIs */}
           <section>
@@ -130,7 +186,7 @@ export function DashboardPage() {
               description={
                 usesImportedData && importedData
                   ? `Imported data · ${periodLabel.toLowerCase()}`
-                  : "Financial KPIs show $0 until you import Excel data"
+                  : "KPIs will populate once you add or import financial data"
               }
             />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
