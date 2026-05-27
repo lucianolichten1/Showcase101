@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { isNavigableNavItem, type NavItem } from "@/config/navigation";
+import type { RoleNavItem } from "@/domains/auth/navigation";
 import { cn } from "@/lib/utils";
 
 interface SidebarNavItemProps {
-  item: NavItem;
+  item: RoleNavItem;
   onNavClick?: () => void;
 }
 
@@ -24,15 +24,11 @@ const iconClassName = (isActive: boolean) =>
 export function SidebarNavItem({ item, onNavClick }: SidebarNavItemProps) {
   const Icon = item.icon;
 
-  if (!isNavigableNavItem(item.id)) {
+  if (item.href === "#") {
     return (
       <span
-        className={cn(
-          navItemClassName(false),
-          "cursor-not-allowed opacity-50"
-        )}
+        className={cn(navItemClassName(false), "cursor-not-allowed opacity-50")}
         aria-disabled="true"
-        title="Settings (coming soon)"
       >
         <Icon className={iconClassName(false)} strokeWidth={2} />
         <span className="truncate">{item.label}</span>

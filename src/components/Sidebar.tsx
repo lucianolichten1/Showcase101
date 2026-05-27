@@ -1,5 +1,7 @@
-import { BarChart3, X } from "lucide-react";
-import { navigationItems } from "@/config/navigation";
+import { BarChart3, LogOut, X } from "lucide-react";
+import { getNavigationForRole } from "@/domains/auth/navigation";
+import { useAuth } from "@/domains/auth/AuthContext";
+import { formatRoleLabel } from "@/domains/auth/labels";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +12,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
+  const { profile, role, primaryCompanyId, signOut } = useAuth();
+  const navItems = getNavigationForRole(role, primaryCompanyId);
+  const roleLabel = formatRoleLabel(role);
+
   return (
     <aside
       className={cn(
@@ -23,9 +29,11 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
             <BarChart3 className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-stone-900 leading-tight">Financial Suite</p>
+            <p className="truncate text-sm font-bold text-stone-900 leading-tight">
+              AI Finance OS
+            </p>
             <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-stone-500">
-              Financial SaaS
+              {roleLabel}
             </p>
           </div>
         </div>
@@ -43,7 +51,7 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
         <ul className="space-y-1">
-          {navigationItems.map((item) => (
+          {navItems.map((item) => (
             <li key={item.id}>
               <SidebarNavItem item={item} onNavClick={onNavClick} />
             </li>
@@ -51,11 +59,26 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-stone-200 px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
-          MVP Demo
-        </p>
-        <p className="mt-0.5 text-xs text-stone-500">Navigation preview</p>
+      <div className="border-t border-stone-200 px-4 py-3 space-y-2">
+        {profile && (
+          <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
+              Signed in
+            </p>
+            <p className="truncate text-xs font-semibold text-stone-800 mt-0.5">
+              {profile.email}
+            </p>
+            <p className="text-[10px] text-stone-500 mt-0.5">Role: {roleLabel}</p>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+        >
+          <LogOut size={14} />
+          Sign out
+        </button>
       </div>
     </aside>
   );
