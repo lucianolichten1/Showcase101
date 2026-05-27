@@ -11,6 +11,35 @@ import { cn } from "@/lib/utils";
 const STATUSES: CompanyStatus[] = ["Active", "Inactive"];
 const activeNiches = getActiveNiches();
 
+function inputClass(err?: string) {
+  return cn(
+    "w-full rounded-lg border px-3 py-2 text-xs text-stone-900 outline-none transition-colors placeholder:text-stone-300",
+    err
+      ? "border-red-300 bg-red-50 focus:border-red-400"
+      : "border-stone-200 bg-white focus:border-green-700"
+  );
+}
+
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-[9px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">
+        {label}
+      </label>
+      {children}
+      {error && <p className="text-[9px] text-red-600 mt-1">{error}</p>}
+    </div>
+  );
+}
+
 interface Props {
   open: boolean;
   saving?: boolean;
@@ -61,32 +90,6 @@ export function AddCompanyDialog({
     });
   };
 
-  const inputClass = (err?: string) =>
-    cn(
-      "w-full rounded-lg border px-3 py-2 text-xs text-stone-900 outline-none transition-colors placeholder:text-stone-300",
-      err
-        ? "border-red-300 bg-red-50 focus:border-red-400"
-        : "border-stone-200 bg-white focus:border-green-700"
-    );
-
-  const Field = ({
-    label,
-    error,
-    children,
-  }: {
-    label: string;
-    error?: string;
-    children: ReactNode;
-  }) => (
-    <div>
-      <label className="block text-[9px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">
-        {label}
-      </label>
-      {children}
-      {error && <p className="text-[9px] text-red-600 mt-1">{error}</p>}
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -118,7 +121,7 @@ export function AddCompanyDialog({
         )}
 
         <div className="flex flex-col gap-3 mb-5">
-          <Field label="Company name *" error={errors.name}>
+          <FormField label="Company name *" error={errors.name}>
             <input
               type="text"
               value={name}
@@ -130,9 +133,9 @@ export function AddCompanyDialog({
               }}
               className={inputClass(errors.name)}
             />
-          </Field>
+          </FormField>
 
-          <Field label="Niche">
+          <FormField label="Niche">
             <select
               value={niche}
               disabled={saving}
@@ -148,9 +151,9 @@ export function AddCompanyDialog({
             <p className="text-[9px] text-stone-400 mt-1.5 leading-relaxed">
               Assigns the company to a business niche. Only Agro is available today.
             </p>
-          </Field>
+          </FormField>
 
-          <Field label="Status">
+          <FormField label="Status">
             <select
               value={status}
               disabled={saving}
@@ -163,7 +166,7 @@ export function AddCompanyDialog({
                 </option>
               ))}
             </select>
-          </Field>
+          </FormField>
         </div>
 
         <div className="flex gap-2">

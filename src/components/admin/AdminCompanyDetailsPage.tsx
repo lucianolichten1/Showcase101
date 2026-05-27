@@ -34,6 +34,7 @@ import {
   statusBadgeClass,
 } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
+import { CompanyOwnerSection } from "./CompanyOwnerSection";
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -79,10 +80,6 @@ function ModuleToggle({
       />
     </button>
   );
-}
-
-function ownerDisplay(email: string): ReactNode {
-  return email.trim() ? email : <span className="text-stone-400 italic">Not assigned</span>;
 }
 
 export function AdminCompanyDetailsPage() {
@@ -269,7 +266,6 @@ export function AdminCompanyDetailsPage() {
             </span>
           }
         />
-        <InfoRow label="Owner Email" value={ownerDisplay(company.ownerEmail)} />
         <InfoRow
           label="Status"
           value={
@@ -285,6 +281,8 @@ export function AdminCompanyDetailsPage() {
         />
         <InfoRow label="Created Date" value={formatCreatedDate(company.createdAt)} />
       </div>
+
+      <CompanyOwnerSection companyId={company.id} />
 
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
