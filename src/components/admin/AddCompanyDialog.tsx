@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import {
   DEFAULT_NICHE_KEY,
   getActiveNiches,
@@ -13,13 +13,20 @@ const activeNiches = getActiveNiches();
 
 interface Props {
   open: boolean;
+  saving?: boolean;
+  saveError?: string | null;
   onClose: () => void;
   onConfirm: (input: NewCompanyInput) => void;
 }
 
-export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
+export function AddCompanyDialog({
+  open,
+  saving = false,
+  saveError = null,
+  onClose,
+  onConfirm,
+}: Props) {
   const [name, setName] = useState("");
-  const [ownerEmail, setOwnerEmail] = useState("");
   const [niche, setNiche] = useState<NicheKey>(DEFAULT_NICHE_KEY);
   const [status, setStatus] = useState<CompanyStatus>("Active");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -27,7 +34,6 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
   useEffect(() => {
     if (open) {
       setName("");
-      setOwnerEmail("");
       setNiche(DEFAULT_NICHE_KEY);
       setStatus("Active");
       setErrors({});
@@ -39,9 +45,6 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
   const validate = () => {
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = "Company name is required.";
-    if (!ownerEmail.trim()) next.ownerEmail = "Owner email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim()))
-      next.ownerEmail = "Enter a valid email.";
     return next;
   };
 
@@ -53,7 +56,6 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
     }
     onConfirm({
       name: name.trim(),
-      ownerEmail: ownerEmail.trim(),
       niche,
       status,
     });
@@ -87,23 +89,33 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/25 backdrop-blur-sm"
+        onClick={saving ? undefined : onClose}
+      />
       <div className="relative bg-white rounded-xl border border-stone-200 shadow-xl w-full max-w-sm mx-4 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-stone-900">Add Company</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-600 transition-colors"
+            disabled={saving}
+            className="text-stone-400 hover:text-stone-600 transition-colors disabled:opacity-50"
           >
             <X size={16} />
           </button>
         </div>
 
         <p className="text-[10px] text-stone-500 mb-4 leading-relaxed rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
-          New companies are stored locally for now. A dedicated Supabase database will be
-          provisioned per company in a future technical phase.
+          Creates a company record in the platform Supabase database. Niche is Agro for now.
+          Owner assignment will be added in a later step. Financial data stays local per company.
         </p>
+
+        {saveError && (
+          <p className="text-[10px] text-red-600 mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+            {saveError}
+          </p>
+        )}
 
         <div className="flex flex-col gap-3 mb-5">
           <Field label="Company name *" error={errors.name}>
@@ -111,6 +123,7 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
               type="text"
               value={name}
               placeholder="e.g. Santa Fe Agro"
+              disabled={saving}
               onChange={(e) => {
                 setName(e.target.value);
                 setErrors((p) => ({ ...p, name: "" }));
@@ -119,22 +132,10 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
             />
           </Field>
 
-          <Field label="Owner email *" error={errors.ownerEmail}>
-            <input
-              type="email"
-              value={ownerEmail}
-              placeholder="owner@company.com"
-              onChange={(e) => {
-                setOwnerEmail(e.target.value);
-                setErrors((p) => ({ ...p, ownerEmail: "" }));
-              }}
-              className={inputClass(errors.ownerEmail)}
-            />
-          </Field>
-
           <Field label="Niche">
             <select
               value={niche}
+              disabled={saving}
               onChange={(e) => setNiche(e.target.value as NicheKey)}
               className={inputClass()}
             >
@@ -145,15 +146,14 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
               ))}
             </select>
             <p className="text-[9px] text-stone-400 mt-1.5 leading-relaxed">
-              Assigns the company to a business niche. Only Agro is available today. Each
-              company will later receive its own dedicated database — connection is not
-              configured yet.
+              Assigns the company to a business niche. Only Agro is available today.
             </p>
           </Field>
 
           <Field label="Status">
             <select
               value={status}
+              disabled={saving}
               onChange={(e) => setStatus(e.target.value as CompanyStatus)}
               className={inputClass()}
             >
@@ -170,16 +170,25 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+            disabled={saving}
+            className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex-1 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
+            disabled={saving}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors disabled:opacity-50"
           >
-            Add Company
+            {saving ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Add Company"
+            )}
           </button>
         </div>
       </div>

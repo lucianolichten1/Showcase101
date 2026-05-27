@@ -13,9 +13,12 @@ import { cn } from "@/lib/utils";
  * Renders nothing when no companyId query param is set.
  */
 export function CompanyContextBanner({ className }: { className?: string }) {
-  const { companyId, company, isInvalid, hasCompanyContext } = useCompanyFromQuery();
+  const { companyId, company, isInvalid, hasCompanyContext, isResolving } =
+    useCompanyFromQuery();
 
   if (!hasCompanyContext) return null;
+
+  if (isResolving) return null;
 
   if (isInvalid || !company) {
     return (

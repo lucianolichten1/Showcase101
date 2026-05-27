@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -7,12 +7,16 @@ import {
   ExternalLink,
   HardDrive,
   Layers,
+  Loader2,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
+import { getCompanyById } from "@/domains/admin/companyService";
 import type { CompanyRecord } from "@/domains/admin/types";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
   DASHBOARD_MODULE_KEY,
+  DEFAULT_ENABLED_MODULES,
   isModuleEnabled,
 } from "@/domains/admin/modules";
 import {
@@ -27,21 +31,9 @@ import {
 import {
   databaseStatusBadgeClass,
   formatCreatedDate,
-  findCompanyById,
   statusBadgeClass,
 } from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
-
-// TODO: Load company from central platform Supabase.
-// TODO: Restrict page to super_admin users only.
-// TODO: Persist enabled modules to central platform Supabase.
-// TODO: Load niche-specific modules based on company.niche.
-// TODO: Use enabled modules to control sidebar visibility for company users.
-
-interface Props {
-  companies: CompanyRecord[];
-  onUpdateCompany: (company: CompanyRecord) => void;
-}
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -89,9 +81,84 @@ function ModuleToggle({
   );
 }
 
-export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
+function ownerDisplay(email: string): ReactNode {
+  return email.trim() ? email : <span className="text-stone-400 italic">Not assigned</span>;
+}
+
+export function AdminCompanyDetailsPage() {
   const { companyId } = useParams<{ companyId: string }>();
-  const company = findCompanyById(companies, companyId);
+  const [company, setCompany] = useState<CompanyRecord | null>(null);
+  const [enabledModules, setEnabledModules] = useState<string[]>([
+    ...DEFAULT_ENABLED_MODULES,
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCompany = useCallback(async () => {
+    if (!companyId) {
+      setCompany(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const record = await getCompanyById(companyId);
+      setCompany(record);
+      if (record) {
+        setEnabledModules(record.enabledModules);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load company from Supabase.";
+      setError(message);
+      setCompany(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    void loadCompany();
+  }, [loadCompany]);
+
+  if (loading) {
+    return (
+      <main className="flex flex-col items-center justify-center gap-2 p-5 lg:p-6 min-h-[50vh] text-stone-400">
+        <Loader2 size={28} className="animate-spin" />
+        <p className="text-xs">Loading company…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex flex-col items-center justify-center gap-4 p-5 lg:p-6 min-h-[50vh]">
+        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-8 text-center max-w-sm">
+          <AlertCircle size={28} className="mx-auto text-red-400 mb-3" />
+          <h1 className="text-sm font-bold text-stone-900">Could not load company</h1>
+          <p className="text-xs text-stone-500 mt-1.5">{error}</p>
+          <div className="flex flex-col gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => void loadCompany()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
+            >
+              Try again
+            </button>
+            <Link
+              to="/admin/companies"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+            >
+              <ArrowLeft size={13} />
+              Back to Companies
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (!company) {
     return (
@@ -118,24 +185,23 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
 
   const totalModules = BASE_FINANCIAL_MODULE_DEFINITIONS.length;
   const enabledCount = BASE_FINANCIAL_MODULE_DEFINITIONS.filter((m) =>
-    isModuleEnabled(company.enabledModules, m.key)
+    isModuleEnabled(enabledModules, m.key)
   ).length;
   const disabledCount = totalModules - enabledCount;
 
   const handleToggleModule = (moduleKey: string, required?: boolean) => {
     if (required || moduleKey === DASHBOARD_MODULE_KEY) return;
 
-    const currentlyEnabled = isModuleEnabled(company.enabledModules, moduleKey);
+    const currentlyEnabled = isModuleEnabled(enabledModules, moduleKey);
     const nextModules = currentlyEnabled
-      ? company.enabledModules.filter((k) => k !== moduleKey)
-      : [...company.enabledModules, moduleKey];
+      ? enabledModules.filter((k) => k !== moduleKey)
+      : [...enabledModules, moduleKey];
 
-    onUpdateCompany({
-      ...company,
-      enabledModules: nextModules.includes(DASHBOARD_MODULE_KEY)
+    setEnabledModules(
+      nextModules.includes(DASHBOARD_MODULE_KEY)
         ? nextModules
-        : [...nextModules, DASHBOARD_MODULE_KEY],
-    });
+        : [...nextModules, DASHBOARD_MODULE_KEY]
+    );
   };
 
   return (
@@ -153,8 +219,8 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
           <h1 className="text-lg font-bold text-stone-900">{company.name}</h1>
           <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
             Super admin view for this company&apos;s niche, dedicated database plan, and
-            financial module access. Data is local mock state — Supabase routing per company
-            will be added later.
+            financial module access. Company record is loaded from platform Supabase;
+            financial data remains local mock per workspace.
           </p>
         </div>
         <Link
@@ -203,7 +269,7 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
             </span>
           }
         />
-        <InfoRow label="Owner Email" value={company.ownerEmail} />
+        <InfoRow label="Owner Email" value={ownerDisplay(company.ownerEmail)} />
         <InfoRow
           label="Status"
           value={
@@ -317,7 +383,7 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
         </p>
         <ul className="flex flex-col gap-2">
           {BASE_FINANCIAL_MODULE_DEFINITIONS.map((module) => {
-            const enabled = isModuleEnabled(company.enabledModules, module.key);
+            const enabled = isModuleEnabled(enabledModules, module.key);
             const isRequired = module.key === DASHBOARD_MODULE_KEY;
 
             return (

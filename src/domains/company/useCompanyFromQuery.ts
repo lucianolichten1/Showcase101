@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { getCompanyById } from "@/domains/admin/companyService";
 import type { CompanyRecord } from "@/domains/admin/types";
 import { findCompanyById } from "@/domains/admin/utils";
 import { useCompanyRecords } from "./CompanyDataContext";
@@ -13,16 +14,57 @@ export interface CompanyFromQueryResult {
   isInvalid: boolean;
   /** True when any `companyId` query param is present. */
   hasCompanyContext: boolean;
+  /** True while resolving company from Supabase (after context miss). */
+  isResolving: boolean;
 }
 
 /**
  * Reads `companyId` from the URL query string and resolves it against platform company records.
- * Frontend-only — does not load data from a company database.
+ * Falls back to Supabase when the id is not in local context (e.g. after admin loads from DB).
+ * Financial data itself stays local — this only resolves company metadata.
  */
 export function useCompanyFromQuery(): CompanyFromQueryResult {
   const [searchParams] = useSearchParams();
   const companies = useCompanyRecords();
   const companyIdParam = searchParams.get("companyId");
+  const [fetchedCompany, setFetchedCompany] = useState<CompanyRecord | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+
+  const fromContext = useMemo(
+    () => (companyIdParam ? findCompanyById(companies, companyIdParam) : undefined),
+    [companies, companyIdParam]
+  );
+
+  useEffect(() => {
+    if (!companyIdParam) {
+      setFetchedCompany(null);
+      setIsResolving(false);
+      return;
+    }
+
+    if (fromContext) {
+      setFetchedCompany(fromContext);
+      setIsResolving(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsResolving(true);
+    getCompanyById(companyIdParam)
+      .then((record) => {
+        if (!cancelled) setFetchedCompany(record);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedCompany(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsResolving(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [companyIdParam, fromContext]);
 
   return useMemo(() => {
     const companyId = companyIdParam;
@@ -32,15 +74,17 @@ export function useCompanyFromQuery(): CompanyFromQueryResult {
         company: null,
         isInvalid: false,
         hasCompanyContext: false,
+        isResolving: false,
       };
     }
 
-    const company = findCompanyById(companies, companyId) ?? null;
+    const company = fromContext ?? fetchedCompany;
     return {
       companyId,
       company,
-      isInvalid: company === null,
+      isInvalid: !isResolving && company === null,
       hasCompanyContext: true,
+      isResolving,
     };
-  }, [companyIdParam, companies]);
+  }, [companyIdParam, fromContext, fetchedCompany, isResolving]);
 }

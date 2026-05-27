@@ -22,7 +22,6 @@ export interface CompanyRecord {
 
 export interface NewCompanyInput {
   name: string;
-  ownerEmail: string;
   niche: CompanyNiche;
   status: CompanyStatus;
 }

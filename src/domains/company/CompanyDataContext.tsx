@@ -1,8 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { initialCompanies } from "@/domains/admin/mockData";
 import type { CompanyRecord } from "@/domains/admin/types";
 
-const CompanyDataContext = createContext<CompanyRecord[]>(initialCompanies);
+const CompanyDataContext = createContext<CompanyRecord[]>([]);
 
 export function CompanyDataProvider({
   companies,

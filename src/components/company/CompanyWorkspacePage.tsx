@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -5,11 +6,14 @@ import {
   Database,
   ExternalLink,
   LayoutGrid,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { getCompanyById } from "@/domains/admin/companyService";
+import { databaseStatusLabel } from "@/domains/admin/database";
 import type { CompanyRecord } from "@/domains/admin/types";
 import { isModuleEnabled } from "@/domains/admin/modules";
 import { getNicheDisplayName } from "@/domains/admin/niches";
-import { findCompanyById } from "@/domains/admin/utils";
 import {
   WORKSPACE_MODULES,
   workspaceModuleHref,
@@ -19,16 +23,65 @@ import { cn } from "@/lib/utils";
 // TODO: Load company workspace from dedicated company Supabase project.
 // TODO: Replace mock/local financial data with company-scoped queries.
 
-const DATABASE_STATUS = "Not connected";
-const DATABASE_PROVIDER = "Supabase planned";
-
-interface Props {
-  companies: CompanyRecord[];
-}
-
-export function CompanyWorkspacePage({ companies }: Props) {
+export function CompanyWorkspacePage() {
   const { companyId } = useParams<{ companyId: string }>();
-  const company = findCompanyById(companies, companyId);
+  const [company, setCompany] = useState<CompanyRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCompany = useCallback(async () => {
+    if (!companyId) {
+      setCompany(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const record = await getCompanyById(companyId);
+      setCompany(record);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load company.";
+      setError(message);
+      setCompany(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    void loadCompany();
+  }, [loadCompany]);
+
+  if (loading) {
+    return (
+      <main className="flex flex-col items-center justify-center gap-2 p-5 lg:p-6 min-h-[50vh] text-stone-400">
+        <Loader2 size={28} className="animate-spin" />
+        <p className="text-xs">Loading workspace…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex flex-col items-center justify-center gap-4 p-5 lg:p-6 min-h-[50vh]">
+        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-8 text-center max-w-sm">
+          <AlertCircle size={28} className="mx-auto text-red-400 mb-3" />
+          <h1 className="text-sm font-bold text-stone-900">Could not load workspace</h1>
+          <p className="text-xs text-stone-500 mt-1.5">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadCompany()}
+            className="inline-flex mt-4 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (!company) {
     return (
@@ -39,13 +92,6 @@ export function CompanyWorkspacePage({ companies }: Props) {
           <p className="text-xs text-stone-500 mt-1.5">
             This workspace does not exist or the company was removed.
           </p>
-          <Link
-            to="/admin/companies"
-            className="inline-flex mt-4 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
-          >
-            <ArrowLeft size={13} />
-            Back to Companies
-          </Link>
         </div>
       </main>
     );
@@ -98,13 +144,15 @@ export function CompanyWorkspacePage({ companies }: Props) {
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
             Database
           </span>
-          <span className="text-sm font-bold text-amber-700">{DATABASE_STATUS}</span>
+          <span className="text-sm font-bold text-amber-700">
+            {databaseStatusLabel(company.databaseStatus)}
+          </span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
             Provider
           </span>
-          <span className="text-sm font-bold text-stone-800">{DATABASE_PROVIDER}</span>
+          <span className="text-sm font-bold text-stone-800">{company.databaseProvider}</span>
         </div>
         <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1 col-span-2 lg:col-span-1">
           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">

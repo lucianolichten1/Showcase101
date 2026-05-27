@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./components/DashboardPage";
@@ -26,14 +25,10 @@ import {
 import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
-import { initialCompanies } from "./domains/admin/mockData";
-import type { CompanyRecord } from "./domains/admin/types";
 
 export default function App() {
-  const [companyRecords, setCompanyRecords] = useState<CompanyRecord[]>(initialCompanies);
-
   return (
-    <CompanyDataProvider companies={companyRecords}>
+    <CompanyDataProvider companies={[]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 
@@ -54,29 +49,10 @@ export default function App() {
 
             <Route element={<RequireSuperAdmin />}>
               <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
-              <Route
-                path="/admin/companies"
-                element={
-                  <AdminCompaniesPage
-                    companies={companyRecords}
-                    onAddCompany={(company) =>
-                      setCompanyRecords((prev) => [...prev, company])
-                    }
-                  />
-                }
-              />
+              <Route path="/admin/companies" element={<AdminCompaniesPage />} />
               <Route
                 path="/admin/companies/:companyId"
-                element={
-                  <AdminCompanyDetailsPage
-                    companies={companyRecords}
-                    onUpdateCompany={(updated) =>
-                      setCompanyRecords((prev) =>
-                        prev.map((c) => (c.id === updated.id ? updated : c))
-                      )
-                    }
-                  />
-                }
+                element={<AdminCompanyDetailsPage />}
               />
             </Route>
 
@@ -87,7 +63,7 @@ export default function App() {
               />
               <Route
                 path="/company/:companyId/dashboard"
-                element={<CompanyWorkspacePage companies={companyRecords} />}
+                element={<CompanyWorkspacePage />}
               />
             </Route>
           </Route>
