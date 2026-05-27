@@ -22,6 +22,7 @@ import {
   type ImportHistoryDisplayStatus,
 } from "@/domains/import/importHistoryDisplay";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
+import { formatCurrency } from "@/data/mockData";
 import { ExcelImportWizard } from "./ExcelImportWizard";
 import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import {
@@ -38,24 +39,7 @@ import {
   type ParsedRow,
 } from "@/lib/csv";
 
-const exportOptions = [
-  {
-    title: "Profit & Loss Report",
-    description: "Monthly revenue, expenses, and net profit summary.",
-  },
-  {
-    title: "Expense Breakdown",
-    description: "Category-level spending breakdown across all business operations.",
-  },
-  {
-    title: "Revenue Report",
-    description: "Sales and income by customer, product, or time period.",
-  },
-  {
-    title: "Accounts Receivable Report",
-    description: "Outstanding invoices, due dates, and overdue balances.",
-  },
-];
+// exportOptions are built dynamically inside the component (need financial data)
 
 const aiBullets = [
   "Detect date, amount, customer, and category columns",
@@ -140,7 +124,71 @@ export function ExportImportPage() {
     usesImportedData,
     importedData,
     clearImportedData,
+    revenueRecords,
+    expenseRecords,
+    receivableRecords,
   } = useCompanyScopedFinancialData();
+
+  // ── Export handlers ───────────────────────────────────────────────────────────
+
+  const handleExportPL = () => {
+    const rows = [
+      { "Item": "Total Revenue", "Amount (Bs)": revenueRecords.filter(r => r.status !== "Cancelled").reduce((s, r) => s + r.amount, 0).toString(), "Notes": "" },
+      { "Item": "Cost of Goods Sold", "Amount (Bs)": revenueRecords.filter(r => r.status !== "Cancelled").reduce((s, r) => s + (r.cost ?? 0), 0).toString(), "Notes": "" },
+      { "Item": "Gross Profit", "Amount (Bs)": (revenueRecords.filter(r => r.status !== "Cancelled").reduce((s, r) => s + r.amount - (r.cost ?? 0), 0)).toString(), "Notes": "" },
+      { "Item": "Total Expenses", "Amount (Bs)": expenseRecords.reduce((s, e) => s + e.amount, 0).toString(), "Notes": "" },
+      { "Item": "Net Profit", "Amount (Bs)": (revenueRecords.filter(r => r.status !== "Cancelled").reduce((s, r) => s + r.amount - (r.cost ?? 0), 0) - expenseRecords.reduce((s, e) => s + e.amount, 0)).toString(), "Notes": "" },
+    ];
+    downloadCsvFile(rowsToCsv(["Item", "Amount (Bs)", "Notes"], rows), "profit-loss-report.csv");
+  };
+
+  const handleExportExpenses = () => {
+    const grouped = new Map<string, number>();
+    expenseRecords.forEach(e => grouped.set(e.category, (grouped.get(e.category) ?? 0) + e.amount));
+    const total = Array.from(grouped.values()).reduce((s, v) => s + v, 0);
+    const rows = Array.from(grouped.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, amount]) => ({
+        "Category": category,
+        "Amount (Bs)": amount.toString(),
+        "Percentage": total > 0 ? `${Math.round((amount / total) * 100)}%` : "0%",
+      }));
+    downloadCsvFile(rowsToCsv(["Category", "Amount (Bs)", "Percentage"], rows), "expense-breakdown.csv");
+  };
+
+  const handleExportRevenue = () => {
+    const rows = revenueRecords.map(r => ({
+      "Date": r.date,
+      "Client": r.sourceClient,
+      "Product / Service": r.productService,
+      "Category": r.category,
+      "Amount (Bs)": r.amount.toString(),
+      "Status": r.status,
+      "Invoice #": r.invoiceNumber,
+    }));
+    downloadCsvFile(rowsToCsv(["Date", "Client", "Product / Service", "Category", "Amount (Bs)", "Status", "Invoice #"], rows), "revenue-report.csv");
+  };
+
+  const handleExportAR = () => {
+    const rows = receivableRecords.map(r => ({
+      "Customer": r.customer,
+      "Invoice #": r.invoiceNumber,
+      "Total (Bs)": r.amount.toString(),
+      "Paid (Bs)": r.amountPaid.toString(),
+      "Balance (Bs)": (r.amount - r.amountPaid).toString(),
+      "Due Date": r.dueDate,
+      "Days Overdue": r.overdueDays.toString(),
+      "Status": r.status,
+    }));
+    downloadCsvFile(rowsToCsv(["Customer", "Invoice #", "Total (Bs)", "Paid (Bs)", "Balance (Bs)", "Due Date", "Days Overdue", "Status"], rows), "accounts-receivable-report.csv");
+  };
+
+  const exportOptions = [
+    { title: "Profit & Loss Report", description: "Revenue, cost, and net profit summary.", handler: handleExportPL, hasData: revenueRecords.length > 0 || expenseRecords.length > 0 },
+    { title: "Expense Breakdown", description: "Category-level spending across all business operations.", handler: handleExportExpenses, hasData: expenseRecords.length > 0 },
+    { title: "Revenue Report", description: "Sales and income by customer, product, or time period.", handler: handleExportRevenue, hasData: revenueRecords.length > 0 },
+    { title: "Accounts Receivable Report", description: "Outstanding invoices, due dates, and overdue balances.", handler: handleExportAR, hasData: receivableRecords.length > 0 },
+  ];
 
   const recentImports = importHistory.map((item) =>
     importHistoryToDisplayRow(
@@ -525,15 +573,17 @@ export function ExportImportPage() {
                   <p className="text-xs text-stone-500 flex-1">{option.description}</p>
                   <button
                     type="button"
-                    className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                    onClick={option.handler}
+                    disabled={!option.hasData}
+                    title={option.hasData ? undefined : "No data available to export"}
+                    className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Download className="h-3 w-3" />
-                    Export
+                    Export CSV
                   </button>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-stone-400 mt-4">Export functionality coming in next release.</p>
           </SectionCard>
 
           <SectionCard title="AI Import Assistant">
