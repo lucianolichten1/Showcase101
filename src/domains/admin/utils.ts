@@ -1,3 +1,4 @@
+import type { CompanyDatabaseStatus } from "./database";
 import type { CompanyRecord } from "./types";
 
 export function formatCreatedDate(iso: string): string {
@@ -13,6 +14,13 @@ export function statusBadgeClass(status: CompanyRecord["status"]) {
   return status === "Active"
     ? "bg-green-50 text-green-700 border-green-100"
     : "bg-stone-100 text-stone-600 border-stone-200";
+}
+
+export function databaseStatusBadgeClass(status: CompanyDatabaseStatus) {
+  if (status === "not_connected") {
+    return "bg-amber-50 text-amber-800 border-amber-100";
+  }
+  return "bg-stone-100 text-stone-600 border-stone-200";
 }
 
 export function nextCompanyId(companies: CompanyRecord[]): string {

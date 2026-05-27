@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Database, Layers, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Database, HardDrive, Layers, Sparkles } from "lucide-react";
 import type { CompanyRecord } from "@/domains/admin/types";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
@@ -12,7 +12,16 @@ import {
   getNicheDisplayName,
   nicheStatusLabel,
 } from "@/domains/admin/niches";
-import { formatCreatedDate, findCompanyById, statusBadgeClass } from "@/domains/admin/utils";
+import {
+  COMPANY_DATABASE_SCOPE,
+  databaseStatusLabel,
+} from "@/domains/admin/database";
+import {
+  databaseStatusBadgeClass,
+  formatCreatedDate,
+  findCompanyById,
+  statusBadgeClass,
+} from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
 
 // TODO: Load company from central platform Supabase.
@@ -133,9 +142,10 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
 
       <div>
         <h1 className="text-lg font-bold text-stone-900">{company.name}</h1>
-        <p className="text-xs text-stone-500 mt-0.5 max-w-xl">
-          Super admins can view and manage this company&apos;s configuration and
-          enabled modules.
+        <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
+          Super admin view for this company&apos;s niche, dedicated database plan, and
+          financial module access. Data is local mock state — Supabase routing per company
+          will be added later.
         </p>
       </div>
 
@@ -195,11 +205,49 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
 
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
+          <HardDrive size={14} className="text-stone-400" />
+          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
+            Company Database
+          </h2>
+        </div>
+        <p className="text-[10px] text-stone-400 mb-3">
+          Each company will eventually connect to its own Supabase database. No live
+          connection exists in this MVP.
+        </p>
+        <InfoRow
+          label="Status"
+          value={
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                databaseStatusBadgeClass(company.databaseStatus)
+              )}
+            >
+              {databaseStatusLabel(company.databaseStatus)}
+            </span>
+          }
+        />
+        <InfoRow label="Provider" value={company.databaseProvider} />
+        <InfoRow label="Scope" value={COMPANY_DATABASE_SCOPE} />
+        <InfoRow label="Label" value={company.databaseLabel} />
+        <p className="text-[10px] text-stone-400 mt-2 pt-2 border-t border-stone-100">
+          Database routing will be connected in a later technical phase. Supabase clients,
+          credentials, and per-company routing are not implemented yet.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
           <Database size={14} className="text-stone-400" />
           <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
             Niche Configuration
           </h2>
         </div>
+        <p className="text-[10px] text-stone-400 mb-3">
+          The company&apos;s niche defines its business vertical. Niche-level Supabase
+          templates may be used later; company data still lives in a dedicated database per
+          company.
+        </p>
         {nicheConfig ? (
           <>
             <InfoRow label="Niche" value={nicheConfig.name} />
@@ -220,7 +268,7 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
             />
             <InfoRow label="Description" value={nicheConfig.description} />
             <InfoRow
-              label="Supabase Project Key"
+              label="Planned Niche Project Key"
               value={
                 <code className="text-[10px] font-mono text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded">
                   {nicheConfig.supabaseProjectKey}
@@ -228,7 +276,8 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
               }
             />
             <p className="text-[10px] text-stone-400 mt-2 pt-2 border-t border-stone-100">
-              Database routing will be connected later.
+              Niche routing is a future platform concern. Supabase project switching is not
+              active — see Company Database above for per-company connection status.
             </p>
           </>
         ) : (

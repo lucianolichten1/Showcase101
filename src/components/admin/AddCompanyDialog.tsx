@@ -100,6 +100,11 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
           </button>
         </div>
 
+        <p className="text-[10px] text-stone-500 mb-4 leading-relaxed rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+          New companies are stored locally for now. A dedicated Supabase database will be
+          provisioned per company in a future technical phase.
+        </p>
+
         <div className="flex flex-col gap-3 mb-5">
           <Field label="Company name *" error={errors.name}>
             <input
@@ -139,6 +144,11 @@ export function AddCompanyDialog({ open, onClose, onConfirm }: Props) {
                 </option>
               ))}
             </select>
+            <p className="text-[9px] text-stone-400 mt-1.5 leading-relaxed">
+              Assigns the company to a business niche. Only Agro is available today. Each
+              company will later receive its own dedicated database — connection is not
+              configured yet.
+            </p>
           </Field>
 
           <Field label="Status">

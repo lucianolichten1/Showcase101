@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Building2, Eye } from "lucide-react";
+import { Plus, Building2, Eye, Info } from "lucide-react";
+import {
+  DEFAULT_COMPANY_DATABASE,
+  databaseStatusLabel,
+} from "@/domains/admin/database";
 import { DEFAULT_ENABLED_MODULES } from "@/domains/admin/modules";
 import { getNicheDisplayName } from "@/domains/admin/niches";
 import type { CompanyRecord, NewCompanyInput } from "@/domains/admin/types";
-import { formatCreatedDate, nextCompanyId, statusBadgeClass } from "@/domains/admin/utils";
+import {
+  databaseStatusBadgeClass,
+  formatCreatedDate,
+  nextCompanyId,
+  statusBadgeClass,
+} from "@/domains/admin/utils";
 import { cn } from "@/lib/utils";
 import { AddCompanyDialog } from "./AddCompanyDialog";
 
@@ -30,6 +39,7 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
       status: input.status,
       createdAt,
       enabledModules: [...DEFAULT_ENABLED_MODULES],
+      ...DEFAULT_COMPANY_DATABASE,
     });
     setShowAddCompany(false);
   };
@@ -40,9 +50,11 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-bold text-stone-900">Companies</h1>
-            <p className="text-xs text-stone-500 mt-0.5 max-w-xl">
-              Super admins can create and manage platform companies and assign each
-              company to a niche. Niches will later map to dedicated databases.
+            <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
+              Manage platform companies on AI Finance OS. Each company belongs to a
+              niche (currently Agro only) and will eventually use its own dedicated
+              Supabase database. Database routing is not connected yet — this admin
+              area reflects the planned architecture only.
             </p>
           </div>
           <button
@@ -55,7 +67,18 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex gap-3 rounded-xl border border-stone-200 bg-stone-50/80 px-4 py-3">
+          <Info size={16} className="shrink-0 text-stone-400 mt-0.5" />
+          <p className="text-[11px] text-stone-600 leading-relaxed">
+            <span className="font-semibold text-stone-800">Multi-company platform.</span>{" "}
+            Companies are grouped by niche. Each company will get a separate database in a
+            later phase. All companies show database status{" "}
+            <span className="font-semibold">Not connected</span> until Supabase routing is
+            implemented.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
               Total Companies
@@ -68,12 +91,19 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
             </span>
             <span className="text-lg font-bold text-green-800">{activeCount}</span>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1 col-span-2 lg:col-span-1">
+          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
             <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
               Niches
             </span>
             <span className="text-lg font-bold text-stone-900">Agro</span>
-            <span className="text-[10px] text-stone-400">More niches coming soon</span>
+            <span className="text-[10px] text-stone-400">More niches planned</span>
+          </div>
+          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1 col-span-2 lg:col-span-1">
+            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
+              Databases
+            </span>
+            <span className="text-lg font-bold text-amber-700">0 connected</span>
+            <span className="text-[10px] text-stone-400">Supabase routing later</span>
           </div>
         </div>
 
@@ -94,6 +124,7 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
                 <tr className="h-8">
                   <th className="font-bold pr-4">Company Name</th>
                   <th className="font-bold pr-4">Niche</th>
+                  <th className="font-bold pr-4">Database</th>
                   <th className="font-bold pr-4">Owner Email</th>
                   <th className="font-bold pr-4">Status</th>
                   <th className="font-bold pr-4">Created Date</th>
@@ -103,7 +134,7 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
               <tbody className="text-[11px] text-stone-800">
                 {companies.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-xs text-stone-400">
+                    <td colSpan={7} className="py-8 text-center text-xs text-stone-400">
                       No companies yet. Add your first company to get started.
                     </td>
                   </tr>
@@ -119,6 +150,17 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
                       <td className="py-2.5 pr-4">
                         <span className="inline-flex items-center rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-800">
                           {getNicheDisplayName(company.niche)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                            databaseStatusBadgeClass(company.databaseStatus)
+                          )}
+                          title={company.databaseLabel}
+                        >
+                          {databaseStatusLabel(company.databaseStatus)}
                         </span>
                       </td>
                       <td className="py-2.5 pr-4 text-stone-600">{company.ownerEmail}</td>
