@@ -1,3 +1,4 @@
+import type { CompanyDatabaseStatus } from "./database";
 import type { NicheKey } from "./niches";
 
 export type CompanyNiche = NicheKey;
@@ -13,6 +14,10 @@ export interface CompanyRecord {
   createdAt: string;
   /** Module keys enabled for this company (financial/accounting base). */
   enabledModules: string[];
+  /** Frontend placeholder — no live database connection yet. */
+  databaseStatus: CompanyDatabaseStatus;
+  databaseLabel: string;
+  databaseProvider: string;
 }
 
 export interface NewCompanyInput {
