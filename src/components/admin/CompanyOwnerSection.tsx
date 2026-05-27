@@ -4,6 +4,7 @@ import {
   assignCompanyOwner,
   findProfileByEmail,
   listCompanyOwners,
+  OWNER_ALREADY_ASSIGNED_THIS_COMPANY_MESSAGE,
   PROFILE_NOT_FOUND_MESSAGE,
   type CompanyOwnerInfo,
 } from "@/domains/admin/companyOwnerService";
@@ -75,10 +76,14 @@ export function CompanyOwnerSection({ companyId }: Props) {
         return;
       }
 
-      await assignCompanyOwner(companyId, profile.id);
+      const result = await assignCompanyOwner(companyId, profile.id);
       await loadOwners();
       setEmail("");
-      setSuccessMessage(`Owner assigned: ${profile.email}`);
+      setSuccessMessage(
+        result.outcome === "already_here"
+          ? OWNER_ALREADY_ASSIGNED_THIS_COMPANY_MESSAGE
+          : `Owner assigned: ${profile.email}`
+      );
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to assign company owner.";
@@ -102,9 +107,13 @@ export function CompanyOwnerSection({ companyId }: Props) {
         </h2>
       </div>
 
-      <p className="text-[10px] text-stone-400 mb-4 leading-relaxed">
+      <p className="text-[10px] text-stone-400 mb-2 leading-relaxed">
         Assign an existing platform user as owner. The user must already exist in Supabase
         Auth with a matching profile — accounts cannot be created from this screen.
+      </p>
+      <p className="text-[10px] text-stone-500 mb-4 leading-relaxed rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+        <span className="font-semibold text-stone-700">MVP rule:</span> each company owner
+        can manage one company.
       </p>
 
       {loadingOwner ? (

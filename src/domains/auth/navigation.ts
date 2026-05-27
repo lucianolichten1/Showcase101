@@ -61,6 +61,9 @@ export function getSuperAdminNavigation(): RoleNavItem[] {
   ];
 }
 
+// TODO: Support multiple companies per owner in a later version.
+// TODO: Add company switcher later if needed.
+
 /** Sidebar items for company_owner (workspace + scoped financial modules only). */
 export function getCompanyOwnerNavigation(companyId: string): RoleNavItem[] {
   return [

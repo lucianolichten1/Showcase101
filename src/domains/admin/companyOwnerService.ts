@@ -19,6 +19,16 @@ export interface CompanyOwnerInfo {
 export const PROFILE_NOT_FOUND_MESSAGE =
   "No profile found for this email. Create the user in Supabase Auth and add a profile first.";
 
+export const OWNER_ALREADY_ASSIGNED_THIS_COMPANY_MESSAGE =
+  "This owner is already assigned to this company.";
+
+export const OWNER_ALREADY_ASSIGNED_OTHER_COMPANY_MESSAGE =
+  "This owner is already assigned to another company. MVP supports one company per owner.";
+
+export type AssignCompanyOwnerResult =
+  | { outcome: "assigned"; owner: CompanyOwnerInfo }
+  | { outcome: "already_here"; owner: CompanyOwnerInfo };
+
 interface ProfileRow {
   id: string;
   email: string;
@@ -31,6 +41,13 @@ interface MemberWithProfileRow {
   user_id: string;
   created_at: string;
   profiles: ProfileRow | ProfileRow[] | null;
+}
+
+interface OwnerMembershipRow {
+  id: string;
+  company_id: string;
+  role: string;
+  created_at: string;
 }
 
 function resolveProfile(
@@ -49,17 +66,24 @@ function mapProfileRow(row: ProfileRow): PlatformProfile {
   };
 }
 
-function mapToOwnerInfo(row: MemberWithProfileRow): CompanyOwnerInfo | null {
+function ownerInfoFromMembership(
+  membership: { id: string; created_at: string },
+  profile: ProfileRow
+): CompanyOwnerInfo {
+  return {
+    membershipId: membership.id,
+    userId: profile.id,
+    email: profile.email,
+    fullName: profile.full_name,
+    assignedAt: membership.created_at,
+  };
+}
+
+function mapMemberRowToOwnerInfo(row: MemberWithProfileRow): CompanyOwnerInfo | null {
   const profile = resolveProfile(row.profiles);
   if (!profile) return null;
 
-  return {
-    membershipId: row.id,
-    userId: row.user_id,
-    email: profile.email,
-    fullName: profile.full_name,
-    assignedAt: row.created_at,
-  };
+  return ownerInfoFromMembership({ id: row.id, created_at: row.created_at }, profile);
 }
 
 /** Looks up a platform profile by email (case-insensitive). */
@@ -102,8 +126,22 @@ export async function listCompanyOwners(companyId: string): Promise<CompanyOwner
   if (error) throw new Error(error.message);
 
   return (data ?? [])
-    .map((row) => mapToOwnerInfo(row as MemberWithProfileRow))
+    .map((row) => mapMemberRowToOwnerInfo(row as MemberWithProfileRow))
     .filter((owner): owner is CompanyOwnerInfo => owner !== null);
+}
+
+/** Owner memberships for a user (MVP: at most one expected). */
+async function listOwnerMembershipsForProfile(
+  profileId: string
+): Promise<OwnerMembershipRow[]> {
+  const { data, error } = await supabase
+    .from("company_members")
+    .select("id, company_id, role, created_at")
+    .eq("user_id", profileId)
+    .eq("role", "owner");
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OwnerMembershipRow[];
 }
 
 /** Sets platform profile role (e.g. company_owner). Requires RLS to allow superadmin updates. */
@@ -118,12 +156,13 @@ export async function updateProfileRole(
 
 /**
  * Assigns an existing profile as company owner.
- * Updates role to company_owner when needed; skips duplicate memberships.
+ * MVP: one owner membership per profile (one company per company_owner).
+ * TODO: Support multiple companies per owner in a later version.
  */
 export async function assignCompanyOwner(
   companyId: string,
   profileId: string
-): Promise<CompanyOwnerInfo> {
+): Promise<AssignCompanyOwnerResult> {
   const { data: profileRow, error: profileError } = await supabase
     .from("profiles")
     .select("id, email, full_name, role")
@@ -141,6 +180,20 @@ export async function assignCompanyOwner(
     throw new Error("A superadmin account cannot be assigned as a company owner.");
   }
 
+  const ownerMemberships = await listOwnerMembershipsForProfile(profile.id);
+  const ownerOnThisCompany = ownerMemberships.find((m) => m.company_id === companyId);
+
+  if (ownerOnThisCompany) {
+    return {
+      outcome: "already_here",
+      owner: ownerInfoFromMembership(ownerOnThisCompany, profile),
+    };
+  }
+
+  if (ownerMemberships.length > 0) {
+    throw new Error(OWNER_ALREADY_ASSIGNED_OTHER_COMPANY_MESSAGE);
+  }
+
   const { data: existingMember, error: memberCheckError } = await supabase
     .from("company_members")
     .select("id, role")
@@ -151,11 +204,7 @@ export async function assignCompanyOwner(
   if (memberCheckError) throw new Error(memberCheckError.message);
 
   if (existingMember) {
-    throw new Error(
-      existingMember.role === "owner"
-        ? "This user is already assigned as owner of this company."
-        : "This user is already a member of this company."
-    );
+    throw new Error("This user is already a member of this company.");
   }
 
   if (profile.role !== "company_owner") {
@@ -175,10 +224,13 @@ export async function assignCompanyOwner(
   if (insertError) throw new Error(insertError.message);
 
   return {
-    membershipId: membership.id,
-    userId: profile.id,
-    email: profile.email,
-    fullName: profile.full_name,
-    assignedAt: membership.created_at,
+    outcome: "assigned",
+    owner: {
+      membershipId: membership.id,
+      userId: profile.id,
+      email: profile.email,
+      fullName: profile.full_name,
+      assignedAt: membership.created_at,
+    },
   };
 }

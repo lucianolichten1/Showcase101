@@ -24,7 +24,7 @@ export interface AuthContextValue {
   isCompanyOwner: boolean;
   /** True when company_owner has at least one company_members row. */
   hasCompanyAssignment: boolean;
-  /** First company membership for company_owner redirect/navigation. */
+  /** Assigned company for company_owner (MVP: one company per owner). */
   primaryCompanyId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -150,8 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const role = profile?.role ?? null;
-  const primaryCompanyId = memberships[0]?.company_id ?? null;
-  const hasCompanyAssignment = memberships.length > 0;
+  const primaryCompanyId = getPrimaryCompanyId(profile, memberships);
+  const hasCompanyAssignment =
+    profile?.role === "company_owner"
+      ? primaryCompanyId !== null
+      : memberships.length > 0;
   const isSuperadmin = role === "superadmin";
   const isCompanyOwner = role === "company_owner";
 
@@ -199,6 +202,23 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+// TODO: Support multiple companies per owner in a later version.
+// TODO: Add company switcher later if needed.
+
+/**
+ * MVP: company_owner has one assigned company (owner membership).
+ * Superadmin has no primary company — they access all via admin routes.
+ */
+export function getPrimaryCompanyId(
+  profile: Profile | null,
+  memberships: CompanyMember[]
+): string | null {
+  if (!profile || profile.role !== "company_owner") return null;
+  const ownerMembership =
+    memberships.find((m) => m.role === "owner") ?? memberships[0];
+  return ownerMembership?.company_id ?? null;
+}
+
 /** Post-login destination by role and company assignment. */
 export function getPostLoginPath(
   profile: Profile | null,
@@ -207,7 +227,7 @@ export function getPostLoginPath(
   if (!profile) return "/login";
   if (profile.role === "superadmin") return "/admin";
   if (profile.role === "company_owner") {
-    const companyId = memberships[0]?.company_id;
+    const companyId = getPrimaryCompanyId(profile, memberships);
     if (companyId) return `/company/${companyId}/dashboard`;
     return "/no-company";
   }
@@ -221,6 +241,9 @@ export function userCanAccessCompany(
 ): boolean {
   if (!profile) return false;
   if (profile.role === "superadmin") return true;
+  if (profile.role === "company_owner") {
+    return getPrimaryCompanyId(profile, memberships) === companyId;
+  }
   return memberships.some((m) => m.company_id === companyId);
 }
 
