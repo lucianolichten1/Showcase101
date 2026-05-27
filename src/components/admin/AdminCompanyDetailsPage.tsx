@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Database, HardDrive, Layers, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Database,
+  ExternalLink,
+  HardDrive,
+  Layers,
+  Sparkles,
+} from "lucide-react";
 import type { CompanyRecord } from "@/domains/admin/types";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
@@ -140,13 +148,22 @@ export function AdminCompanyDetailsPage({ companies, onUpdateCompany }: Props) {
         Back to Companies
       </Link>
 
-      <div>
-        <h1 className="text-lg font-bold text-stone-900">{company.name}</h1>
-        <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
-          Super admin view for this company&apos;s niche, dedicated database plan, and
-          financial module access. Data is local mock state — Supabase routing per company
-          will be added later.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-stone-900">{company.name}</h1>
+          <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
+            Super admin view for this company&apos;s niche, dedicated database plan, and
+            financial module access. Data is local mock state — Supabase routing per company
+            will be added later.
+          </p>
+        </div>
+        <Link
+          to={`/company/${company.id}/dashboard`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-900 transition-colors"
+        >
+          <ExternalLink size={13} />
+          Enter Company Workspace
+        </Link>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

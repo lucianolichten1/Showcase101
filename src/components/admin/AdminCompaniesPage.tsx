@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Building2, Eye, Info } from "lucide-react";
+import { Plus, Building2, Eye, ExternalLink, Info } from "lucide-react";
 import {
   DEFAULT_COMPANY_DATABASE,
   databaseStatusLabel,
@@ -178,13 +178,23 @@ export function AdminCompaniesPage({ companies, onAddCompany }: Props) {
                         {formatCreatedDate(company.createdAt)}
                       </td>
                       <td className="py-2.5 text-right">
-                        <Link
-                          to={`/admin/companies/${company.id}`}
-                          className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-[10px] font-semibold text-stone-600 hover:border-green-200 hover:text-green-800 hover:bg-green-50 transition-colors"
-                        >
-                          <Eye size={12} />
-                          View
-                        </Link>
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <Link
+                            to={`/admin/companies/${company.id}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-[10px] font-semibold text-stone-600 hover:border-green-200 hover:text-green-800 hover:bg-green-50 transition-colors"
+                          >
+                            <Eye size={12} />
+                            View
+                          </Link>
+                          <Link
+                            to={`/company/${company.id}/dashboard`}
+                            className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-800 hover:bg-green-100 transition-colors"
+                            title="Enter company workspace"
+                          >
+                            <ExternalLink size={12} />
+                            Workspace
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))

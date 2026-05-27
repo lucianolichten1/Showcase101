@@ -13,6 +13,7 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
+import { CompanyWorkspacePage } from "./components/company/CompanyWorkspacePage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
 import { useFinancialData } from "./domains/financial/hooks";
@@ -84,6 +85,14 @@ export default function App() {
               }
             />
           }
+        />
+        <Route
+          path="/company/:companyId"
+          element={<Navigate to="dashboard" replace />}
+        />
+        <Route
+          path="/company/:companyId/dashboard"
+          element={<CompanyWorkspacePage companies={companyRecords} />}
         />
       </Route>
     </Routes>
