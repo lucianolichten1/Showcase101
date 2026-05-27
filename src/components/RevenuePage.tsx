@@ -183,7 +183,7 @@ export function RevenuePage() {
             <h1 className="text-lg font-bold text-stone-900">Revenue</h1>
             <p className="text-xs text-stone-500 mt-1 max-w-xl leading-relaxed">
               Track sales income, client payments, export and import revenue, and pending
-              receivables across your agro commercial operations.
+              receivables across your business operations.
             </p>
           </div>
           <button
@@ -509,7 +509,7 @@ export function RevenuePage() {
                   value={form.productService}
                   onChange={(e) => setForm((f) => ({ ...f, productService: e.target.value }))}
                   className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  placeholder="e.g. Yellow corn — 28 tons"
+                  placeholder="e.g. Consulting Services — Q1"
                 />
               </div>
 

@@ -266,8 +266,8 @@ export function ExportImportPage() {
       return;
     }
     const csv = rowsToCsv(importedHeaders, importedRows);
-    downloadCsvFile(csv, "agro-imported-data.csv");
-    setSuccessMessage(`Exported ${importedRows.length} rows to agro-imported-data.csv.`);
+    downloadCsvFile(csv, "imported-data.csv");
+    setSuccessMessage(`Exported ${importedRows.length} rows to imported-data.csv.`);
   };
 
   return (
