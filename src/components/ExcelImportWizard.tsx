@@ -9,6 +9,11 @@ import {
   createImportMapping,
   getSheetPreview,
 } from "@/domains/import/mapping";
+import {
+  countMappedARFields,
+  filterArAiWarnings,
+  normalizeArColumnMap,
+} from "@/domains/import/arMapping";
 import { runImportFromWorkbook, validateSheetMappings } from "@/domains/import/runImport";
 import type { SheetMapping, SheetRole, WorkbookPreview } from "@/domains/import/types";
 import {
@@ -52,6 +57,8 @@ function FieldMapper({
   columnMap,
   onChange,
   aiSuggestedFields,
+  showAiBadges = false,
+  helperText,
 }: {
   title: string;
   fields: readonly string[];
@@ -61,12 +68,17 @@ function FieldMapper({
   columnMap: Record<string, string>;
   onChange: (field: string, column: string) => void;
   aiSuggestedFields?: Set<string>;
+  showAiBadges?: boolean;
+  helperText?: string;
 }) {
   return (
     <div className="space-y-2 border border-stone-100 rounded-lg p-3 bg-stone-50/50">
       <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
         {title}
       </p>
+      {helperText && (
+        <p className="text-[10px] text-stone-500 -mt-1">{helperText}</p>
+      )}
       {fields.map((field) => (
         <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <label className="text-xs text-stone-700 sm:w-28 shrink-0 flex items-center gap-1">
@@ -74,7 +86,7 @@ function FieldMapper({
             {required.includes(field) && (
               <span className="text-red-500 ml-0.5">*</span>
             )}
-            {aiSuggestedFields?.has(field) && columnMap[field] && (
+            {showAiBadges && aiSuggestedFields?.has(field) && columnMap[field] && (
               <span className="ml-1 px-1 py-0.5 text-[8px] font-bold bg-green-100 text-green-700 rounded uppercase tracking-wide">AI</span>
             )}
           </label>
@@ -83,7 +95,7 @@ function FieldMapper({
             onChange={(e) => onChange(field, e.target.value)}
             className={cn(
               "flex-1 py-1.5 px-2 text-xs border rounded-lg bg-white",
-              aiSuggestedFields?.has(field) && columnMap[field]
+              showAiBadges && aiSuggestedFields?.has(field) && columnMap[field]
                 ? "border-green-300 bg-green-50/30"
                 : "border-stone-200"
             )}
@@ -109,6 +121,7 @@ export function ExcelImportWizard() {
     applyImportedData,
     clearImportedData,
     usesImportedData,
+    dateRange,
   } = useFinancialData();
 
   const [fileName, setFileName] = useState<string | null>(null);
@@ -125,8 +138,15 @@ export function ExcelImportWizard() {
   // AI mapping state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  // Track which fields were AI-suggested: sheetName → Set of fieldKeys
   const [aiSuggested, setAiSuggested] = useState<Record<string, Set<string>>>({});
+  const [aiSummaryBySheet, setAiSummaryBySheet] = useState<Record<string, string>>({});
+  const [showAiBadges, setShowAiBadges] = useState(false);
+
+  const importDefaultYear = useMemo(() => {
+    const fromRange = dateRange?.endDate?.slice(0, 4) ?? dateRange?.startDate?.slice(0, 4);
+    const year = fromRange ? Number(fromRange) : new Date().getFullYear();
+    return Number.isFinite(year) ? year : new Date().getFullYear();
+  }, [dateRange]);
 
   const activeSheet = useMemo(
     () => (workbook ? getSheetPreview(workbook, selectedSheet) : undefined),
@@ -140,6 +160,10 @@ export function ExcelImportWizard() {
       setErrorMessage(null);
       setSuccessMessage(null);
       setImportWarnings([]);
+      setAiError(null);
+      setAiSuggested({});
+      setAiSummaryBySheet({});
+      setShowAiBadges(false);
 
       if (!file.name.toLowerCase().endsWith(".xlsx")) {
         setErrorMessage("Please upload an Excel workbook (.xlsx).");
@@ -154,7 +178,13 @@ export function ExcelImportWizard() {
         setFileName(file.name);
         setFileBuffer(buffer);
         setWorkbook(preview);
-        setSheetMappings(mappings);
+        setSheetMappings(
+          mappings.map((m) =>
+            m.role === "accounts-receivable"
+              ? { ...m, columnMap: normalizeArColumnMap(m.columnMap) }
+              : m
+          )
+        );
         setSelectedSheet(preview.sheets[0]?.sheetName ?? "");
         setMappingName(importMapping?.name ?? `${file.name} mapping`);
       } catch (error) {
@@ -201,9 +231,13 @@ export function ExcelImportWizard() {
     if (!workbook) return;
     setAiLoading(true);
     setAiError(null);
+    setImportWarnings([]);
+    setAiSummaryBySheet({});
+    setShowAiBadges(false);
 
     try {
       const payload = {
+        importYear: importDefaultYear,
         sheets: workbook.sheets.map((sheet) => ({
           sheetName: sheet.sheetName,
           headers: sheet.headers,
@@ -222,29 +256,60 @@ export function ExcelImportWizard() {
 
       // Apply AI suggestions to sheetMappings state
       const newSuggested: Record<string, Set<string>> = {};
+      const newSummaries: Record<string, string> = {};
+      const collectedWarnings: string[] = [];
 
       setSheetMappings((prev) =>
         prev.map((mapping) => {
-          const suggestion = (data.sheets as { sheetName: string; role: SheetRole; mappings: Record<string, string>; warnings?: string[] }[])
-            .find((s) => s.sheetName === mapping.sheetName);
+          const suggestion = (data.sheets as {
+            sheetName: string;
+            role: SheetRole;
+            mappings: Record<string, string>;
+            warnings?: string[];
+          }[]).find((s) => s.sheetName === mapping.sheetName);
           if (!suggestion) return mapping;
 
-          newSuggested[mapping.sheetName] = new Set(Object.keys(suggestion.mappings ?? {}));
+          const role = suggestion.role ?? mapping.role;
+          const mergedMap =
+            role === "accounts-receivable"
+              ? normalizeArColumnMap({
+                  ...mapping.columnMap,
+                  ...(suggestion.mappings ?? {}),
+                })
+              : { ...mapping.columnMap, ...(suggestion.mappings ?? {}) };
 
-          // Collect and show warnings from AI
-          if (suggestion.warnings && suggestion.warnings.length > 0) {
-            setImportWarnings((prev) => [...prev, ...suggestion.warnings!]);
+          newSuggested[mapping.sheetName] = new Set(Object.keys(mergedMap));
+
+          if (suggestion.warnings?.length) {
+            const filtered =
+              role === "accounts-receivable"
+                ? filterArAiWarnings(suggestion.warnings)
+                : suggestion.warnings;
+            collectedWarnings.push(...filtered);
+          }
+
+          if (role === "accounts-receivable") {
+            const mappedCount = countMappedARFields(mergedMap);
+            if (mappedCount >= 3) {
+              newSummaries[mapping.sheetName] =
+                `AI mapped ${mappedCount} of ${AR_FIELD_KEYS.length} columns. Review and confirm.`;
+            }
           }
 
           return {
             ...mapping,
-            role: suggestion.role ?? mapping.role,
-            columnMap: { ...mapping.columnMap, ...(suggestion.mappings ?? {}) },
+            role,
+            columnMap: mergedMap,
           };
         })
       );
 
       setAiSuggested(newSuggested);
+      setAiSummaryBySheet(newSummaries);
+      setShowAiBadges(Object.keys(newSummaries).length > 0);
+      if (collectedWarnings.length > 0) {
+        setImportWarnings(collectedWarnings);
+      }
 
       // Auto-select first non-ignore sheet
       const firstMapped = workbook.sheets.find((s) => {
@@ -275,7 +340,9 @@ export function ExcelImportWizard() {
       return;
     }
 
-    const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName);
+    const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName, {
+      defaultYear: importDefaultYear,
+    });
     if (result.salesCount === 0 && result.expensesCount === 0 && result.arCount === 0 && result.customerCount === 0) {
       setErrorMessage(
         "No valid rows were imported. Check your column mappings and try again."
@@ -431,7 +498,10 @@ export function ExcelImportWizard() {
       {importWarnings.length > 0 && (
         <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 space-y-1 max-h-40 overflow-y-auto">
           <p className="font-bold uppercase tracking-wide text-amber-700">
-            {importWarnings.length} warning{importWarnings.length !== 1 ? "s" : ""} — rows with issues were skipped
+            {importWarnings.length} note{importWarnings.length !== 1 ? "s" : ""}
+            {importWarnings.some((w) => w.includes("row ") && w.includes("skipped"))
+              ? " — some rows were skipped"
+              : " — review before importing"}
           </p>
           {importWarnings.map((w) => (
             <p key={w} className="text-amber-800">{w}</p>
@@ -581,6 +651,7 @@ export function ExcelImportWizard() {
                     columnMap={activeMapping.columnMap}
                     onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
                     aiSuggestedFields={aiSuggested[selectedSheet]}
+                    showAiBadges={showAiBadges}
                   />
                 )}
 
@@ -594,20 +665,30 @@ export function ExcelImportWizard() {
                     columnMap={activeMapping.columnMap}
                     onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
                     aiSuggestedFields={aiSuggested[selectedSheet]}
+                    showAiBadges={showAiBadges}
                   />
                 )}
 
                 {activeMapping.role === "accounts-receivable" && (
-                  <FieldMapper
-                    title="Map accounts receivable columns"
-                    fields={AR_FIELD_KEYS}
-                    labels={AR_FIELD_LABELS}
-                    required={AR_REQUIRED_FIELDS}
-                    headers={activeSheet.headers}
-                    columnMap={activeMapping.columnMap}
-                    onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
-                    aiSuggestedFields={aiSuggested[selectedSheet]}
-                  />
+                  <>
+                    {aiSummaryBySheet[selectedSheet] && (
+                      <p className="text-xs text-green-800 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                        {aiSummaryBySheet[selectedSheet]}
+                      </p>
+                    )}
+                    <FieldMapper
+                      title="Map accounts receivable columns"
+                      fields={AR_FIELD_KEYS}
+                      labels={AR_FIELD_LABELS}
+                      required={AR_REQUIRED_FIELDS}
+                      headers={activeSheet.headers}
+                      columnMap={activeMapping.columnMap}
+                      onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
+                      aiSuggestedFields={aiSuggested[selectedSheet]}
+                      showAiBadges={showAiBadges}
+                      helperText="Due Date or Invoice Date is required. Invoice Date is optional when Due Date is mapped."
+                    />
+                  </>
                 )}
 
                 {activeMapping.role === "customers" && (
@@ -620,6 +701,7 @@ export function ExcelImportWizard() {
                     columnMap={activeMapping.columnMap}
                     onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
                     aiSuggestedFields={aiSuggested[selectedSheet]}
+                    showAiBadges={showAiBadges}
                   />
                 )}
 

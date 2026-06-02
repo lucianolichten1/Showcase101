@@ -12,12 +12,16 @@ export interface SalesRecord {
 /** Standardized AR/invoice row after Excel import + column mapping */
 export interface ImportARRecord {
   id: string;
-  invoiceDate: string;     // ISO date — primary date, used as dueDate
+  /** ISO date — required on record; falls back to dueDate when invoice date is absent */
+  invoiceDate: string;
   amount: number;
   customerName?: string;
   customerId?: string;
-  dueDate?: string;        // ISO date — overrides invoiceDate when present
-  status?: string;         // raw string; normalized to ReceivablePaymentStatus on convert
+  dueDate?: string;
+  paidAmount?: number;
+  balanceDue?: number;
+  daysOverdue?: number;
+  status?: string;
   invoiceNumber?: string;
 }
 
@@ -143,26 +147,31 @@ export const EXPENSE_FIELD_LABELS: Record<ExpenseFieldKey, string> = {
 };
 
 export const AR_FIELD_KEYS = [
-  "invoiceDate",
-  "amount",
-  "customerName",
-  "customerId",
   "dueDate",
-  "status",
+  "totalAmount",
+  "customerName",
   "invoiceNumber",
+  "paidAmount",
+  "balanceDue",
+  "status",
+  "daysOverdue",
+  "invoiceDate",
 ] as const;
 
 export type ARFieldKey = (typeof AR_FIELD_KEYS)[number];
-export const AR_REQUIRED_FIELDS: ARFieldKey[] = ["invoiceDate", "amount"];
+/** Validated in runImport: totalAmount + (dueDate or invoiceDate). */
+export const AR_REQUIRED_FIELDS: ARFieldKey[] = ["totalAmount", "dueDate"];
 
 export const AR_FIELD_LABELS: Record<ARFieldKey, string> = {
-  invoiceDate: "Invoice Date",
-  amount: "Amount",
+  dueDate: "Due Date",
+  totalAmount: "Total Amount",
   customerName: "Customer Name",
-  customerId: "Customer ID",
-  dueDate: "Due Date (if different)",
-  status: "Status",
   invoiceNumber: "Invoice #",
+  paidAmount: "Paid",
+  balanceDue: "Balance Due",
+  status: "Status",
+  daysOverdue: "Days Overdue",
+  invoiceDate: "Invoice Date (optional)",
 };
 
 export const CUSTOMER_FIELD_KEYS = [

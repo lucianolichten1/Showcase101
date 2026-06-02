@@ -1,6 +1,15 @@
+import {
+  getMappedTotalAmountColumn,
+  hasARPrimaryDateMapping,
+} from "./arMapping";
 import { readSheetRows } from "./parseWorkbook";
 import { normalizeARRows, normalizeCustomerRows, normalizeExpenseRows, normalizeSalesRows } from "./normalize";
 import type { ImportedData, SheetMapping } from "./types";
+
+export interface RunImportOptions {
+  /** Year for AR due dates like "May 10" without a year */
+  defaultYear?: number;
+}
 
 export interface RunImportResult {
   data: ImportedData;
@@ -15,7 +24,8 @@ export interface RunImportResult {
 export function runImportFromWorkbook(
   fileBuffer: ArrayBuffer,
   sheetMappings: SheetMapping[],
-  sourceFileName: string
+  sourceFileName: string,
+  options?: RunImportOptions
 ): RunImportResult {
   const idPrefix = `import-${Date.now()}`;
   const allWarnings: string[] = [];
@@ -40,7 +50,9 @@ export function runImportFromWorkbook(
       skipped += result.skipped;
       allWarnings.push(...result.warnings);
     } else if (mapping.role === "accounts-receivable") {
-      const result = normalizeARRows(rows, mapping, idPrefix);
+      const result = normalizeARRows(rows, mapping, idPrefix, {
+        defaultYear: options?.defaultYear,
+      });
       arReceivables.push(...result.records);
       skipped += result.skipped;
       allWarnings.push(...result.warnings);
@@ -96,8 +108,11 @@ export function validateSheetMappings(
   }
 
   for (const sheet of arSheets) {
-    if (!sheet.columnMap.invoiceDate || !sheet.columnMap.amount) {
-      return `Accounts Receivable sheet "${sheet.sheetName}" requires Invoice Date and Amount column mappings.`;
+    if (!getMappedTotalAmountColumn(sheet.columnMap)) {
+      return `Accounts Receivable sheet "${sheet.sheetName}" requires a Total Amount column mapping.`;
+    }
+    if (!hasARPrimaryDateMapping(sheet.columnMap)) {
+      return `Accounts Receivable sheet "${sheet.sheetName}" requires Due Date or Invoice Date column mapping.`;
     }
   }
 

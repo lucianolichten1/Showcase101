@@ -41,6 +41,10 @@ test("named month date", () => {
   assert.equal(parseDateValue("15-Mar-2026"), "2026-03-15");
 });
 
+test("month day without year uses defaultYear", () => {
+  assert.equal(parseDateValue("May 10", { defaultYear: 2026 }), "2026-05-10");
+});
+
 test("ISO datetime prefix", () => {
   assert.equal(parseDateValue("2026-05-15T14:30:00.000Z"), "2026-05-15");
 });

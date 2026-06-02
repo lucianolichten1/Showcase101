@@ -1,3 +1,4 @@
+import { AR_HEADER_HINTS, normalizeArColumnMap } from "./arMapping";
 import type {
   ImportMapping,
   SheetMapping,
@@ -64,9 +65,31 @@ function guessExpenseColumnMap(headers: string[]): Record<string, string> {
   return map;
 }
 
+function guessARColumnMap(headers: string[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [field, hints] of Object.entries(AR_HEADER_HINTS)) {
+    const match = guessColumn(headers, hints);
+    if (match) map[field] = match;
+  }
+  return map;
+}
+
 function guessSheetRole(sheetName: string, headers: string[]): SheetRole {
   const name = sheetName.toLowerCase();
   const headerText = headers.map(normalizeHeader).join(" ");
+
+  if (
+    name.includes("receivable") ||
+    name.includes("cobrar") ||
+    name.includes("cuentas por cobrar") ||
+    headerText.includes("balance due") ||
+    headerText.includes("days overdue") ||
+    headerText.includes("saldo pendiente") ||
+    (headerText.includes("invoice") && headerText.includes("due date")) ||
+    (headerText.includes("factura") && headerText.includes("vencimiento"))
+  ) {
+    return "accounts-receivable";
+  }
 
   if (
     name.includes("expense") ||
@@ -78,14 +101,27 @@ function guessSheetRole(sheetName: string, headers: string[]): SheetRole {
   }
 
   if (
+    name.includes("customer") ||
+    name.includes("cliente") ||
+    (headerText.includes("email") && headerText.includes("phone") && !headerText.includes("invoice"))
+  ) {
+    return "customers";
+  }
+
+  if (
     name.includes("sale") ||
     name.includes("revenue") ||
     name.includes("venta") ||
-    headerText.includes("cliente") ||
-    headerText.includes("customer") ||
-    headerText.includes("revenue")
+    (headerText.includes("revenue") && !headerText.includes("balance due"))
   ) {
     return "sales";
+  }
+
+  if (
+    headerText.includes("customer") &&
+    (headerText.includes("total") || headerText.includes("paid") || headerText.includes("due date"))
+  ) {
+    return "accounts-receivable";
   }
 
   return "ignore";
@@ -102,7 +138,9 @@ export function buildDefaultSheetMappings(
         ? guessSalesColumnMap(sheet.headers)
         : role === "expenses"
           ? guessExpenseColumnMap(sheet.headers)
-          : {};
+          : role === "accounts-receivable"
+            ? guessARColumnMap(sheet.headers)
+            : {};
     return { sheetName: sheet.sheetName, role, columnMap };
   });
 }
@@ -136,14 +174,18 @@ export function applySavedMapping(
       }
     }
 
+    const resolvedMap =
+      Object.keys(columnMap).length > 0
+        ? columnMap
+        : (defaults.find((d) => d.sheetName === sheet.sheetName)?.columnMap ?? {});
+
     return {
       sheetName: sheet.sheetName,
       role: savedSheet.role,
       columnMap:
-        Object.keys(columnMap).length > 0
-          ? columnMap
-          : (defaults.find((d) => d.sheetName === sheet.sheetName)?.columnMap ??
-            {}),
+        savedSheet.role === "accounts-receivable"
+          ? normalizeArColumnMap(resolvedMap)
+          : resolvedMap,
     };
   });
 }

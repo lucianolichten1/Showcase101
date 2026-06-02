@@ -58,9 +58,12 @@ export function arToReceivableRecords(records: ImportARRecord[]): ReceivableReco
       customer: r.customerName ?? "—",
       invoiceNumber: r.invoiceNumber ?? `IMP-${String(i + 1).padStart(3, "0")}`,
       amount: r.amount,
-      amountPaid: 0,
+      amountPaid: r.paidAmount ?? 0,
       dueDate: isoToDisplayDate(dueDateIso),
-      overdueDays,
+      overdueDays:
+        r.daysOverdue != null && Number.isFinite(r.daysOverdue)
+          ? Math.max(0, Math.round(r.daysOverdue))
+          : overdueDays,
       status: normalizeARStatus(r.status, overdueDays),
     };
   });

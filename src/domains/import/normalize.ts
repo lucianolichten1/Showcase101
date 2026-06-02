@@ -1,4 +1,8 @@
-import { parseDateValue } from "./dateUtils";
+import {
+  getMappedTotalAmountColumn,
+  hasARPrimaryDateMapping,
+} from "./arMapping";
+import { isMonthDayWithoutYear, parseDateValue, type ParseDateOptions } from "./dateUtils";
 import type {
   ImportARRecord,
   ImportCustomerRecord,
@@ -7,7 +11,6 @@ import type {
   SheetMapping,
 } from "./types";
 import {
-  AR_REQUIRED_FIELDS,
   CUSTOMER_REQUIRED_FIELDS,
   EXPENSE_REQUIRED_FIELDS,
   SALES_REQUIRED_FIELDS,
@@ -152,51 +155,96 @@ export function normalizeExpenseRows(
   return { records, skipped, warnings };
 }
 
+export interface NormalizeAROptions {
+  defaultYear?: number;
+}
+
 export function normalizeARRows(
   rows: Record<string, unknown>[],
   mapping: SheetMapping,
-  idPrefix: string
+  idPrefix: string,
+  options?: NormalizeAROptions
 ): NormalizeResult<ImportARRecord> {
   const warnings: string[] = [];
-  const missing = missingRequiredFields(mapping.columnMap, AR_REQUIRED_FIELDS);
-  if (missing.length > 0) {
+  const dateOpts: ParseDateOptions | undefined =
+    options?.defaultYear != null ? { defaultYear: options.defaultYear } : undefined;
+
+  if (!getMappedTotalAmountColumn(mapping.columnMap)) {
     return {
       records: [],
       skipped: rows.length,
-      warnings: [`Missing required AR mappings: ${missing.join(", ")}`],
+      warnings: ["Missing required AR mapping: totalAmount"],
+    };
+  }
+
+  if (!hasARPrimaryDateMapping(mapping.columnMap)) {
+    return {
+      records: [],
+      skipped: rows.length,
+      warnings: ["Missing required AR mapping: dueDate or invoiceDate"],
     };
   }
 
   const records: ImportARRecord[] = [];
   let skipped = 0;
+  let inferredYearNoted = false;
 
   rows.forEach((row, index) => {
-    const invoiceDate = parseDateValue(
-      getMappedValue(row, mapping.columnMap, "invoiceDate")
-    );
-    const amount = parseNumberValue(
-      getMappedValue(row, mapping.columnMap, "amount")
-    );
+    const invoiceDateRaw = getMappedValue(row, mapping.columnMap, "invoiceDate");
+    const dueDateRawValue = getMappedValue(row, mapping.columnMap, "dueDate");
 
-    if (!invoiceDate || amount === null) {
+    const invoiceDate = mapping.columnMap.invoiceDate
+      ? parseDateValue(invoiceDateRaw, dateOpts)
+      : null;
+    const dueDateParsed = mapping.columnMap.dueDate
+      ? parseDateValue(dueDateRawValue, dateOpts)
+      : null;
+
+    const primaryDate = invoiceDate ?? dueDateParsed;
+
+    const totalColumn = getMappedTotalAmountColumn(mapping.columnMap)!;
+    const amount = parseNumberValue(row[totalColumn]);
+
+    if (!primaryDate || amount === null) {
       skipped += 1;
-      warnings.push(`AR row ${index + 2}: invalid invoiceDate or amount`);
+      warnings.push(`AR row ${index + 2}: invalid date or total amount`);
       return;
     }
 
-    const dueDateRaw = parseDateValue(
-      getMappedValue(row, mapping.columnMap, "dueDate")
+    if (
+      !inferredYearNoted &&
+      options?.defaultYear != null &&
+      mapping.columnMap.dueDate &&
+      (isMonthDayWithoutYear(dueDateRawValue) ||
+        (mapping.columnMap.invoiceDate && isMonthDayWithoutYear(invoiceDateRaw)))
+    ) {
+      inferredYearNoted = true;
+      warnings.push(
+        `Due dates without a year (e.g. "May 10") were interpreted using ${options.defaultYear} from your active financial period.`
+      );
+    }
+
+    const paidAmount = parseNumberValue(
+      getMappedValue(row, mapping.columnMap, "paidAmount")
+    );
+    const balanceDue = parseNumberValue(
+      getMappedValue(row, mapping.columnMap, "balanceDue")
+    );
+    const daysOverdue = parseNumberValue(
+      getMappedValue(row, mapping.columnMap, "daysOverdue")
     );
 
     records.push({
       id: `${idPrefix}-ar-${index + 1}`,
-      invoiceDate,
+      invoiceDate: primaryDate,
       amount,
-      dueDate: dueDateRaw ?? undefined,
+      dueDate: dueDateParsed ?? undefined,
       customerName: trimText(getMappedValue(row, mapping.columnMap, "customerName")),
-      customerId: trimText(getMappedValue(row, mapping.columnMap, "customerId")),
       status: trimText(getMappedValue(row, mapping.columnMap, "status")),
       invoiceNumber: trimText(getMappedValue(row, mapping.columnMap, "invoiceNumber")),
+      paidAmount: paidAmount ?? undefined,
+      balanceDue: balanceDue ?? undefined,
+      daysOverdue: daysOverdue ?? undefined,
     });
   });
 

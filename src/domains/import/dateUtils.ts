@@ -90,7 +90,12 @@ function parseSlashDate(text: string): string | null {
   return toIsoDateParts(year, month, day);
 }
 
-function parseMonthNameDate(text: string): string | null {
+export interface ParseDateOptions {
+  /** Used for values like "May 10" without a year */
+  defaultYear?: number;
+}
+
+function parseMonthNameDate(text: string, defaultYear?: number): string | null {
   const months: Record<string, number> = {
     jan: 1,
     feb: 2,
@@ -118,14 +123,32 @@ function parseMonthNameDate(text: string): string | null {
     if (month) return toIsoDateParts(Number(mdy[3]), month, Number(mdy[2]));
   }
 
+  if (defaultYear != null) {
+    const monthDay = /^([A-Za-z]{3,9})\s+(\d{1,2})$/.exec(text.trim());
+    if (monthDay) {
+      const month = months[monthDay[1].slice(0, 3).toLowerCase()];
+      if (month) return toIsoDateParts(defaultYear, month, Number(monthDay[2]));
+    }
+  }
+
   return null;
+}
+
+/** True when value looks like "May 10" without a year. */
+export function isMonthDayWithoutYear(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return /^[A-Za-z]{3,9}\s+\d{1,2}$/.test(text);
 }
 
 /**
  * Parse Excel serial, Date objects, ISO text, and common locale date strings
  * into YYYY-MM-DD.
  */
-export function parseDateValue(value: unknown): string | null {
+export function parseDateValue(
+  value: unknown,
+  options?: ParseDateOptions
+): string | null {
   if (value === null || value === undefined || value === "") return null;
 
   if (value instanceof Date) {
@@ -159,7 +182,7 @@ export function parseDateValue(value: unknown): string | null {
   const slash = parseSlashDate(text);
   if (slash) return slash;
 
-  const named = parseMonthNameDate(text);
+  const named = parseMonthNameDate(text, options?.defaultYear);
   if (named) return named;
 
   const parsed = new Date(text);
