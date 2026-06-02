@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { parseWorkbookFile } from "@/domains/import/parseWorkbook";
 import {
@@ -50,6 +51,7 @@ function FieldMapper({
   headers,
   columnMap,
   onChange,
+  aiSuggestedFields,
 }: {
   title: string;
   fields: readonly string[];
@@ -58,6 +60,7 @@ function FieldMapper({
   headers: string[];
   columnMap: Record<string, string>;
   onChange: (field: string, column: string) => void;
+  aiSuggestedFields?: Set<string>;
 }) {
   return (
     <div className="space-y-2 border border-stone-100 rounded-lg p-3 bg-stone-50/50">
@@ -66,16 +69,24 @@ function FieldMapper({
       </p>
       {fields.map((field) => (
         <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-          <label className="text-xs text-stone-700 sm:w-28 shrink-0">
+          <label className="text-xs text-stone-700 sm:w-28 shrink-0 flex items-center gap-1">
             {labels[field]}
             {required.includes(field) && (
               <span className="text-red-500 ml-0.5">*</span>
+            )}
+            {aiSuggestedFields?.has(field) && columnMap[field] && (
+              <span className="ml-1 px-1 py-0.5 text-[8px] font-bold bg-green-100 text-green-700 rounded uppercase tracking-wide">AI</span>
             )}
           </label>
           <select
             value={columnMap[field] ?? ""}
             onChange={(e) => onChange(field, e.target.value)}
-            className="flex-1 py-1.5 px-2 text-xs border border-stone-200 rounded-lg bg-white"
+            className={cn(
+              "flex-1 py-1.5 px-2 text-xs border rounded-lg bg-white",
+              aiSuggestedFields?.has(field) && columnMap[field]
+                ? "border-green-300 bg-green-50/30"
+                : "border-stone-200"
+            )}
           >
             <option value="">— Select column —</option>
             {headers.map((header) => (
@@ -110,6 +121,12 @@ export function ExcelImportWizard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  // AI mapping state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  // Track which fields were AI-suggested: sheetName → Set of fieldKeys
+  const [aiSuggested, setAiSuggested] = useState<Record<string, Set<string>>>({});
 
   const activeSheet = useMemo(
     () => (workbook ? getSheetPreview(workbook, selectedSheet) : undefined),
@@ -178,6 +195,68 @@ export function ExcelImportWizard() {
         return { ...m, columnMap };
       })
     );
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    if (!workbook) return;
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const payload = {
+        sheets: workbook.sheets.map((sheet) => ({
+          sheetName: sheet.sheetName,
+          headers: sheet.headers,
+          sampleRows: sheet.previewRows.slice(0, 5),
+        })),
+      };
+
+      const { data, error } = await supabase.functions.invoke("analyze-import", {
+        body: payload,
+      });
+
+      if (error || !data?.sheets) {
+        setAiError("AI analysis failed — please map columns manually or try again.");
+        return;
+      }
+
+      // Apply AI suggestions to sheetMappings state
+      const newSuggested: Record<string, Set<string>> = {};
+
+      setSheetMappings((prev) =>
+        prev.map((mapping) => {
+          const suggestion = (data.sheets as { sheetName: string; role: SheetRole; mappings: Record<string, string>; warnings?: string[] }[])
+            .find((s) => s.sheetName === mapping.sheetName);
+          if (!suggestion) return mapping;
+
+          newSuggested[mapping.sheetName] = new Set(Object.keys(suggestion.mappings ?? {}));
+
+          // Collect and show warnings from AI
+          if (suggestion.warnings && suggestion.warnings.length > 0) {
+            setImportWarnings((prev) => [...prev, ...suggestion.warnings!]);
+          }
+
+          return {
+            ...mapping,
+            role: suggestion.role ?? mapping.role,
+            columnMap: { ...mapping.columnMap, ...(suggestion.mappings ?? {}) },
+          };
+        })
+      );
+
+      setAiSuggested(newSuggested);
+
+      // Auto-select first non-ignore sheet
+      const firstMapped = workbook.sheets.find((s) => {
+        const suggestion = (data.sheets as { sheetName: string; role: string }[]).find((d) => d.sheetName === s.sheetName);
+        return suggestion?.role !== "ignore";
+      });
+      if (firstMapped) setSelectedSheet(firstMapped.sheetName);
+    } catch (err) {
+      setAiError("AI analysis failed — please map columns manually or try again.");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleImport = () => {
@@ -361,6 +440,36 @@ export function ExcelImportWizard() {
       )}
 
       {workbook && workbook.sheets.length > 0 && (
+        <div className="flex items-center justify-between gap-3 border border-stone-100 rounded-lg px-4 py-3 bg-stone-50/50">
+          <div>
+            <p className="text-xs font-semibold text-stone-700">
+              {workbook.sheets.length} sheet{workbook.sheets.length !== 1 ? "s" : ""} detected
+            </p>
+            <p className="text-[10px] text-stone-400 mt-0.5">
+              Assign roles and map columns manually, or let AI do it for you.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5 items-end">
+            <button
+              type="button"
+              onClick={handleAnalyzeWithAI}
+              disabled={aiLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-800 text-white text-xs font-bold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+            >
+              {aiLoading ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing…</>
+              ) : (
+                <><Sparkles className="h-3.5 w-3.5" /> Analyze with AI</>
+              )}
+            </button>
+            {aiError && (
+              <p className="text-[10px] text-red-600 max-w-[220px] text-right">{aiError}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {workbook && workbook.sheets.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-4 space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
@@ -470,9 +579,8 @@ export function ExcelImportWizard() {
                     required={SALES_REQUIRED_FIELDS}
                     headers={activeSheet.headers}
                     columnMap={activeMapping.columnMap}
-                    onChange={(field, col) =>
-                      updateColumnMap(selectedSheet, field, col)
-                    }
+                    onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
+                    aiSuggestedFields={aiSuggested[selectedSheet]}
                   />
                 )}
 
@@ -484,9 +592,8 @@ export function ExcelImportWizard() {
                     required={EXPENSE_REQUIRED_FIELDS}
                     headers={activeSheet.headers}
                     columnMap={activeMapping.columnMap}
-                    onChange={(field, col) =>
-                      updateColumnMap(selectedSheet, field, col)
-                    }
+                    onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
+                    aiSuggestedFields={aiSuggested[selectedSheet]}
                   />
                 )}
 
@@ -498,9 +605,8 @@ export function ExcelImportWizard() {
                     required={AR_REQUIRED_FIELDS}
                     headers={activeSheet.headers}
                     columnMap={activeMapping.columnMap}
-                    onChange={(field, col) =>
-                      updateColumnMap(selectedSheet, field, col)
-                    }
+                    onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
+                    aiSuggestedFields={aiSuggested[selectedSheet]}
                   />
                 )}
 
@@ -512,9 +618,8 @@ export function ExcelImportWizard() {
                     required={CUSTOMER_REQUIRED_FIELDS}
                     headers={activeSheet.headers}
                     columnMap={activeMapping.columnMap}
-                    onChange={(field, col) =>
-                      updateColumnMap(selectedSheet, field, col)
-                    }
+                    onChange={(field, col) => updateColumnMap(selectedSheet, field, col)}
+                    aiSuggestedFields={aiSuggested[selectedSheet]}
                   />
                 )}
 
