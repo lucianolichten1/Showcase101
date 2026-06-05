@@ -171,7 +171,9 @@ function FieldMapper({
 export function ExcelImportWizard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { primaryCompanyId } = useAuth();
+  const { primaryCompanyId, isCompanyOwner } = useAuth();
+  /** Enhanced upload/confirm flow is for company owners only — superadmin keeps legacy UI. */
+  const isEnhancedFlow = isCompanyOwner;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     importMapping,
@@ -275,7 +277,7 @@ export function ExcelImportWizard() {
         return;
       }
 
-      setIsProcessingFile(true);
+      if (isEnhancedFlow) setIsProcessingFile(true);
       try {
         const buffer = await file.arrayBuffer();
         const preview = await parseWorkbookFile(file);
@@ -302,7 +304,7 @@ export function ExcelImportWizard() {
         setIsProcessingFile(false);
       }
     },
-    [importMapping, resetUpload]
+    [importMapping, resetUpload, isEnhancedFlow]
   );
 
   const updateSheetMapping = (sheetName: string, patch: Partial<SheetMapping>) => {
@@ -449,7 +451,7 @@ export function ExcelImportWizard() {
       return;
     }
 
-    setIsImporting(true);
+    if (isEnhancedFlow) setIsImporting(true);
     try {
       const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName, {
         defaultYear: importDefaultYear,
@@ -511,9 +513,11 @@ export function ExcelImportWizard() {
           ` Active dataset: ${totals}.` +
           (result.skipped > 0 ? ` ${result.skipped} rows skipped in file.` : "")
       );
-      setImportComplete(true);
+      if (isEnhancedFlow) {
+        setImportComplete(true);
+      }
     } finally {
-      setIsImporting(false);
+      if (isEnhancedFlow) setIsImporting(false);
     }
   };
 
@@ -544,7 +548,7 @@ export function ExcelImportWizard() {
         )}
       </div>
 
-      <WizardStepIndicator currentStep={currentWizardStep} />
+      {isEnhancedFlow && <WizardStepIndicator currentStep={currentWizardStep} />}
 
       <div
         onDragOver={(e) => {
@@ -563,7 +567,7 @@ export function ExcelImportWizard() {
           workbook ? "p-4" : "p-8 sm:p-10",
           isDragging
             ? "border-green-500 bg-green-50/50"
-            : workbook
+            : workbook && isEnhancedFlow
               ? "border-green-300 bg-green-50/30"
               : "border-stone-200 bg-stone-50/30"
         )}
@@ -579,7 +583,7 @@ export function ExcelImportWizard() {
             e.target.value = "";
           }}
         />
-        {isProcessingFile ? (
+        {isEnhancedFlow && isProcessingFile ? (
           <div className="flex flex-col items-center gap-3 py-2">
             <Loader2 className="h-7 w-7 text-green-700 animate-spin" />
             <p className="text-sm font-semibold text-stone-700">Reading your Excel file…</p>
@@ -588,13 +592,23 @@ export function ExcelImportWizard() {
         ) : workbook && fileName ? (
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
-                <CheckCircle2 className="h-5 w-5 text-green-700" />
-              </div>
+              {isEnhancedFlow ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
+                  <CheckCircle2 className="h-5 w-5 text-green-700" />
+                </div>
+              ) : (
+                <FileSpreadsheet className="h-6 w-6 text-green-700 shrink-0" />
+              )}
               <div className="min-w-0 text-left">
                 <p className="text-sm font-semibold text-stone-900 truncate">{fileName}</p>
-                <p className="text-xs text-green-700 font-medium">
-                  Uploaded successfully · {workbook.sheets.length} sheet
+                <p
+                  className={cn(
+                    "text-xs",
+                    isEnhancedFlow ? "text-green-700 font-medium" : "text-stone-500"
+                  )}
+                >
+                  {isEnhancedFlow ? "Uploaded successfully · " : ""}
+                  {workbook.sheets.length} sheet
                   {workbook.sheets.length !== 1 ? "s" : ""} detected
                 </p>
               </div>
@@ -607,15 +621,17 @@ export function ExcelImportWizard() {
               >
                 Change file
               </button>
-              <button
-                type="button"
-                onClick={resetUpload}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors"
-                title="Remove file and start over"
-              >
-                <X className="h-3 w-3" />
-                Remove
-              </button>
+              {isEnhancedFlow && (
+                <button
+                  type="button"
+                  onClick={resetUpload}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors"
+                  title="Remove file and start over"
+                >
+                  <X className="h-3 w-3" />
+                  Remove
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -638,7 +654,7 @@ export function ExcelImportWizard() {
         )}
       </div>
 
-      {workbook && fileName && !isProcessingFile && !importComplete && (
+      {isEnhancedFlow && workbook && fileName && !isProcessingFile && !importComplete && (
         <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
           <CheckCircle2 className="h-5 w-5 text-green-700 shrink-0 mt-0.5" />
           <div className="min-w-0">
@@ -659,7 +675,14 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {importComplete && successMessage && (
+      {successMessage && !isEnhancedFlow && (
+        <div className="flex items-start gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {importComplete && successMessage && isEnhancedFlow && (
         <div className="rounded-xl border-2 border-green-300 bg-green-50 px-4 py-4 space-y-3">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
@@ -704,7 +727,7 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && workbook.sheets.length > 0 && !importComplete && (
+      {workbook && workbook.sheets.length > 0 && (!isEnhancedFlow || !importComplete) && (
         <div className="flex items-center justify-between gap-3 border border-stone-100 rounded-lg px-4 py-3 bg-stone-50/50">
           <div>
             <p className="text-xs font-semibold text-stone-700">
@@ -734,7 +757,7 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && workbook.sheets.length > 0 && !importComplete && (
+      {workbook && workbook.sheets.length > 0 && (!isEnhancedFlow || !importComplete) && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-4 space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
@@ -911,7 +934,7 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && !importComplete && (
+      {workbook && isEnhancedFlow && !importComplete && (
         <div className="border-t border-stone-100 pt-4 space-y-4">
           <div
             className={cn(
@@ -1031,6 +1054,55 @@ export function ExcelImportWizard() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {workbook && !isEnhancedFlow && (
+        <div className="border-t border-stone-100 pt-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                Mapping name{" "}
+                <span className="normal-case font-normal">(saved locally for re-use)</span>
+              </label>
+              <input
+                type="text"
+                value={mappingName}
+                onChange={(e) => setMappingName(e.target.value)}
+                className="mt-1 w-full py-2 px-3 text-xs border border-stone-200 rounded-lg focus:outline-none focus:border-green-700 transition-colors"
+              />
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {usesImportedData && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearImportedData();
+                    setSuccessMessage(null);
+                    setErrorMessage(null);
+                    setSuccessMessage("Import cleared. Dashboard is now showing demo data.");
+                  }}
+                  className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors"
+                >
+                  Clear import
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleImport()}
+                className="px-5 py-2 text-xs font-bold bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors shadow-sm"
+              >
+                Import now
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-stone-400">
+            Sheet roles:{" "}
+            <span className="text-stone-500">
+              Sales, Expenses, Accounts Receivable, Customers
+            </span>{" "}
+            — assign each sheet before importing.
+          </p>
         </div>
       )}
     </section>
