@@ -50,7 +50,17 @@ function tooltipLabel(name: string): string {
 }
 
 export function FinancialChart({ period }: FinancialChartProps) {
-  const { revenueRecords, expenseRecords, usesImportedData } = useCompanyScopedFinancialData();
+  const {
+    revenueRecords,
+    expenseRecords,
+    filteredRevenueRecords,
+    filteredExpenseRecords,
+    usesImportedData,
+  } = useCompanyScopedFinancialData();
+
+  // Use the same period-filtered records as dashboard KPIs
+  const chartRevenue = usesImportedData ? filteredRevenueRecords : revenueRecords;
+  const chartExpenses = usesImportedData ? filteredExpenseRecords : expenseRecords;
 
   // Which series are currently visible — all on by default
   const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({
@@ -68,10 +78,10 @@ export function FinancialChart({ period }: FinancialChartProps) {
 
   const rawMonthly = useMemo(
     () =>
-      computeMonthlyFinancials(revenueRecords, expenseRecords, period, {
+      computeMonthlyFinancials(chartRevenue, chartExpenses, period, {
         useDataDrivenMonths: usesImportedData,
       }),
-    [revenueRecords, expenseRecords, period, usesImportedData]
+    [chartRevenue, chartExpenses, period, usesImportedData]
   );
 
   // Merge COGS into the costs bar so Revenue − Total Costs = Net Profit on the chart.
@@ -92,16 +102,19 @@ export function FinancialChart({ period }: FinancialChartProps) {
       : monthlyFinancials.length <= 5
         ? 28
         : 16;
-  const hasData = usesImportedData && monthlyFinancials.some(
-    (row) => row.revenue > 0 || row.expenses > 0
-  );
+  const hasData =
+    usesImportedData &&
+    monthlyFinancials.length > 0 &&
+    monthlyFinancials.some(
+      (row) => row.revenue > 0 || row.expenses > 0 || row.profit !== 0
+    );
 
   const emptyMessage = !usesImportedData
     ? "Import Excel data to view monthly financial trends."
     : "No financial data for this period.";
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5 h-full flex flex-col min-h-[360px]">
+    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5 flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
@@ -144,7 +157,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-[280px] w-full">
+      <div className="w-full h-[300px]">
         {!hasData ? (
           <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/50">
             <p className="text-sm text-stone-500 text-center px-4">{emptyMessage}</p>
