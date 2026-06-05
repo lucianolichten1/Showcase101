@@ -1,5 +1,6 @@
 import { BarChart3, LogOut, X } from "lucide-react";
-import { getNavigationForRole } from "@/domains/auth/navigation";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { getNavigationForContext } from "@/domains/auth/navigation";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { formatRoleLabel } from "@/domains/auth/labels";
 import { SidebarNavItem } from "./SidebarNavItem";
@@ -13,8 +14,21 @@ interface SidebarProps {
 
 export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
   const { profile, role, primaryCompanyId, signOut } = useAuth();
-  const navItems = getNavigationForRole(role, primaryCompanyId);
+  const location = useLocation();
+  const { companyId: routeCompanyId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navItems = getNavigationForContext({
+    role,
+    primaryCompanyId,
+    pathname: location.pathname,
+    routeCompanyId,
+    queryCompanyId: searchParams.get("companyId"),
+  });
   const roleLabel = formatRoleLabel(role);
+  const navLabel =
+    role === "superadmin" && navItems.length === 1 && navItems[0]?.id === "admin-companies"
+      ? "Admin navigation"
+      : "Main navigation";
 
   return (
     <aside
@@ -49,7 +63,7 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label={navLabel}>
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.id}>
