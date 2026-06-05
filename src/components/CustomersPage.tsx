@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Sparkles, Users } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Users } from "lucide-react";
 import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
@@ -73,13 +73,6 @@ function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: Sort
     ? <ArrowUp size={10} className="inline ml-1 text-green-700" />
     : <ArrowDown size={10} className="inline ml-1 text-green-700" />;
 }
-
-const customerAiInsights = [
-  { type: "Opportunity", text: "Customers with consistent partial payments show buying intent. Consider offering flexible payment plans to convert them to full payers." },
-  { type: "Risk", text: "Customers overdue by 45+ days with no payment activity are high collection risk. Prioritize direct outreach before escalating." },
-  { type: "Opportunity", text: "Your highest-paying customers deserve priority service. Nurture these relationships with early access to new offerings and dedicated support." },
-  { type: "Watch", text: "Inactive customers who made partial payments may respond to re-engagement offers or targeted discounts. Review their history before reaching out." },
-];
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -423,35 +416,6 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                 <span className="text-[10px] text-stone-400">{formatCurrency(total)} invoiced</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* AI Insights */}
-        <div className="bg-green-800 text-white rounded-xl shadow-lg p-5 relative overflow-hidden">
-          <div className="absolute top-[-20px] right-[-20px] w-48 h-48 bg-green-700/30 rounded-full blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-green-300" />
-              <h3 className="text-sm font-bold uppercase tracking-widest">AI Customer Insights</h3>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {customerAiInsights.map((insight, idx) => (
-                <div key={idx} className="p-3 bg-white/10 rounded-lg border border-white/10 flex flex-col gap-1.5">
-                  <span className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full self-start border",
-                    insight.type === "Opportunity" && "bg-green-600/40 text-green-200 border-green-500/30",
-                    insight.type === "Risk" && "bg-red-500/30 text-red-200 border-red-400/30",
-                    insight.type === "Watch" && "bg-amber-500/30 text-amber-200 border-amber-400/30",
-                  )}>
-                    {insight.type}
-                  </span>
-                  <p className="text-xs leading-relaxed font-medium text-white/90">{insight.text}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/10 text-[10px] uppercase font-bold tracking-tighter opacity-60">
-              AI insights are static demo data — live analysis coming in Phase 3
-            </div>
           </div>
         </div>
       </main>
