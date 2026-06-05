@@ -10,9 +10,7 @@ import {
   Upload,
   FileSpreadsheet,
   CheckCircle2,
-  Circle,
   Download,
-  Sparkles,
   AlertCircle,
   Database,
 } from "lucide-react";
@@ -39,13 +37,6 @@ import {
 } from "@/lib/csv";
 
 // exportOptions are built dynamically inside the component (need financial data)
-
-const aiBullets = [
-  "Detect date, amount, customer, and category columns",
-  "Flag missing or unusual values",
-  "Suggest expense and revenue categories",
-  "Preview data before saving",
-];
 
 function StatusBadge({ status }: { status: ImportHistoryDisplayStatus }) {
   return (
@@ -557,55 +548,32 @@ export function ExportImportPage() {
           </div>
         </details>
 
-        {/* Export Reports + AI Assistant */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <SectionCard title="Export Reports" subtitle="Download clean summaries from your imported data." className="xl:col-span-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {exportOptions.map((option) => (
-                <div
-                  key={option.title}
-                  className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 hover:shadow-sm transition-all"
+        <SectionCard
+          title="Export Reports"
+          subtitle="Download clean summaries from your imported data."
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {exportOptions.map((option) => (
+              <div
+                key={option.title}
+                className="rounded-lg border border-stone-200 p-3 flex flex-col gap-2 hover:border-stone-300 hover:shadow-sm transition-all"
+              >
+                <p className="text-sm font-bold text-stone-900">{option.title}</p>
+                <p className="text-xs text-stone-500 flex-1">{option.description}</p>
+                <button
+                  type="button"
+                  onClick={option.handler}
+                  disabled={!option.hasData}
+                  title={option.hasData ? undefined : "No data available to export"}
+                  className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <p className="text-sm font-bold text-stone-900">{option.title}</p>
-                  <p className="text-xs text-stone-500 flex-1">{option.description}</p>
-                  <button
-                    type="button"
-                    onClick={option.handler}
-                    disabled={!option.hasData}
-                    title={option.hasData ? undefined : "No data available to export"}
-                    className="self-start mt-1 inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Download className="h-3 w-3" />
-                    Export CSV
-                  </button>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="AI Import Assistant">
-            <div className="rounded-lg bg-green-800 text-white p-4 relative overflow-hidden">
-              <div className="absolute top-[-30px] right-[-30px] w-32 h-32 bg-green-700/40 rounded-full blur-2xl" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-4 w-4 text-green-300" />
-                  <p className="text-xs font-bold uppercase tracking-wider">Coming soon</p>
-                </div>
-                <p className="text-sm font-medium leading-relaxed mb-4">
-                  AI will help detect columns, clean messy files, and suggest categories before importing.
-                </p>
-                <ul className="space-y-2">
-                  {aiBullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2 text-xs text-green-50">
-                      <Circle className="h-1.5 w-1.5 fill-green-300 text-green-300 mt-1.5 shrink-0" />
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
+                  <Download className="h-3 w-3" />
+                  Export CSV
+                </button>
               </div>
-            </div>
-          </SectionCard>
-        </div>
+            ))}
+          </div>
+        </SectionCard>
       </main>
     </div>
   );
