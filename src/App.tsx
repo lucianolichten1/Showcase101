@@ -12,6 +12,7 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
+import { AdminLayout } from "./components/admin/layout/AdminLayout";
 import { CompanyWorkspacePage } from "./components/company/CompanyWorkspacePage";
 import { LoginPage } from "./components/auth/LoginPage";
 import { NoCompanyAssignedPage } from "./components/auth/NoCompanyAssignedPage";
@@ -47,15 +48,6 @@ export default function App() {
               <Route path="/customers" element={<CustomersPage />} />
             </Route>
 
-            <Route element={<RequireSuperAdmin />}>
-              <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
-              <Route path="/admin/companies" element={<AdminCompaniesPage />} />
-              <Route
-                path="/admin/companies/:companyId"
-                element={<AdminCompanyDetailsPage />}
-              />
-            </Route>
-
             <Route element={<RequireCompanyWorkspaceAccess />}>
               <Route
                 path="/company/:companyId"
@@ -64,6 +56,17 @@ export default function App() {
               <Route
                 path="/company/:companyId/dashboard"
                 element={<CompanyWorkspacePage />}
+              />
+            </Route>
+          </Route>
+
+          <Route element={<RequireSuperAdmin />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
+              <Route path="/admin/companies" element={<AdminCompaniesPage />} />
+              <Route
+                path="/admin/companies/:companyId"
+                element={<AdminCompanyDetailsPage />}
               />
             </Route>
           </Route>

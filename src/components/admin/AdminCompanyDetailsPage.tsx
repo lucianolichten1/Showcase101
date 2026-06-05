@@ -1,95 +1,64 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
+  Check,
+  CheckSquare,
+  Clock,
   Database,
   ExternalLink,
-  HardDrive,
-  Layers,
+  Grid3X3,
   Loader2,
-  Sparkles,
+  MessageSquare,
+  RefreshCw,
   AlertCircle,
 } from "lucide-react";
 import { getCompanyById } from "@/domains/admin/companyService";
-import type { CompanyRecord } from "@/domains/admin/types";
+import type { CompanyOwnerInfo } from "@/domains/admin/companyOwnerService";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
   DASHBOARD_MODULE_KEY,
   DEFAULT_ENABLED_MODULES,
   isModuleEnabled,
 } from "@/domains/admin/modules";
+import { getNicheDisplayName } from "@/domains/admin/niches";
 import {
-  getNicheByKey,
-  getNicheDisplayName,
-  nicheStatusLabel,
-} from "@/domains/admin/niches";
-import {
-  COMPANY_DATABASE_SCOPE,
-  databaseStatusLabel,
-} from "@/domains/admin/database";
-import {
-  databaseStatusBadgeClass,
-  formatCreatedDate,
-  statusBadgeClass,
-} from "@/domains/admin/utils";
-import { cn } from "@/lib/utils";
+  buildChecklistSteps,
+  buildInitialActivity,
+  checklistDoneCount,
+  companyCodeFromRecord,
+  IMPORT_META,
+  STATUS_META,
+  toCompanyCardModel,
+  type AdminActivityItem,
+  type AdminChecklistStep,
+  type AdminNoteItem,
+} from "@/domains/admin/displayModel";
+import type { CompanyRecord } from "@/domains/admin/types";
+import { formatCreatedDate } from "@/domains/admin/utils";
 import { CompanyOwnerSection } from "./CompanyOwnerSection";
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 py-2.5 border-b border-stone-50 last:border-0">
-      <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 shrink-0">
-        {label}
-      </span>
-      <span className="text-xs text-stone-800 sm:text-right">{value}</span>
-    </div>
-  );
-}
-
-function ModuleToggle({
-  enabled,
-  disabled,
-  onToggle,
-  label,
-}: {
-  enabled: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700 focus-visible:ring-offset-1",
-        disabled ? "cursor-not-allowed opacity-50 bg-stone-200" : "cursor-pointer",
-        enabled && !disabled ? "bg-green-800" : !disabled ? "bg-stone-300" : "bg-stone-200"
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-          enabled ? "translate-x-4" : "translate-x-1"
-        )}
-      />
-    </button>
-  );
-}
+import { AdminButton } from "./ui/AdminButton";
+import { AdminPanel } from "./ui/AdminPanel";
+import { AdminPill } from "./ui/AdminPill";
 
 export function AdminCompanyDetailsPage() {
   const { companyId } = useParams<{ companyId: string }>();
+  const navigate = useNavigate();
   const [company, setCompany] = useState<CompanyRecord | null>(null);
+  const [owner, setOwner] = useState<CompanyOwnerInfo | null>(null);
   const [enabledModules, setEnabledModules] = useState<string[]>([
     ...DEFAULT_ENABLED_MODULES,
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [checklist, setChecklist] = useState<AdminChecklistStep[]>([]);
+  const [notes, setNotes] = useState<AdminNoteItem[]>([]);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [activity, setActivity] = useState<AdminActivityItem[]>([]);
+  const [importLabel, setImportLabel] = useState("Queued");
+  const [importProgress, setImportProgress] = useState<number | null>(null);
 
   const loadCompany = useCallback(async () => {
     if (!companyId) {
@@ -107,9 +76,7 @@ export function AdminCompanyDetailsPage() {
         setEnabledModules(record.enabledModules);
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load company from Supabase.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Failed to load company.");
       setCompany(null);
     } finally {
       setLoading(false);
@@ -120,325 +87,475 @@ export function AdminCompanyDetailsPage() {
     void loadCompany();
   }, [loadCompany]);
 
+  const initializedCompanyId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!company) return;
+    if (initializedCompanyId.current === company.id) return;
+
+    initializedCompanyId.current = company.id;
+    setOwner(null);
+    setEnabledModules(company.enabledModules);
+    setChecklist(
+      buildChecklistSteps(company, null, company.enabledModules.length > 0)
+    );
+    setActivity(buildInitialActivity(company, null));
+    setNotes([]);
+    setNoteDraft("");
+    setImportProgress(null);
+    setImportLabel(toCompanyCardModel(company, null).importLabel);
+  }, [company]);
+
+  useEffect(() => {
+    initializedCompanyId.current = null;
+  }, [companyId]);
+
+  const handleOwnerLoaded = useCallback((nextOwner: CompanyOwnerInfo | null) => {
+    setOwner(nextOwner);
+  }, []);
+
+  const handleOwnerAssigned = useCallback((nextOwner: CompanyOwnerInfo) => {
+    setOwner(nextOwner);
+    setActivity((prev) => [
+      {
+        tone: "amber",
+        when: "just now",
+        text: `Owner ${nextOwner.email} assigned`,
+      },
+      ...prev,
+    ]);
+  }, []);
+
+  const cardModel = useMemo(
+    () => (company ? toCompanyCardModel(company, owner) : null),
+    [company, owner]
+  );
+
+  const checklistDone = checklistDoneCount(checklist);
+  const modCount = BASE_FINANCIAL_MODULE_DEFINITIONS.filter((m) =>
+    isModuleEnabled(enabledModules, m.key)
+  ).length;
+
+  const handleToggleStep = (index: number) => {
+    setChecklist((prev) =>
+      prev.map((step, i) => (i === index ? { ...step, done: !step.done } : step))
+    );
+  };
+
+  const handleToggleModule = (moduleKey: string, required?: boolean) => {
+    if (required || moduleKey === DASHBOARD_MODULE_KEY) return;
+    const currentlyEnabled = isModuleEnabled(enabledModules, moduleKey);
+    const nextModules = currentlyEnabled
+      ? enabledModules.filter((k) => k !== moduleKey)
+      : [...enabledModules, moduleKey];
+    const normalized = nextModules.includes(DASHBOARD_MODULE_KEY)
+      ? nextModules
+      : [...nextModules, DASHBOARD_MODULE_KEY];
+    setEnabledModules(normalized);
+    const mod = BASE_FINANCIAL_MODULE_DEFINITIONS.find((m) => m.key === moduleKey);
+    if (mod) {
+      setActivity((prev) => [
+        {
+          tone: "green",
+          when: "just now",
+          text: `${mod.name} module ${currentlyEnabled ? "disabled" : "enabled"}`,
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const addNote = () => {
+    const text = noteDraft.trim();
+    if (!text) return;
+    setNotes((prev) => [{ author: "You", when: "just now", text }, ...prev]);
+    setNoteDraft("");
+    setActivity((prev) => [
+      { tone: "sky", when: "just now", text: "Internal note added" },
+      ...prev,
+    ]);
+  };
+
+  const runImport = () => {
+    if (importProgress !== null || !company) return;
+    setImportLabel("Importing…");
+    setImportProgress(0);
+    let p = 0;
+    const timer = window.setInterval(() => {
+      p += Math.random() * 18 + 8;
+      if (p >= 100) {
+        window.clearInterval(timer);
+        setImportProgress(100);
+        window.setTimeout(() => {
+          setImportProgress(null);
+          setImportLabel("Synced");
+          setChecklist((prev) =>
+            prev.map((s) => (s.key === "imported" ? { ...s, done: true } : s))
+          );
+          setActivity((prev) => [
+            {
+              tone: "green",
+              when: "just now",
+              text: "Data import completed (simulated)",
+            },
+            ...prev,
+          ]);
+        }, 500);
+      } else {
+        setImportProgress(Math.round(p));
+      }
+    }, 260);
+  };
+
   if (loading) {
     return (
-      <main className="flex flex-col items-center justify-center gap-2 p-5 lg:p-6 min-h-[50vh] text-stone-400">
-        <Loader2 size={28} className="animate-spin" />
-        <p className="text-xs">Loading company…</p>
-      </main>
+      <div className="flex flex-col items-center justify-center gap-2 py-20 text-[var(--admin-ink-3)]">
+        <Loader2 className="h-7 w-7 animate-spin" />
+        <p className="text-sm">Loading company…</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="flex flex-col items-center justify-center gap-4 p-5 lg:p-6 min-h-[50vh]">
-        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-8 text-center max-w-sm">
-          <AlertCircle size={28} className="mx-auto text-red-400 mb-3" />
-          <h1 className="text-sm font-bold text-stone-900">Could not load company</h1>
-          <p className="text-xs text-stone-500 mt-1.5">{error}</p>
-          <div className="flex flex-col gap-2 mt-4">
-            <button
-              type="button"
-              onClick={() => void loadCompany()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
-            >
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <div className="admin-panel max-w-sm p-8 text-center">
+          <AlertCircle className="mx-auto mb-3 h-7 w-7 text-[var(--admin-rust)]" />
+          <h1 className="text-sm font-bold">Could not load company</h1>
+          <p className="mt-1.5 text-xs text-[var(--admin-ink-3)]">{error}</p>
+          <div className="mt-4 flex flex-col gap-2">
+            <AdminButton variant="primary" size="sm" onClick={() => void loadCompany()}>
               Try again
-            </button>
-            <Link
-              to="/admin/companies"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
-            >
-              <ArrowLeft size={13} />
+            </AdminButton>
+            <Link to="/admin/companies" className="admin-btn admin-btn-ghost admin-btn-sm justify-center">
+              <ArrowLeft className="h-3.5 w-3.5" />
               Back to Companies
             </Link>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
-  if (!company) {
+  if (!company || !cardModel) {
     return (
-      <main className="flex flex-col items-center justify-center gap-4 p-5 lg:p-6 min-h-[50vh]">
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-8 text-center max-w-sm">
-          <Building2 size={28} className="mx-auto text-stone-300 mb-3" />
-          <h1 className="text-sm font-bold text-stone-900">Company not found</h1>
-          <p className="text-xs text-stone-500 mt-1.5">
-            This company does not exist or may have been removed.
-          </p>
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <div className="admin-panel max-w-sm p-8 text-center">
+          <Building2 className="mx-auto mb-3 h-7 w-7 text-[var(--admin-ink-4)]" />
+          <h1 className="text-sm font-bold">Company not found</h1>
           <Link
             to="/admin/companies"
-            className="inline-flex mt-4 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors"
+            className="admin-btn admin-btn-primary admin-btn-sm mt-4 inline-flex"
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back to Companies
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
-  const nicheConfig = getNicheByKey(company.niche);
-
-  const totalModules = BASE_FINANCIAL_MODULE_DEFINITIONS.length;
-  const enabledCount = BASE_FINANCIAL_MODULE_DEFINITIONS.filter((m) =>
-    isModuleEnabled(enabledModules, m.key)
-  ).length;
-  const disabledCount = totalModules - enabledCount;
-
-  const handleToggleModule = (moduleKey: string, required?: boolean) => {
-    if (required || moduleKey === DASHBOARD_MODULE_KEY) return;
-
-    const currentlyEnabled = isModuleEnabled(enabledModules, moduleKey);
-    const nextModules = currentlyEnabled
-      ? enabledModules.filter((k) => k !== moduleKey)
-      : [...enabledModules, moduleKey];
-
-    setEnabledModules(
-      nextModules.includes(DASHBOARD_MODULE_KEY)
-        ? nextModules
-        : [...nextModules, DASHBOARD_MODULE_KEY]
-    );
-  };
+  const importMeta = IMPORT_META[cardModel.importState];
 
   return (
-    <main className="flex flex-col gap-5 p-5 lg:p-6">
-      <Link
-        to="/admin/companies"
-        className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-green-800 transition-colors"
+    <>
+      <button
+        type="button"
+        className="admin-back-link"
+        onClick={() => navigate("/admin/companies")}
       >
-        <ArrowLeft size={13} />
-        Back to Companies
-      </Link>
+        <ArrowLeft className="h-4 w-4" />
+        All companies
+      </button>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="admin-detail-head">
         <div>
-          <h1 className="text-lg font-bold text-stone-900">{company.name}</h1>
-          <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
-            Super admin view for this company&apos;s niche, dedicated database plan, and
-            financial module access. Company record is loaded from platform Supabase;
-            financial data remains local mock per workspace.
-          </p>
+          <div className="admin-detail-title">
+            <h1>{company.name}</h1>
+            <AdminPill tone={cardModel.statusMeta.tone} label={cardModel.statusMeta.label} />
+          </div>
+          <div className="admin-detail-meta">
+            <span className="admin-tag">{getNicheDisplayName(company.niche)}</span>
+            <span className="sep" />
+            <span className="mono">{companyCodeFromRecord(company)}</span>
+            <span className="sep" />
+            <span>—</span>
+            <span className="sep" />
+            <span>Created {formatCreatedDate(company.createdAt)}</span>
+          </div>
         </div>
-        <Link
-          to={`/company/${company.id}/dashboard`}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-900 transition-colors"
-        >
-          <ExternalLink size={13} />
-          Enter Company Workspace
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-            Total Modules
-          </span>
-          <span className="text-lg font-bold text-stone-900">{totalModules}</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-            Enabled
-          </span>
-          <span className="text-lg font-bold text-green-800">{enabledCount}</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-            Disabled
-          </span>
-          <span className="text-lg font-bold text-stone-500">{disabledCount}</span>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <AdminButton size="sm">
+            {owner ? "Manage access" : "Assign owner"}
+          </AdminButton>
+          <AdminButton size="sm" onClick={runImport} disabled={importProgress !== null}>
+            <RefreshCw className="h-[15px] w-[15px]" />
+            Import data
+          </AdminButton>
+          <Link
+            to={`/company/${company.id}/dashboard`}
+            className="admin-btn admin-btn-primary admin-btn-sm"
+          >
+            <ExternalLink className="h-[15px] w-[15px]" />
+            Open workspace
+          </Link>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Building2 size={14} className="text-stone-400" />
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-            Company Info
-          </h2>
-        </div>
-        <InfoRow label="Company Name" value={company.name} />
-        <InfoRow
-          label="Niche"
-          value={
-            <span className="inline-flex items-center rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-800">
-              {getNicheDisplayName(company.niche)}
-            </span>
-          }
-        />
-        <InfoRow
-          label="Status"
-          value={
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                statusBadgeClass(company.status)
-              )}
-            >
-              {company.status}
-            </span>
-          }
-        />
-        <InfoRow label="Created Date" value={formatCreatedDate(company.createdAt)} />
-      </div>
-
-      <CompanyOwnerSection companyId={company.id} />
-
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <HardDrive size={14} className="text-stone-400" />
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-            Company Database
-          </h2>
-        </div>
-        <p className="text-[10px] text-stone-400 mb-3">
-          Each company will eventually connect to its own Supabase database. No live
-          connection exists in this MVP.
-        </p>
-        <InfoRow
-          label="Status"
-          value={
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                databaseStatusBadgeClass(company.databaseStatus)
-              )}
-            >
-              {databaseStatusLabel(company.databaseStatus)}
-            </span>
-          }
-        />
-        <InfoRow label="Provider" value={company.databaseProvider} />
-        <InfoRow label="Scope" value={COMPANY_DATABASE_SCOPE} />
-        <InfoRow label="Label" value={company.databaseLabel} />
-        <p className="text-[10px] text-stone-400 mt-2 pt-2 border-t border-stone-100">
-          Database routing will be connected in a later technical phase. Supabase clients,
-          credentials, and per-company routing are not implemented yet.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Database size={14} className="text-stone-400" />
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-            Niche Configuration
-          </h2>
-        </div>
-        <p className="text-[10px] text-stone-400 mb-3">
-          The company&apos;s niche defines its business vertical. Niche-level Supabase
-          templates may be used later; company data still lives in a dedicated database per
-          company.
-        </p>
-        {nicheConfig ? (
-          <>
-            <InfoRow label="Niche" value={nicheConfig.name} />
-            <InfoRow
-              label="Niche Status"
-              value={
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                    nicheConfig.status === "active"
-                      ? "bg-green-50 text-green-700 border-green-100"
-                      : "bg-stone-100 text-stone-600 border-stone-200"
-                  )}
-                >
-                  {nicheStatusLabel(nicheConfig.status)}
-                </span>
-              }
-            />
-            <InfoRow label="Description" value={nicheConfig.description} />
-            <InfoRow
-              label="Planned Niche Project Key"
-              value={
-                <code className="text-[10px] font-mono text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded">
-                  {nicheConfig.supabaseProjectKey}
-                </code>
-              }
-            />
-            <p className="text-[10px] text-stone-400 mt-2 pt-2 border-t border-stone-100">
-              Niche routing is a future platform concern. Supabase project switching is not
-              active — see Company Database above for per-company connection status.
-            </p>
-          </>
-        ) : (
-          <p className="text-xs text-stone-500">
-            Unknown niche &quot;{company.niche}&quot;. Registry entry not found.
-          </p>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Layers size={14} className="text-stone-400" />
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-            Enabled Modules
-          </h2>
-        </div>
-        <p className="text-[10px] text-stone-400 mb-4">
-          Toggle financial and accounting modules for this company. Changes are stored
-          locally until platform persistence is connected.
-        </p>
-        <ul className="flex flex-col gap-2">
-          {BASE_FINANCIAL_MODULE_DEFINITIONS.map((module) => {
-            const enabled = isModuleEnabled(enabledModules, module.key);
-            const isRequired = module.key === DASHBOARD_MODULE_KEY;
-
-            return (
-              <li
-                key={module.key}
-                className={cn(
-                  "flex items-center justify-between gap-4 rounded-lg border px-3 py-3 transition-colors",
-                  enabled
-                    ? "border-green-100 bg-green-50/40"
-                    : "border-stone-200 bg-stone-50/50"
-                )}
+      <div className="admin-detail-grid">
+        <div>
+          <AdminPanel
+            title="Setup checklist"
+            icon={<CheckSquare className="h-4 w-4" />}
+            right={
+              <span
+                className="mono text-[13px] font-semibold"
+                style={{
+                  color:
+                    checklistDone === 5 ? "var(--admin-green-ink)" : "var(--admin-amber)",
+                }}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-stone-900">{module.name}</span>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-bold",
-                        enabled
-                          ? "border-green-100 bg-green-50 text-green-700"
-                          : "border-stone-200 bg-white text-stone-500"
-                      )}
-                    >
-                      {enabled ? "Enabled" : "Disabled"}
-                    </span>
+                {checklistDone}/5 complete
+              </span>
+            }
+          >
+            <div className="admin-progress-track mb-1.5">
+              <div
+                className="admin-progress-fill"
+                style={{
+                  width: `${(checklistDone / 5) * 100}%`,
+                  background:
+                    checklistDone === 5 ? "var(--admin-green-600)" : "var(--admin-amber)",
+                }}
+              />
+            </div>
+            <div>
+              {checklist.map((step, i) => (
+                <div
+                  key={step.key}
+                  className={`admin-check-item${step.done ? " on" : ""}`}
+                  onClick={() => handleToggleStep(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleToggleStep(i);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="admin-check-box">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <div>
+                    <div className="admin-ci-label">{step.label}</div>
+                    <div className="admin-ci-hint">{step.hint}</div>
                   </div>
-                  <p className="text-[10px] text-stone-500 mt-0.5">{module.description}</p>
-                  {isRequired && (
-                    <p className="text-[9px] text-stone-400 mt-1 font-medium">
-                      Required base module
-                    </p>
-                  )}
                 </div>
-                <ModuleToggle
-                  enabled={enabled}
-                  disabled={isRequired}
-                  onToggle={() => handleToggleModule(module.key, isRequired)}
-                  label={`Toggle ${module.name}`}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+              ))}
+            </div>
+          </AdminPanel>
 
-      <div className="bg-white rounded-xl border border-dashed border-stone-300 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={14} className="text-stone-400" />
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-            Future Niche Modules
-          </h2>
+          <AdminPanel
+            title="Data migration"
+            icon={<Database className="h-4 w-4" />}
+            right={<AdminPill tone={importMeta.tone} label={importLabel} />}
+          >
+            <div className="admin-import-stat">
+              <div className="is">
+                <span className="k">Source</span>
+                <span className="v">CSV upload</span>
+              </div>
+              <div className="is">
+                <span className="k">Records</span>
+                <span className="v mono">—</span>
+              </div>
+              <div className="is">
+                <span className="k">Last import</span>
+                <span className="v">—</span>
+              </div>
+              <div className="is">
+                <span className="k">Database</span>
+                <span className="v" style={{ color: "var(--admin-amber)" }}>
+                  Not connected
+                </span>
+              </div>
+            </div>
+
+            {importProgress !== null && (
+              <div className="mt-[18px]">
+                <div className="mb-[7px] flex justify-between text-[12.5px] text-[var(--admin-ink-2)]">
+                  <span>Importing from CSV upload…</span>
+                  <span className="mono">{importProgress}%</span>
+                </div>
+                <div className="admin-progress-track">
+                  <div
+                    className="admin-progress-fill"
+                    style={{ width: `${importProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-[18px] flex gap-2">
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={runImport}
+                disabled={importProgress !== null}
+              >
+                <RefreshCw className="h-[15px] w-[15px]" />
+                {importLabel === "Synced" ? "Re-run import" : "Start import"}
+              </AdminButton>
+              <AdminButton size="sm">View import log</AdminButton>
+            </div>
+          </AdminPanel>
+
+          <AdminPanel
+            title="Enabled modules"
+            icon={<Grid3X3 className="h-4 w-4" />}
+            right={
+              <span className="mono text-[13px] text-[var(--admin-ink-3)]">
+                {modCount}/{BASE_FINANCIAL_MODULE_DEFINITIONS.length} on
+              </span>
+            }
+          >
+            <div className="admin-mod-grid">
+              {BASE_FINANCIAL_MODULE_DEFINITIONS.map((module) => {
+                const on = isModuleEnabled(enabledModules, module.key);
+                const isRequired = module.key === DASHBOARD_MODULE_KEY;
+                return (
+                  <div
+                    key={module.key}
+                    className={`admin-mod${on ? " on" : ""}`}
+                    onClick={() => handleToggleModule(module.key, isRequired)}
+                    onKeyDown={(e) => {
+                      if (!isRequired && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        handleToggleModule(module.key, isRequired);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <span className="admin-mod-name">{module.name}</span>
+                    <span className="admin-toggle" />
+                  </div>
+                );
+              })}
+            </div>
+          </AdminPanel>
         </div>
-        <p className="text-xs text-stone-500">
-          Niche-specific modules will be configured here later based on the company&apos;s
-          selected niche.
-        </p>
+
+        <div>
+          <AdminPanel title="Company overview" icon={<Building2 className="h-4 w-4" />}>
+            <div className="admin-kv">
+              <span className="k">Company ID</span>
+              <span className="v mono">{companyCodeFromRecord(company)}</span>
+            </div>
+            <div className="admin-kv">
+              <span className="k">Niche</span>
+              <span className="v">{getNicheDisplayName(company.niche)}</span>
+            </div>
+            <div className="admin-kv">
+              <span className="k">Region</span>
+              <span className="v">—</span>
+            </div>
+            <div className="admin-kv">
+              <span className="k">Plan</span>
+              <span className="v">—</span>
+            </div>
+            <div className="admin-kv">
+              <span className="k">Created</span>
+              <span className="v">{formatCreatedDate(company.createdAt)}</span>
+            </div>
+            <div className="admin-kv">
+              <span className="k">Status</span>
+              <span className="v">{STATUS_META[cardModel.status].label}</span>
+            </div>
+          </AdminPanel>
+
+          <AdminPanel title="Owner & access">
+            <CompanyOwnerSection
+              companyId={company.id}
+              onOwnerLoaded={handleOwnerLoaded}
+              onOwnerAssigned={handleOwnerAssigned}
+            />
+          </AdminPanel>
+
+          <AdminPanel
+            title="Internal notes"
+            icon={<MessageSquare className="h-4 w-4" />}
+            right={
+              <span className="mono text-[12.5px] text-[var(--admin-ink-3)]">
+                {notes.length}
+              </span>
+            }
+          >
+            <textarea
+              className="admin-note-input"
+              rows={2}
+              placeholder="Add an internal note for the team…"
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+            />
+            <div className="mt-2 mb-4 flex justify-end">
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={addNote}
+                disabled={!noteDraft.trim()}
+              >
+                Add note
+              </AdminButton>
+            </div>
+            {notes.length === 0 ? (
+              <div className="admin-empty">No notes yet.</div>
+            ) : (
+              notes.map((n, i) => (
+                <div className="admin-note" key={i}>
+                  <div className="admin-note-meta">
+                    <strong className="font-semibold text-[var(--admin-ink-2)]">
+                      {n.author}
+                    </strong>
+                    · {n.when}
+                  </div>
+                  <div className="admin-note-text">{n.text}</div>
+                </div>
+              ))
+            )}
+          </AdminPanel>
+
+          <AdminPanel title="Recent activity" icon={<Clock className="h-4 w-4" />}>
+            <div className="admin-timeline">
+              {activity.map((a, i) => (
+                <div className="admin-tl-item" key={i}>
+                  <div className="admin-tl-rail">
+                    <span
+                      className="admin-tl-dot"
+                      style={{
+                        background:
+                          a.tone === "green"
+                            ? "var(--admin-green-600)"
+                            : a.tone === "amber"
+                              ? "var(--admin-amber)"
+                              : a.tone === "sky"
+                                ? "var(--admin-sky)"
+                                : "var(--admin-slate)",
+                      }}
+                    />
+                    <span className="admin-tl-line" />
+                  </div>
+                  <div>
+                    <div className="admin-tl-text">{a.text}</div>
+                    <div className="admin-tl-when mono">{a.when}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AdminPanel>
+        </div>
       </div>
-    </main>
+    </>
   );
 }

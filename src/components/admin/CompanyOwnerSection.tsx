@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2, Loader2, UserCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Loader2, Mail } from "lucide-react";
 import {
   assignCompanyOwner,
   findProfileByEmail,
@@ -8,24 +8,43 @@ import {
   PROFILE_NOT_FOUND_MESSAGE,
   type CompanyOwnerInfo,
 } from "@/domains/admin/companyOwnerService";
-import { formatCreatedDate } from "@/domains/admin/utils";
-import { cn } from "@/lib/utils";
+import { OWNER_META, type AdminOwnerState } from "@/domains/admin/displayModel";
+import { AdminButton } from "./ui/AdminButton";
 
 interface Props {
   companyId: string;
+  onOwnerLoaded?: (owner: CompanyOwnerInfo | null) => void;
+  onOwnerAssigned?: (owner: CompanyOwnerInfo) => void;
 }
 
-export function CompanyOwnerSection({ companyId }: Props) {
+export function CompanyOwnerSection({
+  companyId,
+  onOwnerLoaded,
+  onOwnerAssigned,
+}: Props) {
+  const onOwnerLoadedRef = useRef(onOwnerLoaded);
+  const onOwnerAssignedRef = useRef(onOwnerAssigned);
+
+  useEffect(() => {
+    onOwnerLoadedRef.current = onOwnerLoaded;
+  }, [onOwnerLoaded]);
+
+  useEffect(() => {
+    onOwnerAssignedRef.current = onOwnerAssigned;
+  }, [onOwnerAssigned]);
+
   const [owners, setOwners] = useState<CompanyOwnerInfo[]>([]);
   const [loadingOwner, setLoadingOwner] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showAssignForm, setShowAssignForm] = useState(false);
 
   const [email, setEmail] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const primaryOwner = owners[0] ?? null;
+  const ownerState: AdminOwnerState = primaryOwner ? "active" : "unassigned";
+  const ownerMeta = OWNER_META[ownerState];
 
   const loadOwners = useCallback(async () => {
     setLoadingOwner(true);
@@ -33,11 +52,11 @@ export function CompanyOwnerSection({ companyId }: Props) {
     try {
       const records = await listCompanyOwners(companyId);
       setOwners(records);
+      onOwnerLoadedRef.current?.(records[0] ?? null);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load company owner.";
-      setLoadError(message);
+      setLoadError(err instanceof Error ? err.message : "Failed to load company owner.");
       setOwners([]);
+      onOwnerLoadedRef.current?.(null);
     } finally {
       setLoadingOwner(false);
     }
@@ -46,12 +65,6 @@ export function CompanyOwnerSection({ companyId }: Props) {
   useEffect(() => {
     void loadOwners();
   }, [loadOwners]);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   const handleAssign = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,7 +80,6 @@ export function CompanyOwnerSection({ companyId }: Props) {
 
     setAssigning(true);
     setAssignError(null);
-    setSuccessMessage(null);
 
     try {
       const profile = await findProfileByEmail(trimmedEmail);
@@ -79,115 +91,69 @@ export function CompanyOwnerSection({ companyId }: Props) {
       const result = await assignCompanyOwner(companyId, profile.id);
       await loadOwners();
       setEmail("");
-      setSuccessMessage(
-        result.outcome === "already_here"
-          ? OWNER_ALREADY_ASSIGNED_THIS_COMPANY_MESSAGE
-          : `Owner assigned: ${profile.email}`
-      );
+      setShowAssignForm(false);
+      if (result.outcome === "already_here") {
+        setAssignError(OWNER_ALREADY_ASSIGNED_THIS_COMPANY_MESSAGE);
+      } else {
+        onOwnerAssignedRef.current?.(result.owner);
+      }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to assign company owner.";
-      setAssignError(message);
+      setAssignError(err instanceof Error ? err.message : "Failed to assign company owner.");
     } finally {
       setAssigning(false);
     }
   };
 
-  const inputClass = cn(
-    "w-full rounded-lg border px-3 py-2 text-xs text-stone-900 outline-none transition-colors placeholder:text-stone-300",
-    "border-stone-200 bg-white focus:border-green-700"
-  );
+  if (loadingOwner) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-[var(--admin-ink-3)]">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Loading owner…</span>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="admin-alert admin-alert-error">
+        {loadError}
+        <button type="button" className="ml-2 underline" onClick={() => void loadOwners()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <UserCircle size={14} className="text-stone-400" />
-        <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-          Company Owner
-        </h2>
+    <div>
+      <div className="flex items-center gap-3 mb-3.5">
+        <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[var(--admin-green-tint)] text-sm font-semibold text-[var(--admin-green-ink)]">
+          {primaryOwner ? primaryOwner.email[0]?.toUpperCase() : "?"}
+        </span>
+        <div className="min-w-0">
+          {primaryOwner ? (
+            <div className="mono truncate text-[12.5px]" title={primaryOwner.email}>
+              {primaryOwner.email}
+            </div>
+          ) : (
+            <div className="text-[13.5px] font-medium italic text-[var(--admin-ink-3)]">
+              No owner assigned
+            </div>
+          )}
+          <div className="mt-1 inline-flex items-center gap-[7px] text-xs text-[var(--admin-ink-3)]">
+            <span className={`admin-dot ${ownerMeta.tone}`} />
+            {ownerMeta.label}
+          </div>
+        </div>
       </div>
 
-      <p className="text-[10px] text-stone-400 mb-2 leading-relaxed">
-        Assign an existing platform user as owner. The user must already exist in Supabase
-        Auth with a matching profile — accounts cannot be created from this screen.
-      </p>
-      <p className="text-[10px] text-stone-500 mb-4 leading-relaxed rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
-        <span className="font-semibold text-stone-700">MVP rule:</span> each company owner
-        can manage one company.
-      </p>
+      {assignError && <p className="admin-field-err mb-3">{assignError}</p>}
 
-      {loadingOwner ? (
-        <div className="flex items-center gap-2 py-3 text-stone-400">
-          <Loader2 size={16} className="animate-spin" />
-          <span className="text-xs">Loading owner…</span>
-        </div>
-      ) : loadError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 mb-4">
-          <p className="text-[11px] text-red-800">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => void loadOwners()}
-            className="mt-1.5 text-[11px] font-semibold text-red-800 underline hover:no-underline"
-          >
-            Try again
-          </button>
-        </div>
-      ) : primaryOwner ? (
-        <div className="rounded-lg border border-green-100 bg-green-50/50 px-3 py-3 mb-4">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-green-800 mb-2">
-            Current owner
-          </p>
-          <dl className="flex flex-col gap-1.5 text-xs text-stone-800">
-            <div className="flex justify-between gap-4">
-              <dt className="text-stone-500">Email</dt>
-              <dd className="font-semibold text-right">{primaryOwner.email}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-stone-500">Name</dt>
-              <dd className="text-right">
-                {primaryOwner.fullName?.trim() ? (
-                  primaryOwner.fullName
-                ) : (
-                  <span className="text-stone-400 italic">Not set</span>
-                )}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-stone-500">Assigned</dt>
-              <dd className="text-stone-600 text-right">
-                {formatCreatedDate(primaryOwner.assignedAt.slice(0, 10))}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      ) : (
-        <p className="text-xs text-stone-500 mb-4 italic">No owner assigned yet.</p>
-      )}
-
-      {successMessage && (
-        <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 mb-4">
-          <CheckCircle2 size={16} className="shrink-0 text-green-700 mt-0.5" />
-          <p className="text-[11px] text-green-800 font-medium">{successMessage}</p>
-        </div>
-      )}
-
-      {assignError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 mb-4">
-          <p className="text-[11px] text-red-800">{assignError}</p>
-        </div>
-      )}
-
-      <form onSubmit={(e) => void handleAssign(e)} className="flex flex-col gap-3">
-        <div>
-          <label
-            htmlFor="owner-email"
-            className="block text-[9px] font-bold uppercase tracking-wider text-stone-500 mb-1.5"
-          >
-            Owner email
-          </label>
+      {showAssignForm ? (
+        <form onSubmit={(e) => void handleAssign(e)} className="flex flex-col gap-3">
           <input
-            id="owner-email"
             type="email"
+            className="admin-input"
             value={email}
             disabled={assigning}
             placeholder="owner@company.com"
@@ -195,25 +161,39 @@ export function CompanyOwnerSection({ companyId }: Props) {
               setEmail(e.target.value);
               setAssignError(null);
             }}
-            className={inputClass}
           />
-        </div>
-
-        <button
-          type="submit"
-          disabled={assigning || !email.trim()}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white hover:bg-green-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-fit"
+          <div className="flex gap-2">
+            <AdminButton
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={assigning || !email.trim()}
+              className="flex-1 justify-center"
+            >
+              {assigning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Assigning…
+                </>
+              ) : (
+                "Assign owner"
+              )}
+            </AdminButton>
+            <AdminButton size="sm" onClick={() => setShowAssignForm(false)} disabled={assigning}>
+              Cancel
+            </AdminButton>
+          </div>
+        </form>
+      ) : (
+        <AdminButton
+          size="sm"
+          className="w-full justify-center"
+          onClick={() => setShowAssignForm(true)}
         >
-          {assigning ? (
-            <>
-              <Loader2 size={13} className="animate-spin" />
-              Assigning…
-            </>
-          ) : (
-            "Assign Owner"
-          )}
-        </button>
-      </form>
+          <Mail className="h-[15px] w-[15px]" />
+          {primaryOwner ? "Manage access" : "Invite owner"}
+        </AdminButton>
+      )}
     </div>
   );
 }
