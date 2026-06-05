@@ -21,7 +21,7 @@ import {
 import type { KPIData } from "@/data/types";
 
 function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefined {
-  if (title === "Total Revenue" || title === "Total Expenses" || title === "Net Profit") {
+  if (title === "Total Revenue" || title === "Total Costs" || title === "Net Profit") {
     return periodLabel;
   }
   if (title === "Accounts Receivable") return "Outstanding receivables (all open invoices)";
@@ -108,7 +108,10 @@ export function DashboardPage() {
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
     useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
-  const periodLabel = getFinancialPeriodLabel(period);
+  const periodLabel =
+    usesImportedData && period.kind === "all"
+      ? "Last 12 months"
+      : getFinancialPeriodLabel(period);
 
   useSyncFinancialPeriod(period, setDateRange);
 
@@ -127,10 +130,10 @@ export function DashboardPage() {
           trendText: usesImportedData ? "" : "Import Excel to populate",
           trendStatus: "neutral" as const,
         };
-      if (kpi.title === "Total Expenses")
+      if (kpi.title === "Total Costs")
         return {
           ...kpi,
-          value: formatCurrency(financialKpis.totalExpenses),
+          value: formatCurrency(financialKpis.totalCosts),
           trend: 0,
           trendText: usesImportedData ? "" : "Import Excel to populate",
           trendStatus: "neutral" as const,

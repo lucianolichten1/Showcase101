@@ -74,10 +74,14 @@ export function FinancialChart({ period }: FinancialChartProps) {
     [revenueRecords, expenseRecords, period, usesImportedData]
   );
 
-  // Merge COGS (cost on revenue records) into the expenses bar so that
-  // Revenue bar − Expenses bar = Net Profit line is visually consistent.
+  // Merge COGS into the costs bar so Revenue − Total Costs = Net Profit on the chart.
   const monthlyFinancials = useMemo(
-    () => rawMonthly.map((row) => ({ ...row, expenses: row.cost + row.expenses })),
+    () =>
+      rawMonthly.map((row) => ({
+        ...row,
+        expenses: row.cost + row.expenses,
+        profit: row.revenue - row.cost - row.expenses,
+      })),
     [rawMonthly]
   );
 

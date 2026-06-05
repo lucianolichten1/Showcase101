@@ -37,7 +37,11 @@ import type {
 } from "@/domains/import/types";
 
 export type { MergeImportResult } from "@/domains/import/merge";
-import { computeFinancialKPIs, filterRecordsByDateRange } from "./calculations";
+import {
+  computeFinancialKPIs,
+  filterRecordsByDateRange,
+  resolveImportedAllPeriodDateRange,
+} from "./calculations";
 import { initialReceivableRecords } from "./mockData";
 import { DEFAULT_FINANCIAL_PERIOD, getDateRangeForPeriod } from "./period";
 import type {
@@ -239,14 +243,22 @@ export function FinancialDataProvider({ children }: { children: ReactNode }) {
     setCustomerRecords(initialCustomerRecords);
   }, []);
 
+  const effectiveDateRange = useMemo(() => {
+    const isAllPeriod = !dateRange.startDate && !dateRange.endDate;
+    if (usesImportedData && isAllPeriod) {
+      return resolveImportedAllPeriodDateRange(revenueRecords, expenseRecords);
+    }
+    return dateRange;
+  }, [usesImportedData, dateRange, revenueRecords, expenseRecords]);
+
   const filteredRevenueRecords = useMemo(
-    () => filterRecordsByDateRange(revenueRecords, dateRange),
-    [revenueRecords, dateRange]
+    () => filterRecordsByDateRange(revenueRecords, effectiveDateRange),
+    [revenueRecords, effectiveDateRange]
   );
 
   const filteredExpenseRecords = useMemo(
-    () => filterRecordsByDateRange(expenseRecords, dateRange),
-    [expenseRecords, dateRange]
+    () => filterRecordsByDateRange(expenseRecords, effectiveDateRange),
+    [expenseRecords, effectiveDateRange]
   );
 
   const kpis = useMemo(
