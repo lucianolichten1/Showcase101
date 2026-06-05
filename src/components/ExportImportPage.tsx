@@ -24,7 +24,6 @@ import {
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { formatCurrency } from "@/data/mockData";
 import { ExcelImportWizard } from "./ExcelImportWizard";
-import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import {
   DETECTED_FIELDS,
   detectColumns,
@@ -331,8 +330,6 @@ export function ExportImportPage() {
       </header>
 
       <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-6 overflow-auto">
-        <CompanyContextBanner />
-
         {/* Active import banner */}
         {usesImportedData && importedData && (
           <div className="rounded-xl border border-green-200 bg-green-50 px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">

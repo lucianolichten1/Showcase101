@@ -6,7 +6,6 @@ import {
   FileBarChart,
   Users,
   Building2,
-  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "./types";
@@ -54,6 +53,11 @@ function withCompanyId(path: string, companyId: string): string {
   return `${path}?companyId=${encodeURIComponent(companyId)}`;
 }
 
+/** Default financial home for a company (used after login and admin links). */
+export function companyDashboardPath(companyId: string): string {
+  return withCompanyId("/dashboard", companyId);
+}
+
 function isFinancialModulePath(pathname: string): boolean {
   return FINANCIAL_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -93,12 +97,6 @@ function getCompanyScopedNavigation(
   }
 
   items.push(
-    {
-      id: "company-workspace",
-      label: "Workspace",
-      href: `/company/${companyId}/dashboard`,
-      icon: LayoutGrid,
-    },
     ...FINANCIAL_MODULE_PATHS.map((m) => ({
       id: m.id,
       label: m.label,
@@ -113,15 +111,12 @@ function getCompanyScopedNavigation(
 // TODO: Support multiple companies per owner in a later version.
 // TODO: Add company switcher later if needed.
 
-/** Sidebar items for company_owner (workspace + scoped financial modules only). */
+/** Sidebar items for company_owner (scoped financial modules). */
 export function getCompanyOwnerNavigation(companyId: string): RoleNavItem[] {
   return getCompanyScopedNavigation(companyId);
 }
 
 function resolveSuperAdminCompanyId(ctx: NavigationContext): string | null {
-  if (ctx.pathname.startsWith("/company/") && ctx.routeCompanyId) {
-    return ctx.routeCompanyId;
-  }
   if (isFinancialModulePath(ctx.pathname) && ctx.queryCompanyId) {
     return ctx.queryCompanyId;
   }

@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { AddInvoiceDialog } from "./AddInvoiceDialog";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -289,7 +288,6 @@ export function AccountsReceivablePage({
     <>
       <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
-        <CompanyContextBanner />
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>

@@ -1,7 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import {
@@ -260,7 +259,6 @@ export function ReportsPage() {
   return (
     <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
-      <CompanyContextBanner />
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-stone-900 tracking-tight">Reports</h1>

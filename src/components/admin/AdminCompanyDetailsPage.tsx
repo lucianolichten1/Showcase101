@@ -217,15 +217,15 @@ export function AdminCompanyDetailsPage() {
           <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
             Super admin view for this company&apos;s niche, dedicated database plan, and
             financial module access. Company record is loaded from platform Supabase;
-            financial data remains local mock per workspace.
+            financial data remains local mock until per-company databases are connected.
           </p>
         </div>
         <Link
-          to={`/company/${company.id}/dashboard`}
+          to={`/dashboard?companyId=${encodeURIComponent(company.id)}`}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-900 transition-colors"
         >
           <ExternalLink size={13} />
-          Enter Company Workspace
+          Open Dashboard
         </Link>
       </div>
 

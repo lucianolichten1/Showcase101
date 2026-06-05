@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/domains/auth/AuthContext";
+import { companyDashboardPath } from "@/domains/auth/navigation";
 
 interface Props {
   title?: string;
@@ -16,10 +17,10 @@ export function AccessDeniedPage({
   const backHref = isSuperadmin
     ? "/admin"
     : primaryCompanyId
-      ? `/company/${primaryCompanyId}/dashboard`
+      ? companyDashboardPath(primaryCompanyId)
       : "/no-company";
 
-  const backLabel = isSuperadmin ? "Back to Admin" : "Back to your workspace";
+  const backLabel = isSuperadmin ? "Back to Admin" : "Back to Dashboard";
 
   return (
     <main className="flex flex-col items-center justify-center gap-4 p-5 lg:p-6 min-h-[50vh]">

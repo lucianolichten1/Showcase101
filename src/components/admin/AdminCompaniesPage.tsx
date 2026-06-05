@@ -258,12 +258,12 @@ export function AdminCompaniesPage() {
                               View
                             </Link>
                             <Link
-                              to={`/company/${company.id}/dashboard`}
+                              to={`/dashboard?companyId=${encodeURIComponent(company.id)}`}
                               className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-800 hover:bg-green-100 transition-colors"
-                              title="Enter company workspace"
+                              title="Open company dashboard"
                             >
                               <ExternalLink size={12} />
-                              Workspace
+                              Dashboard
                             </Link>
                           </div>
                         </td>

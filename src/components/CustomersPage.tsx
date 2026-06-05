@@ -8,8 +8,6 @@ import { cn } from "@/lib/utils";
 import { AddCustomerDialog } from "./AddCustomerDialog";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SortKey = "name" | "invoiced" | "paid" | "outstanding" | "risk";
@@ -214,7 +212,6 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
   return (
     <>
       <main className="flex flex-col gap-5 p-5 lg:p-6">
-        <CompanyContextBanner />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

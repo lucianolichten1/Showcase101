@@ -7,7 +7,6 @@ import { FinancialChart } from "./FinancialChart";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
-import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
@@ -159,7 +158,6 @@ export function DashboardPage() {
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8 sm:space-y-10">
-          <CompanyContextBanner />
           {/* Page header */}
           <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
