@@ -1,43 +1,77 @@
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { cn } from "@/lib/utils";
 
+/** ~48px per row — shows 5 rows then scrolls */
+const VISIBLE_ROW_COUNT = 5;
+const ROW_SCROLL_MAX_HEIGHT = VISIBLE_ROW_COUNT * 48;
+
 export function ReceivablesTable() {
   const { receivableRecords } = useCompanyScopedFinancialData();
+  const hasMore = receivableRecords.length > VISIBLE_ROW_COUNT;
+
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden flex flex-col w-full h-full">
-      <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">Accounts Receivable</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-            <tr className="h-8">
-              <th className="font-bold">Customer</th>
-              <th className="font-bold">Amount Due</th>
-              <th className="font-bold">Due Date</th>
-              <th className="font-bold">Days Overdue</th>
-              <th className="font-bold">Status</th>
+    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden flex flex-col w-full">
+      <div className="flex items-baseline justify-between gap-3 mb-4">
+        <h3 className="text-sm font-bold text-stone-900 uppercase tracking-tight">
+          Accounts Receivable
+        </h3>
+        {receivableRecords.length > 0 && (
+          <span className="text-[10px] font-semibold text-stone-500">
+            {receivableRecords.length} invoice{receivableRecords.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      <div
+        className="overflow-x-auto overflow-y-auto -mx-1 rounded-lg border border-stone-100"
+        style={{ maxHeight: ROW_SCROLL_MAX_HEIGHT + 40 }}
+      >
+        <table className="w-full text-left border-collapse min-w-[640px]">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b-2 border-green-800/20 bg-green-50">
+              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Customer
+              </th>
+              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Amount Due
+              </th>
+              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Due Date
+              </th>
+              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Days Overdue
+              </th>
+              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Status
+              </th>
             </tr>
           </thead>
-          <tbody className="text-[11px] text-stone-800">
+          <tbody className="text-xs text-stone-900">
             {receivableRecords.map((row) => (
-              <tr key={row.id} className="h-10 border-b border-stone-50 last:border-0 hover:bg-stone-100 cursor-pointer transition-colors">
-                <td className="font-medium">{row.customer}</td>
-                <td className="font-bold">Bs {(row.amount - row.amountPaid).toLocaleString()}</td>
-                <td>{row.dueDate}</td>
-                <td>
+              <tr
+                key={row.id}
+                className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
+              >
+                <td className="px-3 py-3 font-semibold">{row.customer}</td>
+                <td className="px-3 py-3 font-bold text-stone-900">
+                  Bs {(row.amount - row.amountPaid).toLocaleString()}
+                </td>
+                <td className="px-3 py-3 font-medium text-stone-700">{row.dueDate}</td>
+                <td className="px-3 py-3">
                   {row.overdueDays > 0 ? (
-                    <span className="text-red-700 font-medium">{row.overdueDays} days</span>
+                    <span className="font-bold text-red-700">{row.overdueDays} days</span>
                   ) : (
-                    <span className="text-stone-400">Not overdue</span>
+                    <span className="font-medium text-green-700">On time</span>
                   )}
                 </td>
-                <td>
+                <td className="px-3 py-3">
                   <span
                     className={cn(
-                      "px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                      row.status === "Overdue" && "bg-red-50 text-red-700 border-red-100",
-                      row.status === "Paid" && "bg-green-50 text-green-700 border-green-100",
-                      row.status === "Partially Paid" && "bg-amber-50 text-amber-700 border-amber-100",
-                      row.status === "Pending" && "bg-stone-50 text-stone-600 border-stone-200",
+                      "inline-flex px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
+                      row.status === "Overdue" && "bg-red-50 text-red-800 border-red-200",
+                      row.status === "Paid" && "bg-green-100 text-green-800 border-green-200",
+                      row.status === "Partially Paid" &&
+                        "bg-amber-50 text-amber-800 border-amber-200",
+                      row.status === "Pending" && "bg-blue-50 text-blue-800 border-blue-200"
                     )}
                   >
                     {row.status}
@@ -48,6 +82,11 @@ export function ReceivablesTable() {
           </tbody>
         </table>
       </div>
+      {hasMore && (
+        <p className="mt-2 text-[10px] font-medium text-stone-500 text-right">
+          Scroll to see all {receivableRecords.length} receivables
+        </p>
+      )}
     </div>
   );
 }
