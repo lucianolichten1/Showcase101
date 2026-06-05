@@ -6,7 +6,6 @@ import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
-import { AIInsightsPanel } from "./AIInsightsPanel";
 import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
 import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
@@ -208,7 +207,7 @@ export function DashboardPage() {
             </div>
           </section>
 
-          {/* Financial chart + insights */}
+          {/* Financial chart */}
           <section>
             <SectionHeading
               title="Financial overview"
@@ -218,14 +217,7 @@ export function DashboardPage() {
                   : "Monthly revenue and expenses based on your selected period"
               }
             />
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
-              <div className="lg:col-span-8">
-                <FinancialChart period={period} />
-              </div>
-              <div className="lg:col-span-4">
-                <AIInsightsPanel />
-              </div>
-            </div>
+            <FinancialChart period={period} />
           </section>
 
           {/* Expenses + Receivables */}
