@@ -34,10 +34,10 @@ function SectionHeading({
   description?: string;
 }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-green-800">{title}</h2>
+    <div className="mb-2">
+      <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">{title}</h2>
       {description && (
-        <p className="text-sm text-stone-700 mt-1">{description}</p>
+        <p className="text-xs text-stone-600 mt-0.5">{description}</p>
       )}
     </div>
   );
@@ -76,7 +76,7 @@ function DashboardGetStarted() {
     <section className="rounded-xl border border-stone-200 bg-white shadow-sm p-6 sm:p-8">
       <div className="mb-6">
         <h2 className="text-base font-bold text-stone-900 tracking-tight">Get started with your financial data</h2>
-        <p className="text-sm text-stone-500 mt-1">Choose how you'd like to populate your dashboard. You can always mix both methods.</p>
+        <p className="text-sm text-stone-700 mt-1">Choose how you'd like to populate your dashboard. You can always mix both methods.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {steps.map(({ icon: Icon, title, description, action, onClick, primary }) => (
@@ -86,7 +86,7 @@ function DashboardGetStarted() {
             </div>
             <div>
               <p className="text-sm font-semibold text-stone-900">{title}</p>
-              <p className="text-xs text-stone-500 mt-1 leading-relaxed">{description}</p>
+              <p className="text-xs text-stone-700 mt-1 leading-relaxed">{description}</p>
             </div>
             <button
               type="button"
@@ -163,9 +163,9 @@ export function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8 sm:space-y-10">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
           {/* Page header */}
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-5 py-5 sm:px-6">
+          <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
             <div>
               <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
                 Financial Dashboard
@@ -195,7 +195,7 @@ export function DashboardPage() {
                   : "KPIs will populate once you add or import financial data"
               }
             />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               {kpiCards.map((kpi) => (
                 <Fragment key={kpi.title}>
                   <KPICard

@@ -1,11 +1,5 @@
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
-
-function statusTextClass(status: string): string {
-  if (status === "Overdue") return "font-semibold text-red-700";
-  if (status === "Paid") return "font-medium text-green-800";
-  if (status === "Partially Paid") return "font-medium text-amber-800";
-  return "font-medium text-stone-600";
-}
+import { receivableStatusTextClass } from "@/lib/statusText";
 
 /** ~48px per row — shows 5 rows then scrolls */
 const VISIBLE_ROW_COUNT = 5;
@@ -22,31 +16,34 @@ export function ReceivablesTable() {
           Accounts Receivable
         </h3>
         {receivableRecords.length > 0 && (
-          <span className="text-[10px] font-semibold text-stone-500">
+          <span className="text-[10px] font-semibold text-stone-600">
             {receivableRecords.length} invoice{receivableRecords.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
       <div
-        className="overflow-x-auto overflow-y-auto -mx-1 rounded-lg border border-stone-100"
+        className="overflow-y-auto -mx-1 rounded-lg border border-stone-100"
         style={{ maxHeight: ROW_SCROLL_MAX_HEIGHT + 40 }}
       >
-        <table className="w-full text-left border-collapse min-w-[640px]">
+        <table className="w-full table-fixed text-left border-collapse">
+          <colgroup>
+            <col className="w-[38%]" />
+            <col className="w-[22%]" />
+            <col className="w-[22%]" />
+            <col className="w-[18%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr className="border-b-2 border-green-800/20 bg-green-50">
-              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
                 Customer
               </th>
-              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
-                Amount Due
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">
+                Balance
               </th>
-              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
-                Due Date
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                Due
               </th>
-              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
-                Days Overdue
-              </th>
-              <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
                 Status
               </th>
             </tr>
@@ -57,20 +54,20 @@ export function ReceivablesTable() {
                 key={row.id}
                 className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
               >
-                <td className="px-3 py-3 font-semibold">{row.customer}</td>
-                <td className="px-3 py-3 font-bold text-stone-900">
+                <td className="px-2 sm:px-3 py-3 font-semibold truncate">{row.customer}</td>
+                <td className="px-2 sm:px-3 py-3 font-bold text-stone-900 text-right tabular-nums">
                   Bs {(row.amount - row.amountPaid).toLocaleString()}
                 </td>
-                <td className="px-3 py-3 font-medium text-stone-700">{row.dueDate}</td>
-                <td className="px-3 py-3">
+                <td className="px-2 sm:px-3 py-3">
+                  <div className="font-medium text-stone-700 truncate">{row.dueDate}</div>
                   {row.overdueDays > 0 ? (
-                    <span className="font-bold text-red-700">{row.overdueDays} days</span>
+                    <div className="text-[10px] font-bold text-red-700">{row.overdueDays}d overdue</div>
                   ) : (
-                    <span className="font-medium text-green-700">On time</span>
+                    <div className="text-[10px] font-medium text-green-700">On time</div>
                   )}
                 </td>
-                <td className="px-3 py-3">
-                  <span className={statusTextClass(row.status)}>{row.status}</span>
+                <td className="px-2 sm:px-3 py-3">
+                  <span className={receivableStatusTextClass(row.status)}>{row.status}</span>
                 </td>
               </tr>
             ))}

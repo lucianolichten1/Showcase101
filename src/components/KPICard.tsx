@@ -22,15 +22,17 @@ export function KPICard({
     (trendStatus === "neutral" && Boolean(trendText));
 
   return (
-    <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col items-center justify-center gap-1.5 text-center min-h-[118px]">
-      <span className="text-[10px] text-stone-600 font-semibold uppercase tracking-wide">
+    <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col items-center justify-center gap-1 text-center min-h-[88px]">
+      <span className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide leading-tight">
         {title}
       </span>
-      <span className="text-xl font-bold text-stone-900 tabular-nums">{value}</span>
+      <span className="text-lg font-bold text-stone-900 tabular-nums leading-tight max-w-full truncate px-1">
+        {value}
+      </span>
       {showTrend && (
         <span
           className={cn(
-            "text-[11px] font-medium",
+            "text-[10px] font-medium",
             trendStatus === "positive" && "text-green-700",
             trendStatus === "negative" && "text-red-700",
             trendStatus === "neutral" && "text-stone-600"
@@ -42,7 +44,7 @@ export function KPICard({
         </span>
       )}
       {subtitle && (
-        <span className="text-[10px] text-stone-500">{subtitle}</span>
+        <span className="text-[9px] text-stone-600 leading-tight max-w-full truncate px-1">{subtitle}</span>
       )}
     </div>
   );

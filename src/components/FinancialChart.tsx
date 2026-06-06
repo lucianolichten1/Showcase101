@@ -63,7 +63,7 @@ function ChartTooltip({ active, payload, label, visible }: ChartTooltipProps) {
       <div className="space-y-1">
         {visible.revenue && (
           <div className="flex items-center justify-between gap-4">
-            <span className="text-stone-500">Revenue</span>
+            <span className="text-stone-600">Revenue</span>
             <span className="font-semibold text-stone-900 tabular-nums">
               {formatCurrency(row.revenue)}
             </span>
@@ -71,14 +71,14 @@ function ChartTooltip({ active, payload, label, visible }: ChartTooltipProps) {
         )}
         {visible.expenses && (
           <div className="flex items-center justify-between gap-4">
-            <span className="text-stone-500">Total Costs</span>
+            <span className="text-stone-600">Total Costs</span>
             <span className="font-semibold text-stone-900 tabular-nums">
               {formatCurrency(row.expenses)}
             </span>
           </div>
         )}
         <div className="flex items-center justify-between gap-4 pt-1 border-t border-stone-100">
-          <span className="text-stone-500">Net Profit</span>
+          <span className="text-stone-600">Net Profit</span>
           <span className="font-bold text-green-800 tabular-nums">
             {formatCurrency(row.profit)}
           </span>
@@ -154,7 +154,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
             Financial Performance
           </h3>
-          <p className="text-xs text-stone-500 mt-1">{chartSubtitle}</p>
+          <p className="text-xs text-stone-700 mt-1">{chartSubtitle}</p>
         </div>
 
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -186,7 +186,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
       <div className="w-full h-[300px]">
         {!hasData ? (
           <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/50">
-            <p className="text-sm text-stone-500 text-center px-4">{emptyMessage}</p>
+            <p className="text-sm text-stone-600 text-center px-4">{emptyMessage}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -208,7 +208,7 @@ export function FinancialChart({ period }: FinancialChartProps) {
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#a8a29e", fontSize: 10 }}
+                tick={{ fill: "#57534e", fontSize: 10, fontWeight: 500 }}
                 tickFormatter={(val) => `Bs ${val / 1000}k`}
                 dx={-10}
               />

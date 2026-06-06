@@ -7,7 +7,9 @@ import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { AddCustomerDialog } from "./AddCustomerDialog";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
+import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
+import { riskTextClass } from "@/lib/statusText";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SortKey = "name" | "invoiced" | "paid" | "outstanding" | "risk";
@@ -37,10 +39,9 @@ function getCustomerRisk(customerName: string, receivables: ReceivableRecord[]):
   return "Low";
 }
 
-function getRiskBadgeClass(risk: RiskLevel) {
-  if (risk === "High") return "bg-red-50 text-red-700 border-red-100";
-  if (risk === "Medium") return "bg-amber-50 text-amber-700 border-amber-100";
-  return "bg-green-50 text-green-700 border-green-100";
+function customerStatusTextClass(status: string): string {
+  if (status === "Active") return "font-medium text-green-800";
+  return "font-medium text-stone-600";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -59,8 +60,8 @@ function FilterChip({
   };
   return (
     <button onClick={onClick} className={cn(
-      "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border transition-colors",
-      active ? activeColors[color] : "bg-white text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-700"
+      "px-2.5 py-1 text-[10px] font-semibold rounded-md border transition-colors",
+      active ? activeColors[color] : "bg-white text-stone-700 border-stone-200 hover:border-stone-300"
     )}>
       {label}
     </button>
@@ -204,50 +205,68 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
 
   return (
     <>
-      <main className="flex flex-col gap-5 p-5 lg:p-6">
+      <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
           <div>
-            <h1 className="text-lg font-bold text-stone-900">Customers</h1>
-            <p className="text-xs text-stone-500 mt-0.5">All customers and their account status</p>
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Customers</h1>
+            <p className="text-sm text-stone-700 mt-1">All customers and their account status</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={handleExportCsv}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm hover:bg-stone-50 transition-colors">
+              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors">
               <Download size={13} />
               Export
             </button>
             <button onClick={() => setShowAddCustomer(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors">
+              className="flex items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-700 transition-colors">
               <Plus size={13} />
               Add Customer
             </button>
           </div>
-        </div>
+        </section>
 
         {/* KPI Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Customers</span>
-            <span className="text-lg font-bold text-stone-900">{totalCustomers}</span>
-            <span className="text-[10px] text-stone-400">All time</span>
+        <section>
+          <div className="mb-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Active</span>
-            <span className="text-lg font-bold text-stone-900">{activeCustomers}</span>
-            <span className="text-[10px] text-green-600 font-bold">Currently buying</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <KPICard
+              title="Total Customers"
+              value={String(totalCustomers)}
+              trend={0}
+              trendText=""
+              trendStatus="neutral"
+              subtitle="All time"
+            />
+            <KPICard
+              title="Active"
+              value={String(activeCustomers)}
+              trend={0}
+              trendText="Currently buying"
+              trendStatus="neutral"
+            />
+            <KPICard
+              title="Total Outstanding"
+              value={formatCurrency(totalOutstanding)}
+              trend={0}
+              trendText=""
+              trendStatus="neutral"
+              subtitle="Unpaid balances"
+            />
+            <KPICard
+              title="At Risk"
+              value={String(atRiskCount)}
+              trend={0}
+              trendText=""
+              trendStatus="neutral"
+              subtitle="High overdue risk"
+            />
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Outstanding</span>
-            <span className="text-lg font-bold text-stone-900">{formatCurrency(totalOutstanding)}</span>
-            <span className="text-[10px] text-stone-400">Unpaid balances</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">At Risk</span>
-            <span className="text-lg font-bold text-red-600">{atRiskCount}</span>
-            <span className="text-[10px] text-stone-400">High overdue risk</span>
-          </div>
-        </div>
+        </section>
 
         {/* Filters + Table */}
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
@@ -260,13 +279,13 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                 placeholder="Search by customer name…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 bg-stone-50 pl-8 pr-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 focus:bg-white transition-colors placeholder:text-stone-400"
+                className="w-full rounded-lg border border-stone-200 bg-white pl-8 pr-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 transition-colors placeholder:text-stone-500"
               />
             </div>
 
             {/* Status chips */}
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mr-1">Status</span>
+              <span className="text-[10px] font-semibold text-stone-700 mr-1">Status</span>
               <FilterChip label="All" active={!statusFilter} onClick={() => setStatusFilter("")} />
               <FilterChip label="Active" active={statusFilter === "Active"} onClick={() => setStatusFilter(statusFilter === "Active" ? "" : "Active")} color="green" />
               <FilterChip label="Inactive" active={statusFilter === "Inactive"} onClick={() => setStatusFilter(statusFilter === "Inactive" ? "" : "Inactive")} color="stone" />
@@ -274,7 +293,7 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
 
             {/* Risk chips */}
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mr-1">Risk</span>
+              <span className="text-[10px] font-semibold text-stone-700 mr-1">Risk</span>
               <FilterChip label="All" active={!riskFilter} onClick={() => setRiskFilter("")} />
               <FilterChip label="Low" active={riskFilter === "Low"} onClick={() => setRiskFilter(riskFilter === "Low" ? "" : "Low")} color="green" />
               <FilterChip label="Medium" active={riskFilter === "Medium"} onClick={() => setRiskFilter(riskFilter === "Medium" ? "" : "Medium")} color="amber" />
@@ -301,7 +320,7 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
               </select>
               {activeFiltersCount > 0 && (
                 <button onClick={clearAll}
-                  className="text-[10px] font-semibold text-stone-400 hover:text-red-600 transition-colors ml-1">
+                  className="text-[10px] font-semibold text-stone-600 hover:text-red-700 transition-colors ml-1">
                   Clear all ({activeFiltersCount})
                 </button>
               )}
@@ -309,44 +328,44 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
           </div>
 
           {/* Results count */}
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">All Customers</h3>
-            <span className="text-[10px] text-stone-400">{displayed.length} of {customers.length} customers</span>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-green-800">All Customers</h3>
+            <span className="text-[10px] font-medium text-stone-600">{displayed.length} of {customers.length} customers</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                <tr className="h-8">
-                  <th className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none" onClick={() => handleSort("name")}>
+          <div className="overflow-x-auto rounded-lg border border-stone-100">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("name")}>
                     Customer <SortIcon colKey="name" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="font-bold pr-4">City</th>
-                  <th className="font-bold pr-4">Industry</th>
-                  <th className="font-bold pr-4">Contact</th>
-                  <th className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none" onClick={() => handleSort("invoiced")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">City</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Industry</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Contact</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("invoiced")}>
                     Total Invoiced <SortIcon colKey="invoiced" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none" onClick={() => handleSort("paid")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("paid")}>
                     Total Paid <SortIcon colKey="paid" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none" onClick={() => handleSort("outstanding")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("outstanding")}>
                     Outstanding <SortIcon colKey="outstanding" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="font-bold pr-4">Status</th>
-                  <th className="font-bold cursor-pointer hover:text-stone-600 select-none" onClick={() => handleSort("risk")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("risk")}>
                     Risk <SortIcon colKey="risk" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-stone-800">
+              <tbody className="text-xs text-stone-900">
                 {displayed.length === 0 ? (
                   <tr>
                     <td colSpan={9}>
-                      <div className="flex flex-col items-center gap-2 py-12 text-stone-400">
+                      <div className="flex flex-col items-center gap-2 py-12 text-stone-600">
                         <Users size={32} strokeWidth={1.5} />
-                        <p className="text-sm font-medium text-stone-600">No customers found</p>
-                        <p className="text-xs text-center max-w-xs">
+                        <p className="text-sm font-medium text-stone-800">No customers found</p>
+                        <p className="text-xs text-stone-600 text-center max-w-xs">
                           {customers.length === 0
                             ? "Add your first customer using the button above."
                             : "No customers match your current filters."}
@@ -360,42 +379,33 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                       key={c.id}
                       onClick={() => setSelectedCustomer(selectedCustomer?.id === c.id ? null : c)}
                       className={cn(
-                        "h-11 border-b border-stone-50 last:border-0 cursor-pointer transition-colors",
+                        "border-b border-stone-100 last:border-0 cursor-pointer transition-colors",
                         selectedCustomer?.id === c.id
-                          ? "bg-green-50 hover:bg-green-50"
-                          : "hover:bg-stone-50"
+                          ? "bg-green-50/60 hover:bg-green-50/60"
+                          : "hover:bg-green-50/40"
                       )}
                     >
-                      <td className="pr-4">
+                      <td className="px-3 py-3">
                         <div className="font-semibold text-stone-900">{c.name}</div>
-                        <div className="text-[10px] text-stone-400">{c.email}</div>
+                        <div className="text-[10px] text-stone-600">{c.email}</div>
                       </td>
-                      <td className="pr-4 text-stone-600">{c.city || "—"}</td>
-                      <td className="pr-4 text-stone-600">{c.industry || "—"}</td>
-                      <td className="pr-4 text-stone-500 font-mono text-[10px]">{c.phone || "—"}</td>
-                      <td className="pr-4 font-medium">{formatCurrency(c.totalInvoiced)}</td>
-                      <td className="pr-4 text-green-700">
+                      <td className="px-3 py-3 font-medium text-stone-700">{c.city || "—"}</td>
+                      <td className="px-3 py-3 font-medium text-stone-700">{c.industry || "—"}</td>
+                      <td className="px-3 py-3 font-mono text-[10px] text-stone-600">{c.phone || "—"}</td>
+                      <td className="px-3 py-3 font-semibold">{formatCurrency(c.totalInvoiced)}</td>
+                      <td className="px-3 py-3 font-semibold text-green-800">
                         {c.totalPaid > 0 ? formatCurrency(c.totalPaid) : "—"}
                       </td>
-                      <td className="pr-4 font-bold">
+                      <td className="px-3 py-3 font-bold">
                         {c.outstanding > 0
                           ? formatCurrency(c.outstanding)
-                          : <span className="text-green-600 font-medium">Settled</span>}
+                          : <span className="text-green-800 font-medium">Settled</span>}
                       </td>
-                      <td className="pr-4">
-                        <span className={cn(
-                          "px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                          c.status === "Active"
-                            ? "bg-green-50 text-green-700 border-green-100"
-                            : "bg-stone-50 text-stone-500 border-stone-200"
-                        )}>
-                          {c.status}
-                        </span>
+                      <td className="px-3 py-3">
+                        <span className={customerStatusTextClass(c.status)}>{c.status}</span>
                       </td>
-                      <td>
-                        <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border", getRiskBadgeClass(c.risk))}>
-                          {c.risk}
-                        </span>
+                      <td className="px-3 py-3">
+                        <span className={riskTextClass(c.risk)}>{c.risk}</span>
                       </td>
                     </tr>
                   ))
@@ -406,19 +416,21 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
         </div>
 
         {/* Industry Breakdown */}
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">By Industry</h3>
+        <section className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-green-800 mb-4">By Industry</h3>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {industryBreakdown.map(({ industry, count, total }) => (
-              <div key={industry} className="rounded-lg border border-stone-100 bg-stone-50 p-3 flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{industry}</span>
+              <div key={industry} className="rounded-lg border border-stone-200 bg-white p-3 flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-700">{industry}</span>
                 <span className="text-sm font-bold text-stone-900">{count} customer{count > 1 ? "s" : ""}</span>
-                <span className="text-[10px] text-stone-400">{formatCurrency(total)} invoiced</span>
+                <span className="text-[10px] text-stone-600">{formatCurrency(total)} invoiced</span>
               </div>
             ))}
           </div>
+        </section>
+          </div>
         </div>
-      </main>
+      </div>
 
       {/* Dialogs & Panels */}
       <AddCustomerDialog
