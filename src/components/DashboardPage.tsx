@@ -22,7 +22,7 @@ function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefin
   if (title === "Total Revenue" || title === "Total Costs" || title === "Net Profit") {
     return periodLabel;
   }
-  if (title === "Accounts Receivable") return "Outstanding receivables (all open invoices)";
+  if (title === "Accounts Receivable") return "Open invoices";
   return undefined;
 }
 
@@ -35,9 +35,9 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500">{title}</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-green-800">{title}</h2>
       {description && (
-        <p className="text-sm text-stone-600 mt-1">{description}</p>
+        <p className="text-sm text-stone-700 mt-1">{description}</p>
       )}
     </div>
   );
@@ -149,7 +149,13 @@ export function DashboardPage() {
           trendStatus: "neutral" as const,
         };
       if (kpi.title === "Accounts Receivable")
-        return { ...kpi, value: formatCurrency(financialKpis.receivablesTotalOutstanding) };
+        return {
+          ...kpi,
+          value: formatCurrency(financialKpis.receivablesTotalOutstanding),
+          trend: 0,
+          trendText: "",
+          trendStatus: "neutral" as const,
+        };
       return kpi;
     });
   }, [financialKpis, usesImportedData]);
@@ -159,7 +165,7 @@ export function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8 sm:space-y-10">
           {/* Page header */}
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-5 py-5 sm:px-6">
             <div>
               <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
                 Financial Dashboard

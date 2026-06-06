@@ -131,12 +131,6 @@ export function ExpenseBreakdown() {
                   <span className="flex-1 min-w-0 font-semibold text-stone-900 truncate">
                     {expense.category}
                   </span>
-                  <span className="shrink-0 font-bold text-green-800">
-                    {expense.percentage}%
-                  </span>
-                  <span className="shrink-0 font-semibold text-stone-600 tabular-nums">
-                    {formatCurrency(expense.amount)}
-                  </span>
                 </li>
               ))}
             </ul>

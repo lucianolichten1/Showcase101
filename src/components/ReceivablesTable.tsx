@@ -1,5 +1,11 @@
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
-import { cn } from "@/lib/utils";
+
+function statusTextClass(status: string): string {
+  if (status === "Overdue") return "font-semibold text-red-700";
+  if (status === "Paid") return "font-medium text-green-800";
+  if (status === "Partially Paid") return "font-medium text-amber-800";
+  return "font-medium text-stone-600";
+}
 
 /** ~48px per row — shows 5 rows then scrolls */
 const VISIBLE_ROW_COUNT = 5;
@@ -64,18 +70,7 @@ export function ReceivablesTable() {
                   )}
                 </td>
                 <td className="px-3 py-3">
-                  <span
-                    className={cn(
-                      "inline-flex px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                      row.status === "Overdue" && "bg-red-50 text-red-800 border-red-200",
-                      row.status === "Paid" && "bg-green-100 text-green-800 border-green-200",
-                      row.status === "Partially Paid" &&
-                        "bg-amber-50 text-amber-800 border-amber-200",
-                      row.status === "Pending" && "bg-blue-50 text-blue-800 border-blue-200"
-                    )}
-                  >
-                    {row.status}
-                  </span>
+                  <span className={statusTextClass(row.status)}>{row.status}</span>
                 </td>
               </tr>
             ))}
