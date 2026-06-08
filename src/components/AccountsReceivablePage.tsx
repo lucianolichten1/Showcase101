@@ -17,6 +17,10 @@ import { AddInvoiceDialog } from "./AddInvoiceDialog";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
+import {
+  buildWhatsAppChaseUrl,
+  isChaseableReceivable,
+} from "@/lib/invoiceChaser";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,6 +103,7 @@ export function AccountsReceivablePage({
   const {
     receivableRecords: receivables,
     setReceivableRecords,
+    customerRecords,
   } = useCompanyScopedFinancialData();
 
   const onUpdateReceivable =
@@ -122,6 +127,22 @@ export function AccountsReceivablePage({
   // Dialog state
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
   const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const [chasedIds, setChasedIds] = useState<Set<number>>(() => new Set());
+
+  const customerPhoneByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const customer of customerRecords) {
+      if (customer.phone?.trim()) {
+        map.set(customer.name, customer.phone.trim());
+      }
+    }
+    for (const customer of allCustomers) {
+      if (customer.phone?.trim() && !map.has(customer.name)) {
+        map.set(customer.name, customer.phone.trim());
+      }
+    }
+    return map;
+  }, [customerRecords]);
 
   // ── KPIs (all receivables; period filter needs ISO due dates) ─
 
@@ -241,6 +262,24 @@ export function AccountsReceivablePage({
   const handleAddInvoice = (newR: ReceivableRecord) => {
     onAddReceivable(newR);
     setShowAddInvoice(false);
+  };
+
+  const handleChase = (row: ReceivableRecord) => {
+    const phone = customerPhoneByName.get(row.customer);
+    if (!phone) return;
+
+    const balance = row.amount - row.amountPaid;
+    const url = buildWhatsAppChaseUrl({
+      phone,
+      clientName: row.customer,
+      invoiceNumber: row.invoiceNumber,
+      balanceDue: balance,
+      overdueDays: row.overdueDays,
+    });
+    if (!url) return;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+    setChasedIds((prev) => new Set(prev).add(row.id));
   };
 
   const handleExportCsv = () => {
@@ -363,7 +402,7 @@ export function AccountsReceivablePage({
                 <col className="w-[124px]" />
                 <col className="w-[92px]" />
                 <col className="w-[100px]" />
-                <col className="w-[52px]" />
+                <col className="w-[64px]" />
               </colgroup>
               <thead>
                 <tr className="border-b-2 border-green-800/20 bg-green-50">
@@ -386,7 +425,9 @@ export function AccountsReceivablePage({
                     Due <SortIcon colKey="dueDate" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
-                  <th className="px-2 py-2.5" />
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-xs text-stone-900">
@@ -441,15 +482,38 @@ export function AccountsReceivablePage({
                             <div className={cn(riskTextClass(risk), "text-[10px] mt-0.5")}>{risk}</div>
                           )}
                         </td>
-                        <td className="px-2 py-3 align-top text-center">
-                          {row.status !== "Paid" && (
-                            <button
-                              onClick={() => setPaymentTarget(row)}
-                              className="px-2 py-1 text-[10px] font-semibold rounded-md border border-green-200 bg-white text-green-800 hover:bg-green-50 transition-colors"
-                            >
-                              Pay
-                            </button>
-                          )}
+                        <td className="px-3 py-3 align-top text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            {row.status !== "Paid" && (
+                              <button
+                                type="button"
+                                onClick={() => setPaymentTarget(row)}
+                                className="text-[10px] font-semibold text-green-800 hover:underline"
+                              >
+                                Pay
+                              </button>
+                            )}
+                            {isChaseableReceivable(row.status) &&
+                              (chasedIds.has(row.id) ? (
+                                <span className="text-[10px] font-medium text-stone-500">
+                                  Enviado
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleChase(row)}
+                                  disabled={!customerPhoneByName.has(row.customer)}
+                                  title={
+                                    customerPhoneByName.has(row.customer)
+                                      ? "Send payment reminder via WhatsApp"
+                                      : "No phone number on file for this customer"
+                                  }
+                                  className="text-[10px] font-semibold text-green-800 hover:underline disabled:text-stone-400 disabled:no-underline disabled:cursor-not-allowed"
+                                >
+                                  Chase
+                                </button>
+                              ))}
+                          </div>
                         </td>
                       </tr>
                     );
