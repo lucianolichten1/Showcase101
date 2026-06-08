@@ -180,6 +180,8 @@ export interface FinancialKPIs {
   overdueRevenue: number;
   topRevenueCategory: string;
   totalExpenses: number;
+  /** COGS (from revenue cost) + operating expenses — matches dashboard chart "Total Costs". */
+  totalCosts: number;
   paidExpenses: number;
   pendingExpenses: number;
   overdueExpenses: number;

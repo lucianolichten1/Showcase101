@@ -6,9 +6,7 @@ import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
-import { AIInsightsPanel } from "./AIInsightsPanel";
 import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
-import { CompanyContextBanner } from "./company/CompanyContextBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
@@ -21,10 +19,10 @@ import {
 import type { KPIData } from "@/data/types";
 
 function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefined {
-  if (title === "Total Revenue" || title === "Total Expenses" || title === "Net Profit") {
+  if (title === "Total Revenue" || title === "Total Costs" || title === "Net Profit") {
     return periodLabel;
   }
-  if (title === "Accounts Receivable") return "Outstanding receivables (all open invoices)";
+  if (title === "Accounts Receivable") return "Open invoices";
   return undefined;
 }
 
@@ -36,10 +34,10 @@ function SectionHeading({
   description?: string;
 }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500">{title}</h2>
+    <div className="mb-2">
+      <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">{title}</h2>
       {description && (
-        <p className="text-sm text-stone-600 mt-1">{description}</p>
+        <p className="text-xs text-stone-600 mt-0.5">{description}</p>
       )}
     </div>
   );
@@ -78,7 +76,7 @@ function DashboardGetStarted() {
     <section className="rounded-xl border border-stone-200 bg-white shadow-sm p-6 sm:p-8">
       <div className="mb-6">
         <h2 className="text-base font-bold text-stone-900 tracking-tight">Get started with your financial data</h2>
-        <p className="text-sm text-stone-500 mt-1">Choose how you'd like to populate your dashboard. You can always mix both methods.</p>
+        <p className="text-sm text-stone-700 mt-1">Choose how you'd like to populate your dashboard. You can always mix both methods.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {steps.map(({ icon: Icon, title, description, action, onClick, primary }) => (
@@ -88,7 +86,7 @@ function DashboardGetStarted() {
             </div>
             <div>
               <p className="text-sm font-semibold text-stone-900">{title}</p>
-              <p className="text-xs text-stone-500 mt-1 leading-relaxed">{description}</p>
+              <p className="text-xs text-stone-700 mt-1 leading-relaxed">{description}</p>
             </div>
             <button
               type="button"
@@ -108,7 +106,10 @@ export function DashboardPage() {
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
     useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
-  const periodLabel = getFinancialPeriodLabel(period);
+  const periodLabel =
+    usesImportedData && period.kind === "all"
+      ? "Last 12 months"
+      : getFinancialPeriodLabel(period);
 
   useSyncFinancialPeriod(period, setDateRange);
 
@@ -127,10 +128,10 @@ export function DashboardPage() {
           trendText: usesImportedData ? "" : "Import Excel to populate",
           trendStatus: "neutral" as const,
         };
-      if (kpi.title === "Total Expenses")
+      if (kpi.title === "Total Costs")
         return {
           ...kpi,
-          value: formatCurrency(financialKpis.totalExpenses),
+          value: formatCurrency(financialKpis.totalCosts),
           trend: 0,
           trendText: usesImportedData ? "" : "Import Excel to populate",
           trendStatus: "neutral" as const,
@@ -148,7 +149,13 @@ export function DashboardPage() {
           trendStatus: "neutral" as const,
         };
       if (kpi.title === "Accounts Receivable")
-        return { ...kpi, value: formatCurrency(financialKpis.receivablesTotalOutstanding) };
+        return {
+          ...kpi,
+          value: formatCurrency(financialKpis.receivablesTotalOutstanding),
+          trend: 0,
+          trendText: "",
+          trendStatus: "neutral" as const,
+        };
       return kpi;
     });
   }, [financialKpis, usesImportedData]);
@@ -156,10 +163,9 @@ export function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8 sm:space-y-10">
-          <CompanyContextBanner />
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
           {/* Page header */}
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
             <div>
               <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
                 Financial Dashboard
@@ -189,7 +195,7 @@ export function DashboardPage() {
                   : "KPIs will populate once you add or import financial data"
               }
             />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               {kpiCards.map((kpi) => (
                 <Fragment key={kpi.title}>
                   <KPICard
@@ -205,7 +211,7 @@ export function DashboardPage() {
             </div>
           </section>
 
-          {/* Financial chart + insights */}
+          {/* Financial chart */}
           <section>
             <SectionHeading
               title="Financial overview"
@@ -215,14 +221,7 @@ export function DashboardPage() {
                   : "Monthly revenue and expenses based on your selected period"
               }
             />
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
-              <div className="lg:col-span-8">
-                <FinancialChart period={period} />
-              </div>
-              <div className="lg:col-span-4">
-                <AIInsightsPanel />
-              </div>
-            </div>
+            <FinancialChart period={period} />
           </section>
 
           {/* Expenses + Receivables */}
@@ -231,9 +230,9 @@ export function DashboardPage() {
               title="Expenses & Receivables"
               description="Category breakdown and outstanding invoices"
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-              <ExpenseBreakdown />
+            <div className="flex flex-col gap-4 lg:gap-6">
               <ReceivablesTable />
+              <ExpenseBreakdown />
             </div>
           </section>
         </div>

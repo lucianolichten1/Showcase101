@@ -14,8 +14,9 @@ import { formatCurrency, customers as allCustomers } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { AddInvoiceDialog } from "./AddInvoiceDialog";
+import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
+import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,25 +48,6 @@ function parseDueDate(dueDate: string): Date | null {
   return new Date(2026, monthIdx, day);
 }
 
-function getRiskBadgeClass(risk: RiskLevel) {
-  if (risk === "High") return "bg-red-50 text-red-700 border-red-100";
-  if (risk === "Medium") return "bg-amber-50 text-amber-700 border-amber-100";
-  return "bg-green-50 text-green-700 border-green-100";
-}
-
-function getStatusBadgeClass(status: string) {
-  if (status === "Overdue") return "bg-red-50 text-red-700 border-red-100";
-  if (status === "Paid") return "bg-green-50 text-green-700 border-green-100";
-  if (status === "Partially Paid") return "bg-amber-50 text-amber-700 border-amber-100";
-  return "bg-stone-50 text-stone-600 border-stone-200";
-}
-
-function getRowBgClass(risk: RiskLevel) {
-  if (risk === "High") return "bg-red-50/50 hover:bg-red-50";
-  if (risk === "Medium") return "bg-amber-50/40 hover:bg-amber-50";
-  return "hover:bg-stone-50";
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function FilterChip({
@@ -90,10 +72,10 @@ function FilterChip({
     <button
       onClick={onClick}
       className={cn(
-        "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border transition-colors",
+        "px-2.5 py-1 text-[10px] font-semibold rounded-md border transition-colors",
         active
           ? activeColors[color]
-          : "bg-white text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-700"
+          : "bg-white text-stone-700 border-stone-200 hover:border-stone-300"
       )}
     >
       {label}
@@ -287,77 +269,47 @@ export function AccountsReceivablePage({
 
   return (
     <>
-      <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
-        <CompanyContextBanner />
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
+        <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
           <div>
-            <h1 className="text-xl font-bold text-stone-900 tracking-tight">Accounts Receivable</h1>
-            <p className="text-sm text-stone-500 mt-1">
-              Outstanding balances and payment status · period filter requires ISO due dates
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Accounts Receivable</h1>
+            <p className="text-sm text-stone-700 mt-1">
+              Outstanding balances and payment status
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleExportCsv}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm hover:bg-stone-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
             >
               <Download size={13} />
               Export
             </button>
             <button
               onClick={() => setShowAddInvoice(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
             >
               <Plus size={13} />
               Add Invoice
             </button>
           </div>
-        </div>
+        </section>
 
-        {/* KPI Row — 6 cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Outstanding</span>
-            <span className="text-lg font-bold text-stone-900">{formatCurrency(totalOutstanding)}</span>
-            <span className="text-[10px] text-stone-400">Outstanding receivables</span>
+        <section>
+          <div className="mb-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Overdue Amount</span>
-            <span className="text-lg font-bold text-red-600">{formatCurrency(overdueAmount)}</span>
-            <span className="text-[10px] text-stone-400">Past due date</span>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
+            <KPICard title="Total Outstanding" value={formatCurrency(totalOutstanding)} trend={0} trendText="" trendStatus="neutral" subtitle="Outstanding receivables" />
+            <KPICard title="Overdue Amount" value={formatCurrency(overdueAmount)} trend={0} trendText="" trendStatus="neutral" subtitle="Past due date" />
+            <KPICard title="Invoices Overdue" value={String(invoicesOverdue)} trend={0} trendText="" trendStatus="neutral" subtitle="Late balances" />
+            <KPICard title="Avg Days Overdue" value={`${avgDaysOverdue}d`} trend={0} trendText="" trendStatus="neutral" subtitle="Across overdue" />
+            <KPICard title="Collection Rate" value={`${collectionRate}%`} trend={0} trendText="" trendStatus="neutral" subtitle="Paid vs invoiced" />
+            <KPICard title="Due This Week" value={String(dueSoon)} trend={0} trendText="" trendStatus="neutral" subtitle="Next 7 days" />
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Invoices Overdue</span>
-            <span className="text-lg font-bold text-stone-900">{invoicesOverdue}</span>
-            <span className="text-[10px] text-stone-400">Customers with late balance</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Avg Days Overdue</span>
-            <span className="text-lg font-bold text-stone-900">{avgDaysOverdue}d</span>
-            <span className="text-[10px] text-stone-400">Across overdue invoices</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Collection Rate</span>
-            <span className={cn("text-lg font-bold", collectionRate >= 70 ? "text-green-700" : "text-amber-600")}>
-              {collectionRate}%
-            </span>
-            <div className="w-full bg-stone-100 rounded-full h-1 mt-0.5">
-              <div
-                className={cn("h-1 rounded-full", collectionRate >= 70 ? "bg-green-600" : "bg-amber-500")}
-                style={{ width: `${collectionRate}%` }}
-              />
-            </div>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Due This Week</span>
-            <span className={cn("text-lg font-bold", dueSoon > 0 ? "text-amber-600" : "text-stone-900")}>
-              {dueSoon}
-            </span>
-            <span className="text-[10px] text-stone-400">Invoices due in 7 days</span>
-          </div>
-        </div>
+        </section>
 
         {/* Filters + Table */}
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden">
@@ -370,13 +322,13 @@ export function AccountsReceivablePage({
                 placeholder="Search by customer…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 bg-stone-50 pl-8 pr-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 focus:bg-white transition-colors placeholder:text-stone-400"
+                className="w-full rounded-lg border border-stone-200 bg-white pl-8 pr-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 transition-colors placeholder:text-stone-500"
               />
             </div>
 
             {/* Status chips */}
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mr-1">Status</span>
+              <span className="text-[10px] font-semibold text-stone-700 mr-1">Status</span>
               <FilterChip label="All" active={statusFilters.size === 0} onClick={() => setStatusFilters(new Set())} />
               <FilterChip label="Pending" active={statusFilters.has("Pending")} onClick={() => toggleStatusFilter("Pending")} color="stone" />
               <FilterChip label="Partially Paid" active={statusFilters.has("Partially Paid")} onClick={() => toggleStatusFilter("Partially Paid")} color="amber" />
@@ -386,7 +338,7 @@ export function AccountsReceivablePage({
 
             {/* Risk chips */}
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mr-1">Risk</span>
+              <span className="text-[10px] font-semibold text-stone-700 mr-1">Risk</span>
               <FilterChip label="All" active={riskFilters.size === 0} onClick={() => setRiskFilters(new Set())} />
               <FilterChip label="Low" active={riskFilters.has("Low")} onClick={() => toggleRiskFilter("Low")} color="green" />
               <FilterChip label="Medium" active={riskFilters.has("Medium")} onClick={() => toggleRiskFilter("Medium")} color="amber" />
@@ -395,64 +347,56 @@ export function AccountsReceivablePage({
           </div>
 
           {/* Results count */}
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-green-800">
               All Receivables
             </h3>
-            <span className="text-[10px] text-stone-400">
+            <span className="text-[10px] font-medium text-stone-600">
               {displayed.length} of {receivables.length} invoices
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                <tr className="h-8">
-                  <th className="font-bold pr-4">Invoice #</th>
+          <div className="rounded-lg border border-stone-100 overflow-hidden">
+            <table className="w-full table-fixed text-left border-collapse">
+              <colgroup>
+                <col />
+                <col className="w-[124px]" />
+                <col className="w-[92px]" />
+                <col className="w-[100px]" />
+                <col className="w-[52px]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b-2 border-green-800/20 bg-green-50">
                   <th
-                    className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none"
                     onClick={() => handleSort("customer")}
                   >
                     Customer <SortIcon colKey="customer" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th
-                    className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none"
-                    onClick={() => handleSort("amount")}
-                  >
-                    Total <SortIcon colKey="amount" sortKey={sortKey} sortDir={sortDir} />
-                  </th>
-                  <th className="font-bold pr-4">Paid</th>
-                  <th
-                    className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right cursor-pointer select-none"
                     onClick={() => handleSort("balance")}
                   >
-                    Balance Due <SortIcon colKey="balance" sortKey={sortKey} sortDir={sortDir} />
+                    Balance <SortIcon colKey="balance" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th
-                    className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none"
                     onClick={() => handleSort("dueDate")}
                   >
-                    Due Date <SortIcon colKey="dueDate" sortKey={sortKey} sortDir={sortDir} />
+                    Due <SortIcon colKey="dueDate" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th
-                    className="font-bold pr-4 cursor-pointer hover:text-stone-600 select-none"
-                    onClick={() => handleSort("overdueDays")}
-                  >
-                    Days Overdue <SortIcon colKey="overdueDays" sortKey={sortKey} sortDir={sortDir} />
-                  </th>
-                  <th className="font-bold pr-4">Status</th>
-                  <th className="font-bold pr-4">Risk</th>
-                  <th className="font-bold" />
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
+                  <th className="px-2 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-stone-800">
+              <tbody className="text-xs text-stone-900">
                 {displayed.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-2 text-stone-400">
+                    <td colSpan={5} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-stone-600">
                         <FileSearch size={32} strokeWidth={1.5} />
-                        <p className="text-sm font-medium">No invoices match your filters</p>
-                        <p className="text-xs">Try adjusting the search, status, or risk filters</p>
+                        <p className="text-sm font-medium text-stone-800">No invoices match your filters</p>
+                        <p className="text-xs text-stone-600">Try adjusting the search, status, or risk filters</p>
                       </div>
                     </td>
                   </tr>
@@ -463,43 +407,45 @@ export function AccountsReceivablePage({
                     return (
                       <tr
                         key={row.id}
-                        className={cn(
-                          "h-10 border-b border-stone-50 last:border-0 transition-colors",
-                          getRowBgClass(risk)
-                        )}
+                        className="border-b border-stone-100 last:border-0 transition-colors hover:bg-green-50/40"
                       >
-                        <td className="pr-4 font-mono text-stone-500">{row.invoiceNumber}</td>
-                        <td className="pr-4 font-medium">{row.customer}</td>
-                        <td className="pr-4">{formatCurrency(row.amount)}</td>
-                        <td className="pr-4 text-green-700">
-                          {row.amountPaid > 0 ? formatCurrency(row.amountPaid) : "—"}
+                        <td className="px-3 py-3 min-w-0 align-top">
+                          <div className="font-semibold truncate leading-snug" title={row.customer}>
+                            {row.customer}
+                          </div>
+                          <div className="text-[10px] font-mono text-stone-500 mt-0.5 truncate">
+                            {row.invoiceNumber}
+                          </div>
                         </td>
-                        <td className="pr-4 font-bold">
-                          {balance > 0 ? formatCurrency(balance) : <span className="text-green-600">Paid</span>}
-                        </td>
-                        <td className="pr-4 text-stone-500">{row.dueDate}</td>
-                        <td className="pr-4">
-                          {row.overdueDays > 0 ? (
-                            <span className="text-red-700 font-medium">{row.overdueDays}d</span>
-                          ) : (
-                            <span className="text-stone-400">—</span>
+                        <td className="px-3 py-3 text-right align-top">
+                          <div className="font-bold tabular-nums leading-snug">
+                            {balance > 0 ? formatCurrency(balance) : <span className="text-green-800 font-medium">Paid</span>}
+                          </div>
+                          {row.amountPaid > 0 && balance > 0 && (
+                            <div className="text-[10px] text-stone-500 tabular-nums mt-0.5 leading-snug">
+                              {formatCurrency(row.amountPaid)} paid
+                            </div>
                           )}
                         </td>
-                        <td className="pr-4">
-                          <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border", getStatusBadgeClass(row.status))}>
-                            {row.status}
-                          </span>
+                        <td className="px-3 py-3 align-top">
+                          <div className="font-medium text-stone-700 leading-snug">{row.dueDate}</div>
+                          {row.overdueDays > 0 ? (
+                            <div className="text-[10px] text-red-700 font-semibold mt-0.5">{row.overdueDays}d overdue</div>
+                          ) : (
+                            <div className="text-[10px] text-stone-500 mt-0.5">On time</div>
+                          )}
                         </td>
-                        <td className="pr-4">
-                          <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border", getRiskBadgeClass(risk))}>
-                            {risk}
-                          </span>
+                        <td className="px-3 py-3 align-top">
+                          <div className={cn(receivableStatusTextClass(row.status), "leading-snug")}>{row.status}</div>
+                          {risk !== "Low" && (
+                            <div className={cn(riskTextClass(risk), "text-[10px] mt-0.5")}>{risk}</div>
+                          )}
                         </td>
-                        <td>
+                        <td className="px-2 py-3 align-top text-center">
                           {row.status !== "Paid" && (
                             <button
                               onClick={() => setPaymentTarget(row)}
-                              className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors whitespace-nowrap"
+                              className="px-2 py-1 text-[10px] font-semibold rounded-md border border-green-200 bg-white text-green-800 hover:bg-green-50 transition-colors"
                             >
                               Pay
                             </button>
@@ -512,15 +458,20 @@ export function AccountsReceivablePage({
               </tbody>
               {/* Footer totals */}
               {displayed.length > 0 && (
-                <tfoot className="text-[10px] font-bold text-stone-600 border-t border-stone-200">
-                  <tr className="h-9">
-                    <td className="pr-4 text-stone-400 text-[9px] uppercase tracking-wider pt-2" colSpan={2}>
+                <tfoot className="text-xs font-bold text-stone-700 border-t border-stone-200 bg-stone-50/50">
+                  <tr>
+                    <td className="px-3 py-2.5 text-stone-600 text-[10px] uppercase tracking-wider">
                       Totals ({displayed.length})
                     </td>
-                    <td className="pr-4 pt-2">{formatCurrency(footerAmount)}</td>
-                    <td className="pr-4 pt-2 text-green-700">{formatCurrency(footerPaid)}</td>
-                    <td className="pr-4 pt-2">{formatCurrency(footerBalance)}</td>
-                    <td colSpan={5} />
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      <div>{formatCurrency(footerBalance)}</div>
+                      {footerPaid > 0 && (
+                        <div className="text-[10px] font-medium text-stone-500 mt-0.5">
+                          {formatCurrency(footerPaid)} paid
+                        </div>
+                      )}
+                    </td>
+                    <td colSpan={3} />
                   </tr>
                 </tfoot>
               )}
@@ -528,34 +479,18 @@ export function AccountsReceivablePage({
           </div>
         </div>
 
-        {/* Aging Summary */}
-        <div>
-          <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Aging Summary</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Current</span>
-              <span className="text-base font-bold text-stone-900">{formatCurrency(agingCurrent)}</span>
-              <span className="text-[10px] text-stone-400">Not yet overdue</span>
-            </div>
-            <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wide">1–30 Days</span>
-              <span className="text-base font-bold text-stone-900">{formatCurrency(aging1to30)}</span>
-              <span className="text-[10px] text-stone-400">Slightly overdue</span>
-            </div>
-            <div className="bg-white p-3 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">31–60 Days</span>
-              <span className="text-base font-bold text-stone-900">{formatCurrency(aging31to60)}</span>
-              <span className="text-[10px] text-stone-400">At risk</span>
-            </div>
-            <div className="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex flex-col gap-1">
-              <span className="text-[10px] text-red-600 font-bold uppercase tracking-wide">60+ Days</span>
-              <span className="text-base font-bold text-stone-900">{formatCurrency(aging60plus)}</span>
-              <span className="text-[10px] text-stone-400">High risk</span>
-            </div>
+        <section>
+          <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2">Aging Summary</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <KPICard title="Current" value={formatCurrency(agingCurrent)} trend={0} trendText="" trendStatus="neutral" subtitle="Not yet overdue" />
+            <KPICard title="1–30 Days" value={formatCurrency(aging1to30)} trend={0} trendText="" trendStatus="neutral" subtitle="Slightly overdue" />
+            <KPICard title="31–60 Days" value={formatCurrency(aging31to60)} trend={0} trendText="" trendStatus="neutral" subtitle="At risk" />
+            <KPICard title="60+ Days" value={formatCurrency(aging60plus)} trend={0} trendText="" trendStatus="neutral" subtitle="High risk" />
+          </div>
+        </section>
           </div>
         </div>
-        </div>
-      </main>
+      </div>
 
       {/* Dialogs */}
       <RecordPaymentDialog

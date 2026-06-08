@@ -1,7 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { monthlyFinancials, expenseCategories, formatCurrency } from "@/data/mockData";
 import {
@@ -25,6 +24,7 @@ import {
 } from "@/domains/financial/period";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { cn } from "@/lib/utils";
+import { KPICard } from "@/components/KPICard";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,11 +51,11 @@ function PLRow({ label, amount, indent = false, bold = false, positive }: {
     : positive === false ? "text-red-600"
     : "text-stone-900";
   return (
-    <div className={cn("flex items-center justify-between py-2 border-b border-stone-50 last:border-0", indent && "pl-4")}>
-      <span className={cn("text-sm text-stone-600", bold && "font-bold text-stone-900", indent && "text-xs")}>
+    <div className={cn("flex items-center justify-between gap-3 py-2 border-b border-stone-50 last:border-0 min-w-0", indent && "pl-4")}>
+      <span className={cn("text-sm text-stone-600 min-w-0 truncate", bold && "font-bold text-stone-900", indent && "text-xs")}>
         {label}
       </span>
-      <span className={cn("text-sm", bold && "font-bold", amountColor)}>
+      <span className={cn("text-sm shrink-0 tabular-nums", bold && "font-bold", amountColor)}>
         {formatCurrency(amount)}
       </span>
     </div>
@@ -63,7 +63,7 @@ function PLRow({ label, amount, indent = false, bold = false, positive }: {
 }
 
 function SectionHeader({ label }: { label: string }) {
-  return <p className="text-xs font-bold uppercase tracking-wider text-stone-400 mt-4 mb-1">{label}</p>;
+  return <p className="text-xs font-bold uppercase tracking-wider text-green-800 mt-4 mb-1">{label}</p>;
 }
 
 function Divider() {
@@ -71,9 +71,9 @@ function Divider() {
 }
 
 function TrendBadge({ pct }: { pct: number | null }) {
-  if (pct === null) return <span className="text-[10px] text-stone-400">First month</span>;
+  if (pct === null) return <span className="text-[10px] text-stone-600">First month</span>;
   if (pct === 0) return (
-    <span className="flex items-center gap-0.5 text-[10px] text-stone-400 font-medium">
+    <span className="flex items-center gap-0.5 text-[10px] text-stone-600 font-medium">
       <Minus size={10} /> 0% vs prev
     </span>
   );
@@ -258,14 +258,14 @@ export function ReportsPage() {
   };
 
   return (
-    <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
-      <CompanyContextBanner />
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
+      <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
         <div>
-          <h1 className="text-xl font-bold text-stone-900 tracking-tight">Reports</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Financial summary for <span className="font-medium text-stone-700">{periodLabel}</span>
+          <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Reports</h1>
+          <p className="text-sm text-stone-700 mt-1">
+            Financial summary for <span className="font-semibold text-stone-900">{periodLabel}</span>
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-end gap-2">
@@ -284,7 +284,7 @@ export function ReportsPage() {
             Export
           </button>
         </div>
-      </div>
+      </section>
 
       {!usesImportedData && (
         <FinancialEmptyBanner
@@ -293,50 +293,23 @@ export function ReportsPage() {
         />
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Revenue</span>
-          <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalRevenue)}</span>
-          <span className="text-[10px] text-stone-400">
-            {usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"}
-          </span>
+      <section>
+        <div className="mb-2">
+          <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Gross Profit</span>
-          <span className="text-lg font-bold text-stone-900">
-            {formatCurrency(usesImportedData ? grossProfit : financialKpis.grossProfit)}
-          </span>
-          <span className="text-[10px] text-stone-400 font-medium">
-            {usesImportedData
-              ? `${grossMargin}% margin · ${plSubtitle}`
-              : "Import Excel to populate"}
-          </span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          <KPICard title="Total Revenue" value={formatCurrency(financialKpis.totalRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"} />
+          <KPICard title="Gross Profit" value={formatCurrency(usesImportedData ? grossProfit : financialKpis.grossProfit)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${grossMargin}% margin` : "Import Excel to populate"} />
+          <KPICard title="Total Expenses" value={formatCurrency(financialKpis.totalExpenses)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"} />
+          <KPICard title="Net Profit" value={formatCurrency(financialKpis.netProfit)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData && financialKpis.totalRevenue > 0 ? `${Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin` : usesImportedData ? periodLabel : "Import Excel to populate"} />
         </div>
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Total Expenses</span>
-          <span className="text-lg font-bold text-stone-900">{formatCurrency(financialKpis.totalExpenses)}</span>
-          <span className="text-[10px] text-stone-400">
-            {usesImportedData ? `${periodLabel} · from records` : "Import Excel to populate"}
-          </span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">Net Profit</span>
-          <span className="text-lg font-bold text-green-700">{formatCurrency(financialKpis.netProfit)}</span>
-          <span className="text-[10px] text-stone-400 font-medium">
-            {usesImportedData
-              ? financialKpis.totalRevenue > 0
-                ? `${Math.round((financialKpis.netProfit / financialKpis.totalRevenue) * 100)}% margin · ${periodLabel}`
-                : `— · ${periodLabel}`
-              : "Import Excel to populate"}
-          </span>
-        </div>
-      </div>
+      </section>
 
       {usesImportedData && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">Profit & Loss Statement</h3>
-          <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right max-w-[220px]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
+          <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider">Profit & Loss Statement</h3>
+          <span className="text-[10px] font-medium text-stone-600 sm:text-right">
             {plSubtitle}
           </span>
         </div>
@@ -351,7 +324,7 @@ export function ReportsPage() {
           totalCOGS > 0 ? (
             <PLRow label="Cost of sales (from import)" amount={totalCOGS} indent />
           ) : (
-            <p className="text-xs text-stone-400 pl-4 py-1">No cost column mapped in import</p>
+            <p className="text-xs text-stone-600 pl-4 py-1">No cost column mapped in import</p>
           )
         ) : (
           cogsCategories.map((e) => (
@@ -367,7 +340,7 @@ export function ReportsPage() {
           <span className="text-sm font-bold text-stone-900">Gross Profit</span>
           <div className="text-right">
             <span className="text-sm font-bold text-green-700">{formatCurrency(grossProfit)}</span>
-            <span className="ml-2 text-[10px] text-stone-400">{grossMargin}% margin</span>
+            <span className="ml-2 text-[10px] text-stone-600">{grossMargin}% margin</span>
           </div>
         </div>
 
@@ -384,14 +357,14 @@ export function ReportsPage() {
           <span className="text-sm font-bold text-green-900">Net Profit</span>
           <div className="text-right">
             <span className="text-sm font-bold text-green-700">{formatCurrency(netProfit)}</span>
-            <span className="ml-2 text-[10px] text-stone-400">{netMargin}% margin</span>
+            <span className="ml-2 text-[10px] text-stone-600">{netMargin}% margin</span>
           </div>
         </div>
 
         {usesImportedData && importedPl.netProfit !== 0 && (
           <div className="mt-4 rounded-lg bg-stone-50 border border-stone-100 px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">Summary</p>
-            <p className="text-xs text-stone-500 leading-relaxed">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-green-800 mb-1">Summary</p>
+            <p className="text-xs text-stone-700 leading-relaxed">
               Net profit of <span className="font-semibold text-stone-700">{formatCurrency(importedPl.netProfit)}</span> represents a <span className="font-semibold text-stone-700">{importedPl.netMargin}%</span> margin for {periodLabel.toLowerCase()}.
               {importedPl.topExpenseCategory && (
                 <> Largest expense category: <span className="font-semibold text-stone-700">{importedPl.topExpenseCategory}</span> ({formatCurrency(importedPl.expenseLines[0]?.amount ?? 0)}).</>
@@ -407,17 +380,17 @@ export function ReportsPage() {
 
       {usesImportedData && importedPl.expenseBreakdown.length > 1 && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
-        <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-4">
+        <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-4">
           Expense Breakdown by Category
-          <span className="ml-2 text-[10px] font-medium normal-case text-stone-400">({periodLabel})</span>
+          <span className="ml-2 text-[10px] font-medium normal-case text-stone-600">({periodLabel})</span>
         </h3>
         <div className="space-y-3">
           {importedPl.expenseBreakdown.map((cat) => (
             <div key={cat.label}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold text-stone-700">{cat.label}</span>
-                <span className="text-xs text-stone-500">
-                  {formatCurrency(cat.amount)} <span className="text-stone-400">· {cat.percentage}%</span>
+                <span className="text-xs text-stone-700">
+                  {formatCurrency(cat.amount)} <span className="text-stone-600">· {cat.percentage}%</span>
                 </span>
               </div>
               <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -429,7 +402,7 @@ export function ReportsPage() {
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-stone-400 mt-4">
+        <p className="text-[10px] text-stone-600 mt-4">
           Total operating expenses: {formatCurrency(importedPl.totalExpenses)} for {periodLabel.toLowerCase()}.
         </p>
       </div>
@@ -437,26 +410,35 @@ export function ReportsPage() {
 
       {usesImportedData && (
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
-        <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-1">Monthly Trend</h3>
-        <p className="text-[10px] text-stone-400 mb-3">
+        <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-1">Monthly Trend</h3>
+        <p className="text-[10px] text-stone-600 mb-3">
           {usesImportedData
-            ? "Monthly totals from imported financial records."
+            ? "Monthly totals from imported records. Net profit = revenue − total costs (COGS + operating expenses)."
             : `Demo P&L months (Jan–Jun ${DEMO_FINANCIAL_YEAR}). Click a row to set period to that month.`}
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-              <tr className="h-8">
-                <th className="font-bold pr-6">Month</th>
-                <th className="font-bold pr-6">Revenue</th>
-                <th className="font-bold pr-6">Expenses</th>
-                <th className="font-bold pr-6">Net Profit</th>
-                <th className="font-bold pr-6">Margin</th>
-                <th className="font-bold">vs Prev</th>
+        <div className="rounded-lg border border-stone-100 overflow-hidden">
+          <table className="w-full table-fixed text-left border-collapse">
+            <colgroup>
+              <col className="w-[52px]" />
+              <col className="w-[19%]" />
+              <col className="w-[19%]" />
+              <col className="w-[19%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+            </colgroup>
+            <thead>
+              <tr className="border-b-2 border-green-800/20 bg-green-50">
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider">Month</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Revenue</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Costs</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Profit</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Margin</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Change</th>
               </tr>
             </thead>
-            <tbody className="text-[11px] text-stone-800">
+            <tbody className="text-[11px] text-stone-900">
               {trendRows.map((row, idx) => {
+                const totalCosts = row.cost + row.expenses;
                 const margin = row.revenue > 0 ? Math.round((row.profit / row.revenue) * 100) : 0;
                 const isSelected = !usesImportedData && idx === plMonthIdx;
                 const prevRow = idx > 0 ? trendRows[idx - 1] : null;
@@ -466,22 +448,21 @@ export function ReportsPage() {
                     key={row.month}
                     onClick={() => !usesImportedData && handlePlMonthSelect(idx)}
                     className={cn(
-                      "h-10 border-b border-stone-50 last:border-0 cursor-pointer transition-colors",
-                      isSelected ? "bg-green-50 hover:bg-green-50" : "hover:bg-stone-50"
+                      "border-b border-stone-100 last:border-0 cursor-pointer transition-colors",
+                      isSelected ? "bg-green-50/60 hover:bg-green-50/60" : "hover:bg-green-50/40"
                     )}
                   >
-                    <td className={cn("pr-6 font-semibold", isSelected && "text-green-800")}>
+                    <td className={cn("px-2 py-2 font-semibold whitespace-nowrap", isSelected && "text-green-800")}>
                       {row.month}
-                      {!usesImportedData && ` ${DEMO_FINANCIAL_YEAR}`}
-                      {isSelected && <span className="text-[9px] text-green-600 font-bold ml-1">← period</span>}
+                      {isSelected && <span className="text-[9px] text-green-600 font-bold ml-0.5">*</span>}
                     </td>
-                    <td className="pr-6">{formatCurrency(row.revenue)}</td>
-                    <td className="pr-6">{formatCurrency(row.expenses)}</td>
-                    <td className={cn("pr-6 font-bold", row.profit > 0 ? "text-green-700" : "text-red-600")}>
+                    <td className="px-2 py-2 text-right tabular-nums truncate">{formatCurrency(row.revenue)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums truncate">{formatCurrency(totalCosts)}</td>
+                    <td className={cn("px-2 py-2 text-right tabular-nums font-semibold truncate", row.profit > 0 ? "text-green-700" : "text-red-600")}>
                       {formatCurrency(row.profit)}
                     </td>
-                    <td className="pr-6 text-stone-500">{margin}%</td>
-                    <td>
+                    <td className="px-2 py-2 text-right tabular-nums text-stone-700">{margin}%</td>
+                    <td className="px-2 py-2 text-right">
                       {profitTrend === null ? (
                         <span className="text-stone-300">—</span>
                       ) : (
@@ -496,14 +477,15 @@ export function ReportsPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-stone-400 mt-2">
+        <p className="text-[10px] text-stone-600 mt-2">
           {usesImportedData
             ? "P&L and KPI totals use imported sales and expenses for the selected period."
             : `When period is All or YTD, P&L shows the latest demo month (Jun ${DEMO_FINANCIAL_YEAR}) as a sample breakdown.`}
         </p>
       </div>
       )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

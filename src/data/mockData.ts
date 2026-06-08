@@ -18,7 +18,7 @@ export const dashboardKPIs: KPIData[] = [
     trendStatus: "positive",
   },
   {
-    title: "Total Expenses",
+    title: "Total Costs",
     value: "Bs 127,850",
     trend: 5,
     trendText: "",

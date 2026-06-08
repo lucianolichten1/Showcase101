@@ -2,6 +2,7 @@ import {
   DEMO_FINANCIAL_YEAR,
   DEMO_PL_MONTH_LABELS,
   DEMO_YTD_END_MONTH,
+  FINANCIAL_ALL_DATE_RANGE,
   getDateRangeForPeriod,
   type FinancialPeriod,
 } from "./period";
@@ -186,6 +187,54 @@ export function filterRecordsByDateRange<T extends { date: string }>(
 ): T[] {
   if (!range.startDate && !range.endDate) return records;
   return records.filter((r) => isWithinDateRange(r.date, range));
+}
+
+/**
+ * Date range used for KPI cards and charts.
+ * For imported data on "All", aligns to the chart's last-12-months window so totals match.
+ */
+export function resolveFinancialViewDateRange(
+  period: FinancialPeriod,
+  revenueRecords: RevenueRecord[],
+  expenseRecords: ExpenseRecord[],
+  options?: { useChartAlignedAllPeriod?: boolean }
+): DateRange {
+  const base = getDateRangeForPeriod(period);
+  if (period.kind !== "all" || !options?.useChartAlignedAllPeriod) {
+    return base;
+  }
+
+  const dates = [
+    ...revenueRecords.map((r) => r.date),
+    ...expenseRecords.map((e) => e.date),
+  ];
+  const buckets = getChartMonthBucketsFromRecordDates(dates, { emptyWhenNoDates: true });
+  if (buckets.length === 0) return base;
+
+  const startPrefix = buckets[0].isoPrefix;
+  const endPrefix = buckets[buckets.length - 1].isoPrefix;
+  const [endYear, endMonth] = endPrefix.split("-").map(Number);
+  const endDay = lastDayOfMonth(endYear, endMonth);
+
+  return {
+    startDate: `${startPrefix}-01`,
+    endDate: `${endPrefix}-${pad2(endDay)}`,
+  };
+}
+
+/** Same window as dashboard chart/KPIs when period is "all" and data is imported. */
+export function resolveImportedAllPeriodDateRange(
+  revenueRecords: RevenueRecord[],
+  expenseRecords: ExpenseRecord[]
+): DateRange {
+  const aligned = resolveFinancialViewDateRange(
+    { kind: "all" },
+    revenueRecords,
+    expenseRecords,
+    { useChartAlignedAllPeriod: true }
+  );
+  if (aligned.startDate && aligned.endDate) return aligned;
+  return FINANCIAL_ALL_DATE_RANGE;
 }
 
 /** Short month abbreviations used in receivable dueDate display (e.g. "May 10") */
@@ -441,10 +490,15 @@ export function computeMonthlyFinancials(
   period: FinancialPeriod,
   options?: { useDataDrivenMonths?: boolean }
 ): MonthlyFinancialSummary[] {
-  const dateRange = getDateRangeForPeriod(period);
+  const useDataDrivenMonths = options?.useDataDrivenMonths ?? false;
+  const dateRange = resolveFinancialViewDateRange(
+    period,
+    revenueRecords,
+    expenseRecords,
+    { useChartAlignedAllPeriod: useDataDrivenMonths }
+  );
   const scopedRevenue = filterRecordsByDateRange(revenueRecords, dateRange);
   const scopedExpenses = filterRecordsByDateRange(expenseRecords, dateRange);
-  const useDataDrivenMonths = options?.useDataDrivenMonths ?? false;
 
   if (period.kind === "month") {
     const weekBuckets = getChartWeekBuckets(period.year, period.month);
@@ -534,6 +588,7 @@ export function computeFinancialKPIs(
   const totalCost = calculateTotalCost(revenue);
   const grossProfit = totalRevenue - totalCost;
   const totalExpenses = calculateTotalExpenses(expenses);
+  const totalCosts = totalCost + totalExpenses;
   const netProfit = grossProfit - totalExpenses;
 
   return {
@@ -545,6 +600,7 @@ export function computeFinancialKPIs(
     totalCost,
     grossProfit,
     totalExpenses,
+    totalCosts,
     paidExpenses: calculatePaidExpenses(expenses),
     pendingExpenses: calculatePendingExpenses(expenses),
     overdueExpenses: calculateOverdueExpenses(expenses),

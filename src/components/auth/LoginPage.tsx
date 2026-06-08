@@ -33,7 +33,7 @@ export function LoginPage() {
           </div>
           <h1 className="text-lg font-bold text-stone-900">AI Finance OS</h1>
           <p className="text-xs text-stone-500 mt-1 text-center">
-            Sign in to the platform admin or your company workspace.
+            Sign in to manage your company finances.
           </p>
         </div>
 

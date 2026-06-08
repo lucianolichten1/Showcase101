@@ -3,24 +3,12 @@ import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
 
 interface Props {
   customer: CustomerRecord | null;
   receivables: ReceivableRecord[];
   onClose: () => void;
-}
-
-function getStatusBadgeClass(status: string) {
-  if (status === "Overdue") return "bg-red-50 text-red-700 border-red-100";
-  if (status === "Paid") return "bg-green-50 text-green-700 border-green-100";
-  if (status === "Partially Paid") return "bg-amber-50 text-amber-700 border-amber-100";
-  return "bg-stone-50 text-stone-600 border-stone-200";
-}
-
-function getRiskBadgeClass(risk: string) {
-  if (risk === "High") return "bg-red-50 text-red-700 border-red-100";
-  if (risk === "Medium") return "bg-amber-50 text-amber-700 border-amber-100";
-  return "bg-green-50 text-green-700 border-green-100";
 }
 
 function getRiskLevel(overdueDays: number, status: string) {
@@ -55,16 +43,11 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
           <div>
             <h2 className="text-sm font-bold text-stone-900">{customer.name}</h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={cn(
-                "px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                customer.status === "Active"
-                  ? "bg-green-50 text-green-700 border-green-100"
-                  : "bg-stone-50 text-stone-500 border-stone-200"
-              )}>
+              <span className={customer.status === "Active" ? "text-xs font-medium text-green-800" : "text-xs font-medium text-stone-600"}>
                 {customer.status}
               </span>
               {customer.industry && (
-                <span className="text-[10px] text-stone-400">{customer.industry} · {customer.city}</span>
+                <span className="text-[10px] text-stone-600">{customer.industry} · {customer.city}</span>
               )}
             </div>
           </div>
@@ -76,7 +59,7 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
         <div className="flex-1 overflow-y-auto">
           {/* Contact info */}
           <div className="p-5 border-b border-stone-100">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mb-3">Contact</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-green-800 mb-3">Contact</p>
             <div className="flex flex-col gap-2">
               {customer.email && (
                 <div className="flex items-center gap-2 text-xs text-stone-600">
@@ -107,24 +90,24 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
 
           {/* Account summary */}
           <div className="p-5 border-b border-stone-100">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mb-3">Account Summary</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-green-800 mb-3">Account Summary</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-stone-50 rounded-lg p-3">
-                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wide">Total Invoiced</p>
+                <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Total Invoiced</p>
                 <p className="text-sm font-bold text-stone-900 mt-0.5">{formatCurrency(totalInvoiced)}</p>
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
-                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wide">Total Paid</p>
+                <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Total Paid</p>
                 <p className="text-sm font-bold text-green-700 mt-0.5">{totalPaid > 0 ? formatCurrency(totalPaid) : "—"}</p>
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
-                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wide">Outstanding</p>
+                <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Outstanding</p>
                 <p className={cn("text-sm font-bold mt-0.5", outstanding > 0 ? "text-stone-900" : "text-green-600")}>
                   {outstanding > 0 ? formatCurrency(outstanding) : "Settled"}
                 </p>
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
-                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wide">Collection Rate</p>
+                <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Collection Rate</p>
                 <p className={cn("text-sm font-bold mt-0.5", collectionRate >= 70 ? "text-green-700" : "text-amber-600")}>
                   {collectionRate}%
                 </p>
@@ -140,11 +123,11 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
 
           {/* Invoices */}
           <div className="p-5">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-green-800 mb-3">
               Invoices ({invoices.length})
             </p>
             {invoices.length === 0 ? (
-              <p className="text-xs text-stone-400 py-4 text-center">No invoices found for this customer.</p>
+              <p className="text-xs text-stone-600 py-4 text-center">No invoices found for this customer.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {invoices.map((inv) => {
@@ -154,26 +137,22 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
                     <div key={inv.id} className="rounded-lg border border-stone-100 p-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono text-stone-500">{inv.invoiceNumber}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border", getRiskBadgeClass(risk))}>
-                            {risk}
-                          </span>
-                          <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border", getStatusBadgeClass(inv.status))}>
-                            {inv.status}
-                          </span>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className={riskTextClass(risk)}>{risk}</span>
+                          <span className={receivableStatusTextClass(inv.status)}>{inv.status}</span>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-[10px]">
                         <div>
-                          <p className="text-stone-400">Total</p>
+                          <p className="text-stone-600">Total</p>
                           <p className="font-semibold text-stone-800">{formatCurrency(inv.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-stone-400">Paid</p>
+                          <p className="text-stone-600">Paid</p>
                           <p className="font-semibold text-green-700">{inv.amountPaid > 0 ? formatCurrency(inv.amountPaid) : "—"}</p>
                         </div>
                         <div>
-                          <p className="text-stone-400">Balance</p>
+                          <p className="text-stone-600">Balance</p>
                           <p className={cn("font-bold", balance > 0 ? "text-stone-900" : "text-green-600")}>
                             {balance > 0 ? formatCurrency(balance) : "Paid"}
                           </p>

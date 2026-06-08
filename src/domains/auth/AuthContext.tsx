@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { companyDashboardPath } from "./navigation";
 import type { AppRole, CompanyMember, Profile } from "./types";
 import { isAppRole } from "./types";
 
@@ -228,7 +229,7 @@ export function getPostLoginPath(
   if (profile.role === "superadmin") return "/admin";
   if (profile.role === "company_owner") {
     const companyId = getPrimaryCompanyId(profile, memberships);
-    if (companyId) return `/company/${companyId}/dashboard`;
+    if (companyId) return companyDashboardPath(companyId);
     return "/no-company";
   }
   return "/login";

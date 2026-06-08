@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:import-dates": "tsx src/domains/import/dateUtils.test.ts",
-    "test:import-merge": "tsx src/domains/import/merge.test.ts"
+    "test:import-merge": "tsx src/domains/import/merge.test.ts",
+    "test:financial-calculations": "tsx src/domains/financial/calculations.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

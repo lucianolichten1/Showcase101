@@ -9,16 +9,16 @@ interface SidebarNavItemProps {
 
 const navItemClassName = (isActive: boolean) =>
   cn(
-    "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+    "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
     isActive
-      ? "bg-green-50 text-green-900 border border-green-100"
-      : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 border border-transparent"
+      ? "bg-green-800 text-white shadow-sm"
+      : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
   );
 
 const iconClassName = (isActive: boolean) =>
   cn(
     "h-4 w-4 shrink-0",
-    isActive ? "text-green-700" : "text-stone-400 group-hover:text-stone-600"
+    isActive ? "text-white" : "text-stone-500 group-hover:text-stone-700"
   );
 
 export function SidebarNavItem({ item, onNavClick }: SidebarNavItemProps) {

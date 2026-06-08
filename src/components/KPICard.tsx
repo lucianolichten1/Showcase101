@@ -1,4 +1,5 @@
 import type { KPIData } from "@/data/types";
+import { cn } from "@/lib/utils";
 
 type KPICardProps = Pick<
   KPIData,
@@ -15,23 +16,35 @@ export function KPICard({
   trendStatus = "neutral",
   subtitle,
 }: KPICardProps) {
+  const showTrend =
+    trendStatus === "positive" ||
+    trendStatus === "negative" ||
+    (trendStatus === "neutral" && Boolean(trendText));
+
   return (
-    <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-center gap-1">
-      <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">{title}</span>
-      <div className="flex items-baseline gap-2">
-        <span className="text-lg sm:text-xl font-bold text-stone-900">{value}</span>
-        {trendStatus === "positive" && (
-          <span className="text-[10px] text-green-600 font-bold">+{trend}%</span>
-        )}
-        {trendStatus === "negative" && (
-          <span className="text-[10px] text-red-600 font-bold">{trend}%</span>
-        )}
-        {trendStatus === "neutral" && (
-          <span className="text-[10px] text-stone-400 font-medium">{trendText || "Stable"}</span>
-        )}
-      </div>
+    <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col items-center justify-center gap-1 text-center min-h-[88px]">
+      <span className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide leading-tight">
+        {title}
+      </span>
+      <span className="text-lg font-bold text-stone-900 tabular-nums leading-tight max-w-full truncate px-1">
+        {value}
+      </span>
+      {showTrend && (
+        <span
+          className={cn(
+            "text-[10px] font-medium",
+            trendStatus === "positive" && "text-green-700",
+            trendStatus === "negative" && "text-red-700",
+            trendStatus === "neutral" && "text-stone-600"
+          )}
+        >
+          {trendStatus === "positive" && `+${trend}%`}
+          {trendStatus === "negative" && `${trend}%`}
+          {trendStatus === "neutral" && trendText}
+        </span>
+      )}
       {subtitle && (
-        <span className="text-[10px] text-stone-400 leading-relaxed">{subtitle}</span>
+        <span className="text-[9px] text-stone-600 leading-tight max-w-full truncate px-1">{subtitle}</span>
       )}
     </div>
   );

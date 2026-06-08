@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   ComposedChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,42 +24,88 @@ interface FinancialChartProps {
 
 const REVENUE_COLOR = "#15803d";
 const EXPENSES_COLOR = "#d6d3d1";
-const NET_PROFIT_COLOR = "#3b82f6";
 
-type SeriesKey = "revenue" | "expenses" | "profit";
+type SeriesKey = "revenue" | "expenses";
 
 interface SeriesConfig {
   key: SeriesKey;
   label: string;
   color: string;
-  type: "bar" | "line";
 }
 
 const SERIES: SeriesConfig[] = [
-  { key: "revenue",  label: "Revenue",    color: REVENUE_COLOR,    type: "bar" },
-  { key: "expenses", label: "Total Costs", color: EXPENSES_COLOR,   type: "bar" },
-  { key: "profit",   label: "Net Profit", color: NET_PROFIT_COLOR, type: "line" },
+  { key: "revenue", label: "Revenue", color: REVENUE_COLOR },
+  { key: "expenses", label: "Total Costs", color: EXPENSES_COLOR },
 ];
 
-function tooltipLabel(name: string): string {
-  if (name.toLowerCase() === "revenue") return "Revenue";
-  if (name.toLowerCase() === "expenses") return "Total Costs";
-  if (name.toLowerCase() === "profit") return "Net Profit";
-  return name;
+interface ChartRow {
+  month: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { payload: ChartRow; dataKey: string; value: number }[];
+  label?: string;
+  visible: Record<SeriesKey, boolean>;
+}
+
+function ChartTooltip({ active, payload, label, visible }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  const row = payload[0].payload;
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white px-3 py-2.5 shadow-sm text-xs">
+      <p className="font-bold text-stone-900 mb-2">{label}</p>
+      <div className="space-y-1">
+        {visible.revenue && (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-stone-600">Revenue</span>
+            <span className="font-semibold text-stone-900 tabular-nums">
+              {formatCurrency(row.revenue)}
+            </span>
+          </div>
+        )}
+        {visible.expenses && (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-stone-600">Total Costs</span>
+            <span className="font-semibold text-stone-900 tabular-nums">
+              {formatCurrency(row.expenses)}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 pt-1 border-t border-stone-100">
+          <span className="text-stone-600">Net Profit</span>
+          <span className="font-bold text-green-800 tabular-nums">
+            {formatCurrency(row.profit)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function FinancialChart({ period }: FinancialChartProps) {
-  const { revenueRecords, expenseRecords, usesImportedData } = useCompanyScopedFinancialData();
+  const {
+    revenueRecords,
+    expenseRecords,
+    filteredRevenueRecords,
+    filteredExpenseRecords,
+    usesImportedData,
+  } = useCompanyScopedFinancialData();
 
-  // Which series are currently visible — all on by default
+  const chartRevenue = usesImportedData ? filteredRevenueRecords : revenueRecords;
+  const chartExpenses = usesImportedData ? filteredExpenseRecords : expenseRecords;
+
   const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({
     revenue: true,
     expenses: true,
-    profit: true,
   });
 
   const toggleSeries = (key: SeriesKey) => {
-    // Keep at least one series visible
     const activeCount = Object.values(visible).filter(Boolean).length;
     if (activeCount === 1 && visible[key]) return;
     setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -68,16 +113,19 @@ export function FinancialChart({ period }: FinancialChartProps) {
 
   const rawMonthly = useMemo(
     () =>
-      computeMonthlyFinancials(revenueRecords, expenseRecords, period, {
+      computeMonthlyFinancials(chartRevenue, chartExpenses, period, {
         useDataDrivenMonths: usesImportedData,
       }),
-    [revenueRecords, expenseRecords, period, usesImportedData]
+    [chartRevenue, chartExpenses, period, usesImportedData]
   );
 
-  // Merge COGS (cost on revenue records) into the expenses bar so that
-  // Revenue bar − Expenses bar = Net Profit line is visually consistent.
   const monthlyFinancials = useMemo(
-    () => rawMonthly.map((row) => ({ ...row, expenses: row.cost + row.expenses })),
+    () =>
+      rawMonthly.map((row) => ({
+        ...row,
+        expenses: row.cost + row.expenses,
+        profit: row.revenue - row.cost - row.expenses,
+      })),
     [rawMonthly]
   );
 
@@ -88,27 +136,29 @@ export function FinancialChart({ period }: FinancialChartProps) {
       : monthlyFinancials.length <= 5
         ? 28
         : 16;
-  const hasData = usesImportedData && monthlyFinancials.some(
-    (row) => row.revenue > 0 || row.expenses > 0
-  );
+  const hasData =
+    usesImportedData &&
+    monthlyFinancials.length > 0 &&
+    monthlyFinancials.some(
+      (row) => row.revenue > 0 || row.expenses > 0 || row.profit !== 0
+    );
 
   const emptyMessage = !usesImportedData
     ? "Import Excel data to view monthly financial trends."
     : "No financial data for this period.";
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5 h-full flex flex-col min-h-[360px]">
+    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-5 flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
           <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
             Financial Performance
           </h3>
-          <p className="text-xs text-stone-500 mt-1">{chartSubtitle}</p>
+          <p className="text-xs text-stone-700 mt-1">{chartSubtitle}</p>
         </div>
 
-        {/* Clickable series toggles */}
         <div className="flex flex-wrap gap-2 shrink-0">
-          {SERIES.map(({ key, label, color, type }) => {
+          {SERIES.map(({ key, label, color }) => {
             const isActive = visible[key];
             return (
               <button
@@ -122,17 +172,10 @@ export function FinancialChart({ period }: FinancialChartProps) {
                     : "bg-stone-50 border-stone-200 text-stone-400"
                 )}
               >
-                {type === "bar" ? (
-                  <span
-                    className="w-2 h-2 rounded-sm shrink-0"
-                    style={{ backgroundColor: isActive ? color : "#d6d3d1" }}
-                  />
-                ) : (
-                  <span
-                    className="inline-block w-4 h-0.5 rounded-full shrink-0"
-                    style={{ backgroundColor: isActive ? color : "#d6d3d1" }}
-                  />
-                )}
+                <span
+                  className="w-2 h-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: isActive ? color : "#d6d3d1" }}
+                />
                 {label}
               </button>
             );
@@ -140,10 +183,10 @@ export function FinancialChart({ period }: FinancialChartProps) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-[280px] w-full">
+      <div className="w-full h-[300px]">
         {!hasData ? (
           <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/50">
-            <p className="text-sm text-stone-500 text-center px-4">{emptyMessage}</p>
+            <p className="text-sm text-stone-600 text-center px-4">{emptyMessage}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -165,22 +208,13 @@ export function FinancialChart({ period }: FinancialChartProps) {
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#a8a29e", fontSize: 10 }}
+                tick={{ fill: "#57534e", fontSize: 10, fontWeight: 500 }}
                 tickFormatter={(val) => `Bs ${val / 1000}k`}
                 dx={-10}
               />
               <ReferenceLine y={0} stroke="#e7e5e4" strokeWidth={1} />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  formatCurrency(value),
-                  tooltipLabel(name),
-                ]}
-                contentStyle={{
-                  borderRadius: "8px",
-                  border: "1px solid #e7e5e4",
-                  boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-                  fontSize: "12px",
-                }}
+                content={<ChartTooltip visible={visible} />}
                 cursor={{ fill: "#f5f5f4" }}
               />
               <Bar
@@ -196,16 +230,6 @@ export function FinancialChart({ period }: FinancialChartProps) {
                 fill={EXPENSES_COLOR}
                 radius={[4, 4, 0, 0]}
                 hide={!visible.expenses}
-              />
-              <Line
-                type="monotone"
-                dataKey="profit"
-                name="Profit"
-                stroke={NET_PROFIT_COLOR}
-                strokeWidth={2}
-                dot={{ r: 4, fill: NET_PROFIT_COLOR, strokeWidth: 2, stroke: "#fff" }}
-                activeDot={{ r: 6, fill: NET_PROFIT_COLOR, stroke: "#fff", strokeWidth: 2 }}
-                hide={!visible.profit}
               />
             </ComposedChart>
           </ResponsiveContainer>

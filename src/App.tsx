@@ -13,15 +13,14 @@ import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
 import { AdminLayout } from "./components/admin/layout/AdminLayout";
-import { CompanyWorkspacePage } from "./components/company/CompanyWorkspacePage";
 import { LoginPage } from "./components/auth/LoginPage";
 import { NoCompanyAssignedPage } from "./components/auth/NoCompanyAssignedPage";
 import {
   RequireAuth,
-  RequireCompanyWorkspaceAccess,
   RequireFinancialModuleAccess,
   RequireSuperAdmin,
   RootRedirect,
+  LegacyCompanyWorkspaceRedirect,
 } from "./components/auth/RouteGuards";
 import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
@@ -37,6 +36,15 @@ export default function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/no-company" element={<NoCompanyAssignedPage />} />
 
+          <Route
+            path="/company/:companyId/dashboard"
+            element={<LegacyCompanyWorkspaceRedirect />}
+          />
+          <Route
+            path="/company/:companyId"
+            element={<LegacyCompanyWorkspaceRedirect />}
+          />
+
           <Route element={<AppLayout />}>
             <Route element={<RequireFinancialModuleAccess />}>
               <Route path="/dashboard" element={<DashboardPage />} />
@@ -46,17 +54,6 @@ export default function App() {
               <Route path="/accounts-receivable" element={<AccountsReceivablePage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/customers" element={<CustomersPage />} />
-            </Route>
-
-            <Route element={<RequireCompanyWorkspaceAccess />}>
-              <Route
-                path="/company/:companyId"
-                element={<Navigate to="dashboard" replace />}
-              />
-              <Route
-                path="/company/:companyId/dashboard"
-                element={<CompanyWorkspacePage />}
-              />
             </Route>
           </Route>
 

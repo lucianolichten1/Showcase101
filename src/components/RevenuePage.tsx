@@ -23,6 +23,8 @@ import {
   type RevenueSortKey,
 } from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
+import { KPICard } from "@/components/KPICard";
+import { revenueStatusTextClass } from "@/lib/statusText";
 
 const ALL_FILTER = "all";
 type RevenueFormState = Omit<RevenueRecord, "id">;
@@ -39,13 +41,6 @@ const emptyForm = (): RevenueFormState => ({
   invoiceNumber: "",
   notes: "",
 });
-
-function getStatusBadgeClass(status: RevenuePaymentStatus): string {
-  if (status === "Collected") return "bg-green-50 text-green-800 border-green-100";
-  if (status === "Overdue") return "bg-red-50 text-red-800 border-red-100";
-  if (status === "Cancelled") return "bg-stone-100 text-stone-500 border-stone-200";
-  return "bg-amber-50 text-amber-800 border-amber-100";
-}
 
 function formatDisplayDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-");
@@ -177,24 +172,25 @@ export function RevenuePage() {
 
   return (
     <>
-      <main className="flex flex-col gap-5 p-5 lg:p-6 flex-1 min-h-0 overflow-auto">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
+        <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
           <div>
-            <h1 className="text-lg font-bold text-stone-900">Revenue</h1>
-            <p className="text-xs text-stone-500 mt-1 max-w-xl leading-relaxed">
-              Track sales income, client payments, export and import revenue, and pending
-              receivables across your business operations.
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Revenue</h1>
+            <p className="text-sm text-stone-700 mt-1 max-w-xl">
+              Track sales income, client payments, and pending receivables.
             </p>
           </div>
           <button
             type="button"
             onClick={handleOpenModal}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
+            className="inline-flex items-center justify-center gap-2 bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Revenue
           </button>
-        </div>
+        </section>
 
         {!usesImportedData && (
           <FinancialEmptyBanner
@@ -203,55 +199,24 @@ export function RevenuePage() {
           />
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Total Revenue
-            </span>
-            <span className="text-lg font-bold text-stone-900">
-              {formatCurrency(kpis.totalRevenue)}
-            </span>
-            <span className="text-[10px] text-stone-400">
-              {usesImportedData
-                ? `${periodLabel} · ${filteredRevenueRecords.filter(isActiveRevenue).length} active records`
-                : "Import Excel to populate"}
-            </span>
+        <section>
+          <div className="mb-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Collected Revenue
-            </span>
-            <span className="text-lg font-bold text-green-700">
-              {formatCurrency(kpis.collectedRevenue)}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · payments received</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <KPICard title="Total Revenue" value={formatCurrency(kpis.totalRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${periodLabel} · ${filteredRevenueRecords.filter(isActiveRevenue).length} records` : "Import Excel to populate"} />
+            <KPICard title="Collected Revenue" value={formatCurrency(kpis.collectedRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · payments received`} />
+            <KPICard title="Pending Revenue" value={formatCurrency(kpis.pendingRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · awaiting collection`} />
+            <KPICard title="Top Revenue Source" value={kpis.topRevenueCategory} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · by category`} />
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Pending Revenue
-            </span>
-            <span className="text-lg font-bold text-amber-700">
-              {formatCurrency(kpis.pendingRevenue)}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · awaiting collection</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Top Revenue Source
-            </span>
-            <span className="text-lg font-bold text-stone-900 truncate">
-              {kpis.topRevenueCategory}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · by category total</span>
-          </div>
-        </div>
+        </section>
 
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
             <div className="flex-1 min-w-[200px]">
               <label
                 htmlFor="revenue-search"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Search
               </label>
@@ -270,7 +235,7 @@ export function RevenuePage() {
             <div className="w-full lg:w-44">
               <label
                 htmlFor="revenue-category-filter"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Category
               </label>
@@ -291,7 +256,7 @@ export function RevenuePage() {
             <div className="w-full lg:w-36">
               <label
                 htmlFor="revenue-status-filter"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Status
               </label>
@@ -317,26 +282,26 @@ export function RevenuePage() {
             />
           </div>
 
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-green-800 mb-3">
             All Revenue
-            <span className="ml-2 text-stone-400 font-medium normal-case">
+            <span className="ml-2 text-stone-600 font-medium normal-case">
               ({filteredRevenue.length})
             </span>
           </h3>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-stone-100">
             <table className="w-full text-left border-collapse min-w-[1040px]">
-              <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                <tr className="h-8">
+              <thead>
+                <tr className="border-b-2 border-green-800/20 bg-green-50">
                   {SORTABLE_COLUMNS.map(({ key, label }) => (
-                    <th key={key} className="font-bold pr-3">
+                    <th key={key} className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
                       <button
                         type="button"
                         onClick={() => handleSort(key)}
                         className={cn(
-                          "inline-flex items-center gap-1 cursor-pointer rounded px-0.5 -mx-0.5",
-                          "hover:text-stone-600 transition-colors",
-                          sortKey === key && "text-stone-600"
+                          "inline-flex items-center gap-1 cursor-pointer",
+                          "hover:text-green-800 transition-colors",
+                          sortKey === key && "text-green-800"
                         )}
                         aria-label={`Sort by ${label}${
                           sortKey === key
@@ -349,10 +314,10 @@ export function RevenuePage() {
                       </button>
                     </th>
                   ))}
-                  <th className="font-bold">Notes</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Notes</th>
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-stone-800">
+              <tbody className="text-xs text-stone-900">
                 {sortedRevenue.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-12 text-center text-stone-500">
@@ -370,7 +335,7 @@ export function RevenuePage() {
                   sortedRevenue.map((record) => (
                     <tr
                       key={record.id}
-                      className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
+                      className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
                     >
                       <td className="pr-3 py-2 whitespace-nowrap">
                         {formatDisplayDate(record.date)}
@@ -386,22 +351,15 @@ export function RevenuePage() {
                       <td className="pr-3 py-2 font-bold whitespace-nowrap">
                         {record.currency} {record.amount.toLocaleString()}
                       </td>
-                      <td className="pr-3 py-2">
-                        <span
-                          className={cn(
-                            "inline-flex px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                            getStatusBadgeClass(record.status)
-                          )}
-                        >
-                          {record.status}
-                        </span>
+                      <td className="px-3 py-3">
+                        <span className={revenueStatusTextClass(record.status)}>{record.status}</span>
                       </td>
                       <td className="pr-3 py-2 whitespace-nowrap">{record.paymentMethod}</td>
                       <td className="pr-3 py-2 whitespace-nowrap font-medium">
                         {record.invoiceNumber}
                       </td>
                       <td
-                        className="py-2 max-w-[120px] truncate text-stone-500"
+                        className="px-3 py-3 max-w-[120px] truncate text-stone-600"
                         title={record.notes}
                       >
                         {record.notes || "—"}
@@ -413,7 +371,9 @@ export function RevenuePage() {
             </table>
           </div>
         </div>
-      </main>
+          </div>
+        </div>
+      </div>
 
       {isModalOpen && (
         <div

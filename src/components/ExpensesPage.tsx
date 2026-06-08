@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, ReceiptText, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
-import { CompanyContextBanner } from "@/components/company/CompanyContextBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
 import { sortExpenseRecords } from "@/domains/financial/calculations";
 import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -25,6 +24,8 @@ import {
   type PaymentMethod,
 } from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
+import { KPICard } from "@/components/KPICard";
+import { expenseStatusTextClass } from "@/lib/statusText";
 
 const ALL_FILTER = "all";
 type ExpenseFormState = Omit<ExpenseRecord, "id">;
@@ -41,12 +42,6 @@ const emptyForm = (): ExpenseFormState => ({
   notes: "",
 });
 
-function getStatusBadgeClass(status: ExpensePaymentStatus): string {
-  if (status === "Paid") return "bg-green-50 text-green-800 border-green-100";
-  if (status === "Overdue") return "bg-red-50 text-red-800 border-red-100";
-  return "bg-amber-50 text-amber-800 border-amber-100";
-}
-
 function formatDisplayDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-");
   const months = [
@@ -57,14 +52,17 @@ function formatDisplayDate(isoDate: string): string {
   return `${months[m] ?? month} ${parseInt(day, 10)}, ${year}`;
 }
 
-const SORTABLE_COLUMNS: { key: ExpenseSortKey; label: string }[] = [
-  { key: "date", label: "Date" },
-  { key: "category", label: "Category" },
-  { key: "description", label: "Description" },
-  { key: "vendor", label: "Vendor / Payee" },
-  { key: "amount", label: "Amount" },
-  { key: "status", label: "Status" },
-  { key: "paymentMethod", label: "Payment" },
+const TABLE_COLUMNS: {
+  key: ExpenseSortKey | "details";
+  label: string;
+  sortKey: ExpenseSortKey;
+  align?: "right";
+}[] = [
+  { key: "date", label: "Date", sortKey: "date" },
+  { key: "details", label: "Expense", sortKey: "description" },
+  { key: "category", label: "Category", sortKey: "category" },
+  { key: "amount", label: "Amount", sortKey: "amount", align: "right" },
+  { key: "status", label: "Status", sortKey: "status" },
 ];
 
 function SortIcon({
@@ -168,26 +166,25 @@ export function ExpensesPage() {
 
   return (
     <>
-      <main className="flex flex-col flex-1 min-h-0 overflow-auto bg-stone-50/30">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
-        <CompanyContextBanner />
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
+        <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
           <div>
-            <h1 className="text-xl font-bold text-stone-900 tracking-tight">Expenses</h1>
-            <p className="text-sm text-stone-500 mt-1 max-w-xl leading-relaxed">
-              Track operational costs, supplier payments, logistics, and pending expenses for your
-              your business operations.
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Expenses</h1>
+            <p className="text-sm text-stone-700 mt-1 max-w-xl">
+              Track operational costs, supplier payments, and pending expenses.
             </p>
           </div>
           <button
             type="button"
             onClick={handleOpenModal}
-            className="inline-flex items-center justify-center gap-2 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 transition-colors shadow-sm shrink-0"
+            className="inline-flex items-center justify-center gap-2 bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Expense
           </button>
-        </div>
+        </section>
 
         {!usesImportedData && (
           <FinancialEmptyBanner
@@ -196,55 +193,24 @@ export function ExpensesPage() {
           />
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Total Expenses
-            </span>
-            <span className="text-lg font-bold text-stone-900">
-              {formatCurrency(kpis.totalExpenses)}
-            </span>
-            <span className="text-[10px] text-stone-400">
-              {usesImportedData
-                ? `${periodLabel} · ${filteredExpenseRecords.length} records`
-                : "Import Excel to populate"}
-            </span>
+        <section>
+          <div className="mb-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Paid Expenses
-            </span>
-            <span className="text-lg font-bold text-green-700">
-              {formatCurrency(kpis.paidExpenses)}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · settled payments</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <KPICard title="Total Expenses" value={formatCurrency(kpis.totalExpenses)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${periodLabel} · ${filteredExpenseRecords.length} records` : "Import Excel to populate"} />
+            <KPICard title="Paid Expenses" value={formatCurrency(kpis.paidExpenses)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · settled payments`} />
+            <KPICard title="Pending Expenses" value={formatCurrency(kpis.pendingExpenses)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · awaiting payment`} />
+            <KPICard title="Largest Category" value={kpis.largestExpenseCategory} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · by total amount`} />
           </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Pending Expenses
-            </span>
-            <span className="text-lg font-bold text-amber-700">
-              {formatCurrency(kpis.pendingExpenses)}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · awaiting payment</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Largest Expense Category
-            </span>
-            <span className="text-lg font-bold text-stone-900 truncate">
-              {kpis.largestExpenseCategory}
-            </span>
-            <span className="text-[10px] text-stone-400">{periodLabel} · by total amount</span>
-          </div>
-        </div>
+        </section>
 
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
-            <div className="flex-1 min-w-[200px]">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-3">
+            <div className="col-span-2 xl:col-span-1">
               <label
                 htmlFor="expense-search"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Search
               </label>
@@ -260,10 +226,10 @@ export function ExpensesPage() {
                 />
               </div>
             </div>
-            <div className="w-full lg:w-44">
+            <div>
               <label
                 htmlFor="category-filter"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Category
               </label>
@@ -281,10 +247,10 @@ export function ExpensesPage() {
                 ))}
               </select>
             </div>
-            <div className="w-full lg:w-36">
+            <div>
               <label
                 htmlFor="status-filter"
-                className="block text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-1"
+                className="block text-[10px] font-semibold text-stone-700 mb-1"
               >
                 Status
               </label>
@@ -306,49 +272,62 @@ export function ExpensesPage() {
               id="expense-period"
               period={period}
               onPeriodChange={handlePeriodChange}
-              className="w-full lg:w-44"
+              className="col-span-2 xl:col-span-1 w-full"
             />
           </div>
 
-          <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-green-800 mb-3">
             All Expenses
-            <span className="ml-2 text-stone-400 font-medium normal-case">
+            <span className="ml-2 text-stone-600 font-medium normal-case">
               ({filteredExpenses.length})
             </span>
           </h3>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[960px]">
-              <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                <tr className="h-8">
-                  {SORTABLE_COLUMNS.map(({ key, label }) => (
-                    <th key={key} className="font-bold pr-3">
+          <div className="rounded-lg border border-stone-100 overflow-hidden">
+            <table className="w-full table-fixed text-left border-collapse">
+              <colgroup>
+                <col className="w-[72px]" />
+                <col />
+                <col className="w-[96px]" />
+                <col className="w-[96px]" />
+                <col className="w-[72px]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                  {TABLE_COLUMNS.map(({ key, label, sortKey: columnSortKey, align }) => (
+                    <th
+                      key={key}
+                      className={cn(
+                        "px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider",
+                        align === "right" && "text-right"
+                      )}
+                    >
                       <button
                         type="button"
-                        onClick={() => handleSort(key)}
+                        onClick={() => handleSort(columnSortKey)}
                         className={cn(
-                          "inline-flex items-center gap-1 cursor-pointer rounded px-0.5 -mx-0.5",
-                          "hover:text-stone-600 transition-colors",
-                          sortKey === key && "text-stone-600"
+                          "inline-flex items-center gap-0.5 cursor-pointer max-w-full",
+                          align === "right" && "ml-auto",
+                          "hover:text-green-800 transition-colors",
+                          sortKey === columnSortKey && "text-green-800"
                         )}
                         aria-label={`Sort by ${label}${
-                          sortKey === key
+                          sortKey === columnSortKey
                             ? `, ${sortDirection === "asc" ? "ascending" : "descending"}`
                             : ""
                         }`}
                       >
-                        <span>{label}</span>
-                        <SortIcon column={key} sortKey={sortKey} sortDirection={sortDirection} />
+                        <span className="truncate">{label}</span>
+                        <SortIcon column={columnSortKey} sortKey={sortKey} sortDirection={sortDirection} />
                       </button>
                     </th>
                   ))}
-                  <th className="font-bold">Notes</th>
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-stone-800">
+              <tbody className="text-[11px] text-stone-900">
                 {sortedExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center">
+                    <td colSpan={5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-stone-400">
                         <ReceiptText size={32} strokeWidth={1.5} />
                         {sortedExpenses.length === 0 && !usesImportedData ? (
@@ -371,32 +350,29 @@ export function ExpensesPage() {
                   sortedExpenses.map((expense) => (
                     <tr
                       key={expense.id}
-                      className="h-11 border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
+                      className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
                     >
-                      <td className="pr-3 py-2 whitespace-nowrap">
+                      <td className="px-2 py-2 whitespace-nowrap align-top">
                         {formatDisplayDate(expense.date)}
                       </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{expense.category}</td>
-                      <td className="pr-3 py-2 max-w-[180px] truncate" title={expense.description}>
-                        {expense.description}
-                      </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{expense.vendor}</td>
-                      <td className="pr-3 py-2 font-bold whitespace-nowrap">
-                        {expense.currency} {expense.amount.toLocaleString()}
-                      </td>
-                      <td className="pr-3 py-2">
-                        <span
-                          className={cn(
-                            "inline-flex px-2 py-0.5 text-[9px] font-bold uppercase rounded-full tracking-wider border",
-                            getStatusBadgeClass(expense.status)
-                          )}
+                      <td className="px-2 py-2 min-w-0 align-top">
+                        <div
+                          className="font-medium truncate"
+                          title={[expense.description, expense.vendor, expense.notes].filter(Boolean).join(" · ")}
                         >
-                          {expense.status}
-                        </span>
+                          {expense.description}
+                        </div>
+                        <div className="text-[10px] text-stone-600 truncate">
+                          {expense.vendor}
+                          {expense.paymentMethod ? ` · ${expense.paymentMethod}` : ""}
+                        </div>
                       </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{expense.paymentMethod}</td>
-                      <td className="py-2 max-w-[140px] truncate text-stone-500" title={expense.notes}>
-                        {expense.notes || "—"}
+                      <td className="px-2 py-2 truncate align-top">{expense.category}</td>
+                      <td className="px-2 py-2 font-semibold text-right tabular-nums whitespace-nowrap align-top">
+                        {formatCurrency(expense.amount)}
+                      </td>
+                      <td className="px-2 py-2 align-top">
+                        <span className={expenseStatusTextClass(expense.status)}>{expense.status}</span>
                       </td>
                     </tr>
                   ))
@@ -405,8 +381,9 @@ export function ExpensesPage() {
             </table>
           </div>
         </div>
+          </div>
         </div>
-      </main>
+      </div>
 
       {isModalOpen && (
         <div

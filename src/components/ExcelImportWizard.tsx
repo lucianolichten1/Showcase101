@@ -1,5 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, Sparkles, Loader2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileSpreadsheet,
+  Upload,
+  Sparkles,
+  Loader2,
+  X,
+  ArrowRight,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { parseWorkbookFile } from "@/domains/import/parseWorkbook";
@@ -30,6 +40,7 @@ import {
   SALES_FIELD_LABELS,
   SALES_REQUIRED_FIELDS,
 } from "@/domains/import/types";
+import { useAuth } from "@/domains/auth/AuthContext";
 import { useFinancialData } from "@/domains/financial/hooks";
 
 const ROLE_OPTIONS: { value: SheetRole; label: string }[] = [
@@ -47,6 +58,50 @@ const ROLE_LABELS: Record<SheetRole, string> = {
   customers: "Customers",
   ignore: "Ignored",
 };
+
+const WIZARD_STEPS = [
+  { id: 1, label: "Upload file" },
+  { id: 2, label: "Map columns" },
+  { id: 3, label: "Confirm import" },
+] as const;
+
+function WizardStepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-2 sm:gap-3">
+      {WIZARD_STEPS.map((step, index) => {
+        const isComplete = step.id < currentStep;
+        const isCurrent = step.id === currentStep;
+        return (
+          <li key={step.id} className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold border",
+                  isComplete && "bg-green-700 border-green-700 text-white",
+                  isCurrent && "bg-green-50 border-green-600 text-green-800",
+                  !isComplete && !isCurrent && "bg-white border-stone-200 text-stone-600"
+                )}
+              >
+                {isComplete ? <CheckCircle2 className="h-3.5 w-3.5" /> : step.id}
+              </span>
+              <span
+                className={cn(
+                  "text-[10px] font-bold uppercase tracking-wide",
+                  isCurrent ? "text-green-800" : isComplete ? "text-stone-700" : "text-stone-600"
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+            {index < WIZARD_STEPS.length - 1 && (
+              <span className="hidden sm:block h-px w-6 bg-stone-200" aria-hidden />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function FieldMapper({
   title,
@@ -72,12 +127,12 @@ function FieldMapper({
   helperText?: string;
 }) {
   return (
-    <div className="space-y-2 border border-stone-100 rounded-lg p-3 bg-stone-50/50">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+    <div className="space-y-2 border border-stone-200 rounded-lg p-3 bg-white">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-green-800">
         {title}
       </p>
       {helperText && (
-        <p className="text-[10px] text-stone-500 -mt-1">{helperText}</p>
+        <p className="text-[10px] text-stone-600 -mt-1">{helperText}</p>
       )}
       {fields.map((field) => (
         <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
@@ -114,6 +169,11 @@ function FieldMapper({
 }
 
 export function ExcelImportWizard() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { primaryCompanyId, isCompanyOwner } = useAuth();
+  /** Enhanced upload/confirm flow is for company owners only — superadmin keeps legacy UI. */
+  const isEnhancedFlow = isCompanyOwner;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     importMapping,
@@ -134,6 +194,9 @@ export function ExcelImportWizard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importComplete, setImportComplete] = useState(false);
 
   // AI mapping state
   const [aiLoading, setAiLoading] = useState(false);
@@ -155,6 +218,49 @@ export function ExcelImportWizard() {
 
   const activeMapping = sheetMappings.find((m) => m.sheetName === selectedSheet);
 
+  const activeSheetMappings = useMemo(
+    () => sheetMappings.filter((m) => m.role !== "ignore"),
+    [sheetMappings]
+  );
+
+  const mappingValidationError = useMemo(
+    () => (workbook ? validateSheetMappings(sheetMappings) : null),
+    [workbook, sheetMappings]
+  );
+
+  const currentWizardStep = useMemo((): 1 | 2 | 3 => {
+    if (!workbook) return 1;
+    if (importComplete) return 3;
+    return 2;
+  }, [workbook, importComplete]);
+
+  const dashboardPath = useMemo(() => {
+    const companyId = searchParams.get("companyId") ?? primaryCompanyId;
+    if (companyId) {
+      return `/dashboard?companyId=${encodeURIComponent(companyId)}`;
+    }
+    return "/dashboard";
+  }, [searchParams, primaryCompanyId]);
+
+  const resetUpload = useCallback(() => {
+    setFileName(null);
+    setFileBuffer(null);
+    setWorkbook(null);
+    setSheetMappings([]);
+    setSelectedSheet("");
+    setMappingName("Default company mapping");
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setImportWarnings([]);
+    setAiError(null);
+    setAiSuggested({});
+    setAiSummaryBySheet({});
+    setShowAiBadges(false);
+    setImportComplete(false);
+    setIsImporting(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
   const processFile = useCallback(
     async (file: File) => {
       setErrorMessage(null);
@@ -164,12 +270,14 @@ export function ExcelImportWizard() {
       setAiSuggested({});
       setAiSummaryBySheet({});
       setShowAiBadges(false);
+      setImportComplete(false);
 
       if (!file.name.toLowerCase().endsWith(".xlsx")) {
         setErrorMessage("Please upload an Excel workbook (.xlsx).");
         return;
       }
 
+      if (isEnhancedFlow) setIsProcessingFile(true);
       try {
         const buffer = await file.arrayBuffer();
         const preview = await parseWorkbookFile(file);
@@ -188,12 +296,15 @@ export function ExcelImportWizard() {
         setSelectedSheet(preview.sheets[0]?.sheetName ?? "");
         setMappingName(importMapping?.name ?? `${file.name} mapping`);
       } catch (error) {
+        resetUpload();
         setErrorMessage(
           error instanceof Error ? error.message : "Could not read the Excel file."
         );
+      } finally {
+        setIsProcessingFile(false);
       }
     },
-    [importMapping]
+    [importMapping, resetUpload, isEnhancedFlow]
   );
 
   const updateSheetMapping = (sheetName: string, patch: Partial<SheetMapping>) => {
@@ -324,76 +435,100 @@ export function ExcelImportWizard() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     setErrorMessage(null);
     setSuccessMessage(null);
     setImportWarnings([]);
+    setImportComplete(false);
 
     if (!fileBuffer || !fileName) {
       setErrorMessage("Upload an Excel file first.");
       return;
     }
 
-    const validationError = validateSheetMappings(sheetMappings);
-    if (validationError) {
-      setErrorMessage(validationError);
+    if (mappingValidationError) {
+      setErrorMessage(mappingValidationError);
       return;
     }
 
-    const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName, {
-      defaultYear: importDefaultYear,
-    });
-    if (result.salesCount === 0 && result.expensesCount === 0 && result.arCount === 0 && result.customerCount === 0) {
-      setErrorMessage(
-        "No valid rows were imported. Check your column mappings and try again."
+    if (isEnhancedFlow) setIsImporting(true);
+    try {
+      const result = runImportFromWorkbook(fileBuffer, sheetMappings, fileName, {
+        defaultYear: importDefaultYear,
+      });
+      if (
+        result.salesCount === 0 &&
+        result.expensesCount === 0 &&
+        result.arCount === 0 &&
+        result.customerCount === 0
+      ) {
+        setErrorMessage(
+          "No valid rows were imported. Check your column mappings and try again."
+        );
+        setImportWarnings(result.warnings.slice(0, 10));
+        return;
+      }
+
+      const mapping = createImportMapping(
+        mappingName.trim() || "Company mapping",
+        sheetMappings
       );
-      setImportWarnings(result.warnings.slice(0, 10));
-      return;
+      const mergeResult = applyImportedData(result.data, mapping, {
+        fileName,
+        salesRows: result.salesCount,
+        expenseRows: result.expensesCount,
+        skippedRows: result.skipped,
+        warningCount: result.warnings.length,
+      });
+      setImportWarnings(result.warnings.slice(0, 15));
+      const addedSales = mergeResult.newSalesCount;
+      const addedExpenses = mergeResult.newExpenseCount;
+      const addedAr = mergeResult.newArCount;
+      const addedCustomers = mergeResult.newCustomerCount;
+      const duplicates =
+        mergeResult.duplicateSalesCount +
+        mergeResult.duplicateExpenseCount +
+        mergeResult.duplicateArCount +
+        mergeResult.duplicateCustomerCount;
+      const totalSales = mergeResult.merged.sales.length;
+      const totalExpenses = mergeResult.merged.expenses.length;
+      const totalAr = mergeResult.merged.arReceivables.length;
+      const totalCustomers = mergeResult.merged.customers.length;
+      const parts = [];
+      if (addedSales > 0) parts.push(`${addedSales} sales`);
+      if (addedExpenses > 0) parts.push(`${addedExpenses} expense`);
+      if (addedAr > 0) parts.push(`${addedAr} AR`);
+      if (addedCustomers > 0) parts.push(`${addedCustomers} customer`);
+      const addedStr =
+        parts.length > 0 ? `Added ${parts.join(", ")} rows` : "No new rows added";
+      const totals = [
+        `${totalSales} sales`,
+        `${totalExpenses} expenses`,
+        `${totalAr} AR`,
+        `${totalCustomers} customers`,
+      ].join(", ");
+      setSuccessMessage(
+        addedStr +
+          (duplicates > 0 ? ` (${duplicates} duplicates skipped).` : ".") +
+          ` Active dataset: ${totals}.` +
+          (result.skipped > 0 ? ` ${result.skipped} rows skipped in file.` : "")
+      );
+      if (isEnhancedFlow) {
+        setImportComplete(true);
+      }
+    } finally {
+      if (isEnhancedFlow) setIsImporting(false);
     }
-
-    const mapping = createImportMapping(mappingName.trim() || "Company mapping", sheetMappings);
-    const mergeResult = applyImportedData(result.data, mapping, {
-      fileName,
-      salesRows: result.salesCount,
-      expenseRows: result.expensesCount,
-      skippedRows: result.skipped,
-      warningCount: result.warnings.length,
-    });
-    setImportWarnings(result.warnings.slice(0, 15));
-    const addedSales = mergeResult.newSalesCount;
-    const addedExpenses = mergeResult.newExpenseCount;
-    const addedAr = mergeResult.newArCount;
-    const addedCustomers = mergeResult.newCustomerCount;
-    const duplicates =
-      mergeResult.duplicateSalesCount + mergeResult.duplicateExpenseCount +
-      mergeResult.duplicateArCount + mergeResult.duplicateCustomerCount;
-    const totalSales = mergeResult.merged.sales.length;
-    const totalExpenses = mergeResult.merged.expenses.length;
-    const totalAr = mergeResult.merged.arReceivables.length;
-    const totalCustomers = mergeResult.merged.customers.length;
-    const parts = [];
-    if (addedSales > 0) parts.push(`${addedSales} sales`);
-    if (addedExpenses > 0) parts.push(`${addedExpenses} expense`);
-    if (addedAr > 0) parts.push(`${addedAr} AR`);
-    if (addedCustomers > 0) parts.push(`${addedCustomers} customer`);
-    const addedStr = parts.length > 0 ? `Added ${parts.join(", ")} rows` : "No new rows added";
-    const totals = [`${totalSales} sales`, `${totalExpenses} expenses`, `${totalAr} AR`, `${totalCustomers} customers`].join(", ");
-    setSuccessMessage(
-      addedStr +
-        (duplicates > 0 ? ` (${duplicates} duplicates skipped).` : ".") +
-        ` Active dataset: ${totals}.` +
-        (result.skipped > 0 ? ` ${result.skipped} rows skipped in file.` : "")
-    );
   };
 
   return (
     <section className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
+          <h2 className="text-[10px] font-bold text-green-800 uppercase tracking-wider">
             Import from Excel Workbook
           </h2>
-          <p className="text-xs text-stone-500 mt-1 max-w-2xl">
+          <p className="text-xs text-stone-700 mt-1 max-w-2xl">
             Upload an .xlsx file, assign each sheet a role (Sales, Expenses, or Accounts Receivable),
             map the columns, and import. Column mappings are saved locally so re-importing the same format is instant.
           </p>
@@ -413,6 +548,8 @@ export function ExcelImportWizard() {
         )}
       </div>
 
+      {isEnhancedFlow && <WizardStepIndicator currentStep={currentWizardStep} />}
+
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -430,7 +567,9 @@ export function ExcelImportWizard() {
           workbook ? "p-4" : "p-8 sm:p-10",
           isDragging
             ? "border-green-500 bg-green-50/50"
-            : "border-stone-200 bg-stone-50/30"
+            : workbook && isEnhancedFlow
+              ? "border-green-300 bg-green-50/30"
+              : "border-stone-200 bg-white"
         )}
       >
         <input
@@ -444,30 +583,64 @@ export function ExcelImportWizard() {
             e.target.value = "";
           }}
         />
-        {workbook && fileName ? (
+        {isEnhancedFlow && isProcessingFile ? (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <Loader2 className="h-7 w-7 text-green-700 animate-spin" />
+            <p className="text-sm font-semibold text-stone-700">Reading your Excel file…</p>
+            <p className="text-xs text-stone-600">Detecting sheets and column headers</p>
+          </div>
+        ) : workbook && fileName ? (
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <FileSpreadsheet className="h-6 w-6 text-green-700 shrink-0" />
+              {isEnhancedFlow ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
+                  <CheckCircle2 className="h-5 w-5 text-green-700" />
+                </div>
+              ) : (
+                <FileSpreadsheet className="h-6 w-6 text-green-700 shrink-0" />
+              )}
               <div className="min-w-0 text-left">
                 <p className="text-sm font-semibold text-stone-900 truncate">{fileName}</p>
-                <p className="text-xs text-stone-500">{workbook.sheets.length} sheet{workbook.sheets.length !== 1 ? "s" : ""} detected</p>
+                <p
+                  className={cn(
+                    "text-xs",
+                    isEnhancedFlow ? "text-green-700 font-medium" : "text-stone-600"
+                  )}
+                >
+                  {isEnhancedFlow ? "Uploaded successfully · " : ""}
+                  {workbook.sheets.length} sheet
+                  {workbook.sheets.length !== 1 ? "s" : ""} detected
+                </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 px-3 py-1.5 text-xs font-bold border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors"
-            >
-              Change file
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 text-xs font-bold border border-stone-200 rounded-lg text-stone-700 hover:bg-green-50 transition-colors"
+              >
+                Change file
+              </button>
+              {isEnhancedFlow && (
+                <button
+                  type="button"
+                  onClick={resetUpload}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold border border-stone-200 rounded-lg text-stone-700 hover:bg-green-50 transition-colors"
+                  title="Remove file and start over"
+                >
+                  <X className="h-3 w-3" />
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <>
-            <FileSpreadsheet className="h-8 w-8 text-stone-400 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-stone-700 mb-1">
+            <FileSpreadsheet className="h-8 w-8 text-green-800 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-stone-900 mb-1">
               Drag and drop an Excel file here
             </p>
-            <p className="text-xs text-stone-400 mb-4">or choose a file from your computer</p>
+            <p className="text-xs text-stone-600 mb-4">or choose a file from your computer</p>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -476,10 +649,24 @@ export function ExcelImportWizard() {
               <Upload className="h-3.5 w-3.5" />
               Choose .xlsx file
             </button>
-            <p className="text-[10px] text-stone-400 mt-3">Excel 2007+ (.xlsx) supported</p>
+            <p className="text-[10px] text-stone-600 mt-3">Excel 2007+ (.xlsx) supported</p>
           </>
         )}
       </div>
+
+      {isEnhancedFlow && workbook && fileName && !isProcessingFile && !importComplete && (
+        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+          <CheckCircle2 className="h-5 w-5 text-green-700 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-green-900">File ready for import</p>
+            <p className="text-xs text-green-800 mt-0.5">
+              <span className="font-medium">{fileName}</span> was loaded. Assign a role to each sheet,
+              map the columns, then click <span className="font-semibold">Confirm & Import</span> at
+              the bottom to add the data to your dashboard.
+            </p>
+          </div>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -488,10 +675,41 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {successMessage && (
+      {successMessage && !isEnhancedFlow && (
         <div className="flex items-start gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-800">
           <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {importComplete && successMessage && isEnhancedFlow && (
+        <div className="rounded-xl border-2 border-green-300 bg-green-50 px-4 py-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 border border-green-200">
+              <CheckCircle2 className="h-5 w-5 text-green-700" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-green-900">Import confirmed — data added successfully</p>
+              <p className="text-xs text-green-800 mt-1">{successMessage}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 pl-[52px]">
+            <button
+              type="button"
+              onClick={() => navigate(dashboardPath)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors shadow-sm"
+            >
+              View Dashboard
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={resetUpload}
+              className="px-4 py-2 text-xs font-bold border border-green-200 rounded-lg text-green-800 bg-white hover:bg-green-100 transition-colors"
+            >
+              Import another file
+            </button>
+          </div>
         </div>
       )}
 
@@ -509,13 +727,13 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && workbook.sheets.length > 0 && (
-        <div className="flex items-center justify-between gap-3 border border-stone-100 rounded-lg px-4 py-3 bg-stone-50/50">
+      {workbook && workbook.sheets.length > 0 && (!isEnhancedFlow || !importComplete) && (
+        <div className="flex items-center justify-between gap-3 border border-stone-200 rounded-lg px-4 py-3 bg-white">
           <div>
-            <p className="text-xs font-semibold text-stone-700">
+            <p className="text-xs font-semibold text-stone-900">
               {workbook.sheets.length} sheet{workbook.sheets.length !== 1 ? "s" : ""} detected
             </p>
-            <p className="text-[10px] text-stone-400 mt-0.5">
+            <p className="text-[10px] text-stone-600 mt-0.5">
               Assign roles and map columns manually, or let AI do it for you.
             </p>
           </div>
@@ -539,13 +757,13 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && workbook.sheets.length > 0 && (
+      {workbook && workbook.sheets.length > 0 && (!isEnhancedFlow || !importComplete) && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-4 space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-green-800">
               Sheets ({workbook.sheets.length})
             </p>
-            <ul className="space-y-1 max-h-48 overflow-y-auto border border-stone-100 rounded-lg p-1">
+            <ul className="space-y-1 max-h-48 overflow-y-auto border border-stone-200 rounded-lg p-1 bg-white">
               {workbook.sheets.map((sheet) => {
                 const mapping = sheetMappings.find(
                   (m) => m.sheetName === sheet.sheetName
@@ -558,13 +776,16 @@ export function ExcelImportWizard() {
                       className={cn(
                         "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors",
                         selectedSheet === sheet.sheetName
-                          ? "bg-green-50 text-green-900 font-semibold"
-                          : "hover:bg-stone-50 text-stone-700"
+                          ? "bg-green-800 text-white font-semibold"
+                          : "hover:bg-green-50/60 text-stone-700"
                       )}
                     >
                       {sheet.sheetName}
                       {mapping && mapping.role !== "ignore" && (
-                        <span className="block text-[10px] text-stone-500">
+                        <span className={cn(
+                          "block text-[10px] mt-0.5",
+                          selectedSheet === sheet.sheetName ? "text-green-100" : "text-stone-600"
+                        )}>
                           {ROLE_LABELS[mapping.role] ?? mapping.role}
                         </span>
                       )}
@@ -576,7 +797,7 @@ export function ExcelImportWizard() {
 
             {activeMapping && (
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-green-800">
                   Sheet role
                 </label>
                 <select
@@ -602,33 +823,34 @@ export function ExcelImportWizard() {
             {activeSheet && activeMapping && (
               <>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500 mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-green-800 mb-2">
                     Preview — {activeSheet.sheetName}
                   </p>
                   {activeSheet.headers.length === 0 ? (
-                    <p className="text-sm text-stone-500">This sheet has no headers.</p>
+                    <p className="text-sm text-stone-600">This sheet has no headers.</p>
                   ) : (
-                    <div className="overflow-x-auto border border-stone-100 rounded-lg">
-                      <table className="min-w-full text-xs">
-                        <thead className="bg-stone-50">
-                          <tr>
+                    <div className="border border-stone-100 rounded-lg overflow-hidden">
+                      <table className="w-full table-fixed text-xs">
+                        <thead>
+                          <tr className="border-b-2 border-green-800/20 bg-green-50">
                             {activeSheet.headers.map((h) => (
                               <th
                                 key={h}
-                                className="px-2 py-2 text-left font-semibold text-stone-600 whitespace-nowrap"
+                                className="px-2 py-2 text-left text-[10px] uppercase font-bold text-green-900 tracking-wider truncate"
                               >
                                 {h}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="text-stone-900">
                           {activeSheet.previewRows.map((row, i) => (
-                            <tr key={i} className="border-t border-stone-50">
+                            <tr key={i} className="border-b border-stone-100 last:border-0 hover:bg-green-50/40">
                               {activeSheet.headers.map((h) => (
                                 <td
                                   key={h}
-                                  className="px-2 py-1.5 text-stone-700 whitespace-nowrap"
+                                  className="px-2 py-2 truncate"
+                                  title={String(row[h] ?? "")}
                                 >
                                   {String(row[h] ?? "")}
                                 </td>
@@ -706,7 +928,7 @@ export function ExcelImportWizard() {
                 )}
 
                 {activeMapping.role === "ignore" && (
-                  <p className="text-sm text-stone-500">
+                  <p className="text-sm text-stone-600">
                     This sheet will be skipped during import.
                   </p>
                 )}
@@ -716,12 +938,136 @@ export function ExcelImportWizard() {
         </div>
       )}
 
-      {workbook && (
+      {workbook && isEnhancedFlow && !importComplete && (
+        <div className="border-t border-stone-100 pt-4 space-y-4">
+          <div
+            className={cn(
+              "rounded-xl border-2 p-4 space-y-4",
+              mappingValidationError
+                ? "border-amber-200 bg-amber-50/40"
+                : "border-green-200 bg-green-50/30"
+            )}
+          >
+            <div>
+              <p className="text-sm font-bold text-stone-900">Confirm import</p>
+              <p className="text-xs text-stone-700 mt-1">
+                Review the summary below. When everything looks right, confirm to add this file to your
+                active dataset.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-stone-200 bg-white px-3 py-2.5 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-green-800">
+                Sheets to import
+              </p>
+              {activeSheetMappings.length === 0 ? (
+                <p className="text-xs text-amber-800">
+                  No sheets assigned yet — choose a role for at least one sheet above.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {activeSheetMappings.map((mapping) => (
+                    <li
+                      key={mapping.sheetName}
+                      className="flex items-center justify-between gap-2 text-xs text-stone-700"
+                    >
+                      <span className="font-medium truncate">{mapping.sheetName}</span>
+                      <span className="shrink-0 text-[10px] font-semibold text-green-800">
+                        {ROLE_LABELS[mapping.role]}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {sheetMappings.some((m) => m.role === "ignore") && (
+                <p className="text-[10px] text-stone-600 pt-1">
+                  {sheetMappings.filter((m) => m.role === "ignore").length} sheet
+                  {sheetMappings.filter((m) => m.role === "ignore").length !== 1 ? "s" : ""} will be
+                  skipped
+                </p>
+              )}
+            </div>
+
+            {mappingValidationError ? (
+              <div className="flex items-start gap-2 text-xs text-amber-900">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{mappingValidationError}</span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-xs text-green-800">
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>All required column mappings are set — ready to confirm.</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-green-800">
+                  Mapping name{" "}
+                  <span className="normal-case font-normal text-stone-600">(saved locally for re-use)</span>
+                </label>
+                <input
+                  type="text"
+                  value={mappingName}
+                  onChange={(e) => setMappingName(e.target.value)}
+                  className="mt-1 w-full py-2 px-3 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-green-700 transition-colors"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={resetUpload}
+                  disabled={isImporting}
+                  className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg text-stone-700 bg-white hover:bg-green-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                {usesImportedData && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearImportedData();
+                      setErrorMessage(null);
+                      setImportComplete(false);
+                      setSuccessMessage("Import cleared. Financial pages are now empty.");
+                    }}
+                    disabled={isImporting}
+                    className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg text-stone-700 bg-white hover:bg-green-50 transition-colors disabled:opacity-50"
+                  >
+                    Clear all data
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleImport()}
+                  disabled={!!mappingValidationError || isImporting}
+                  className="inline-flex items-center gap-2 px-5 py-2 text-xs font-bold bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isImporting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Importing…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Confirm & Import
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workbook && !isEnhancedFlow && (
         <div className="border-t border-stone-100 pt-4 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
-                Mapping name <span className="normal-case font-normal">(saved locally for re-use)</span>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-green-800">
+                Mapping name{" "}
+                <span className="normal-case font-normal text-stone-600">(saved locally for re-use)</span>
               </label>
               <input
                 type="text"
@@ -740,22 +1086,26 @@ export function ExcelImportWizard() {
                     setErrorMessage(null);
                     setSuccessMessage("Import cleared. Dashboard is now showing demo data.");
                   }}
-                  className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors"
+                  className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg text-stone-700 hover:bg-green-50 transition-colors"
                 >
                   Clear import
                 </button>
               )}
               <button
                 type="button"
-                onClick={handleImport}
+                onClick={() => void handleImport()}
                 className="px-5 py-2 text-xs font-bold bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors shadow-sm"
               >
                 Import now
               </button>
             </div>
           </div>
-          <p className="text-[10px] text-stone-400">
-            Sheet roles: <span className="text-stone-500">Sales, Expenses, Accounts Receivable, Customers</span> — assign each sheet before importing.
+          <p className="text-[10px] text-stone-600">
+            Sheet roles:{" "}
+            <span className="text-stone-700 font-medium">
+              Sales, Expenses, Accounts Receivable, Customers
+            </span>{" "}
+            — assign each sheet before importing.
           </p>
         </div>
       )}

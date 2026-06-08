@@ -293,11 +293,11 @@ export function AdminCompanyDetailsPage() {
             Import data
           </AdminButton>
           <Link
-            to={`/company/${company.id}/dashboard`}
+            to={`/dashboard?companyId=${encodeURIComponent(company.id)}`}
             className="admin-btn admin-btn-primary admin-btn-sm"
           >
             <ExternalLink className="h-[15px] w-[15px]" />
-            Open workspace
+            Open dashboard
           </Link>
         </div>
       </div>

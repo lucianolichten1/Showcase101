@@ -5,6 +5,7 @@ import {
   userCanAccessCompany,
   isUnassignedCompanyOwner,
 } from "@/domains/auth/AuthContext";
+import { companyDashboardPath } from "@/domains/auth/navigation";
 import { AuthLoadingScreen } from "./AuthLoadingScreen";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
@@ -28,7 +29,7 @@ export function RequireAuth() {
 
   if (isCompanyOwner && location.pathname.startsWith("/admin")) {
     if (primaryCompanyId) {
-      return <Navigate to={`/company/${primaryCompanyId}/dashboard`} replace />;
+      return <Navigate to={companyDashboardPath(primaryCompanyId)} replace />;
     }
     return <Navigate to="/no-company" replace />;
   }
@@ -48,7 +49,7 @@ export function RequireSuperAdmin() {
 
   if (profile?.role !== "superadmin") {
     if (profile?.role === "company_owner" && primaryCompanyId) {
-      return <Navigate to={`/company/${primaryCompanyId}/dashboard`} replace />;
+      return <Navigate to={companyDashboardPath(primaryCompanyId)} replace />;
     }
     if (isUnassignedCompanyOwner(profile, memberships)) {
       return <Navigate to="/no-company" replace />;
@@ -61,26 +62,11 @@ export function RequireSuperAdmin() {
   return <Outlet />;
 }
 
-/** `/company/:companyId/*` — superadmin or member of that company. */
-export function RequireCompanyWorkspaceAccess() {
+/** Legacy `/company/:companyId/dashboard` → financial dashboard with company context. */
+export function LegacyCompanyWorkspaceRedirect() {
   const { companyId } = useParams<{ companyId: string }>();
-  const { profile, memberships, primaryCompanyId, isSuperadmin } = useAuth();
-
   if (!companyId) return <Navigate to="/" replace />;
-
-  if (!userCanAccessCompany(profile, memberships, companyId)) {
-    if (!isSuperadmin && primaryCompanyId) {
-      return <Navigate to={`/company/${primaryCompanyId}/dashboard`} replace />;
-    }
-    return (
-      <AccessDeniedPage
-        title="Company access denied"
-        message="You can only open workspaces for companies you belong to."
-      />
-    );
-  }
-
-  return <Outlet />;
+  return <Navigate to={companyDashboardPath(companyId)} replace />;
 }
 
 const FINANCIAL_PATHS = new Set([
@@ -134,7 +120,7 @@ export function RequireFinancialModuleAccess() {
     }
 
     if (!userCanAccessCompany(profile, memberships, queryCompanyId)) {
-      return <Navigate to={`/company/${allowedId}/dashboard`} replace />;
+      return <Navigate to={companyDashboardPath(allowedId)} replace />;
     }
 
     return <Outlet />;
