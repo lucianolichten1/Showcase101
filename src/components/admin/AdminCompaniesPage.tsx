@@ -1,41 +1,52 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Building2, Eye, ExternalLink, Info, Loader2, AlertCircle } from "lucide-react";
-import { createCompany, listCompanies } from "@/domains/admin/companyService";
-import { databaseStatusLabel } from "@/domains/admin/database";
-import { getNicheDisplayName } from "@/domains/admin/niches";
-import type { CompanyRecord, NewCompanyInput } from "@/domains/admin/types";
+import { useNavigate } from "react-router-dom";
+import { Loader2, Plus } from "lucide-react";
+import { createCompany } from "@/domains/admin/companyService";
 import {
-  databaseStatusBadgeClass,
-  formatCreatedDate,
-  statusBadgeClass,
-} from "@/domains/admin/utils";
-import { cn } from "@/lib/utils";
+  assignCompanyOwner,
+  findProfileByEmail,
+  PROFILE_NOT_FOUND_MESSAGE,
+} from "@/domains/admin/companyOwnerService";
+import {
+  loadCompaniesWithOwners,
+  matchesSearchQuery,
+  matchesStatusFilter,
+  toCompanyCardModel,
+  type AdminCompanyCardModel,
+  type StatusFilter,
+} from "@/domains/admin/displayModel";
+import type { NewCompanyInput } from "@/domains/admin/types";
+import { CompanyCard } from "./CompanyCard";
 import { AddCompanyDialog } from "./AddCompanyDialog";
+import { AdminButton } from "./ui/AdminButton";
+import { AdminSearch } from "./ui/AdminSearch";
+import { AdminSegmentedControl } from "./ui/AdminSegmentedControl";
+import { AdminToast } from "./ui/AdminToast";
 
-function ownerDisplay(email: string): string {
-  return email.trim() ? email : "Not assigned";
-}
+const STATUS_FILTERS: StatusFilter[] = ["All", "Onboarding", "Active", "Paused"];
 
 export function AdminCompaniesPage() {
-  const [companies, setCompanies] = useState<CompanyRecord[]>([]);
+  const navigate = useNavigate();
+  const [models, setModels] = useState<AdminCompanyCardModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<StatusFilter>("All");
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   const loadCompanies = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listCompanies();
-      setCompanies(data);
+      const rows = await loadCompaniesWithOwners();
+      setModels(rows.map(({ company, owner }) => toCompanyCardModel(company, owner)));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load companies from Supabase.";
-      setError(message);
-      setCompanies([]);
+      setError(err instanceof Error ? err.message : "Failed to load companies.");
+      setModels([]);
     } finally {
       setLoading(false);
     }
@@ -45,22 +56,45 @@ export function AdminCompaniesPage() {
     void loadCompanies();
   }, [loadCompanies]);
 
-  const activeCount = companies.filter((c) => c.status === "Active").length;
-  const connectedDbCount = companies.filter(
-    (c) => c.databaseStatus !== "not_connected"
-  ).length;
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
-  const handleAddCompany = async (input: NewCompanyInput) => {
+  useEffect(() => {
+    if (!justAddedId) return;
+    const timer = window.setTimeout(() => setJustAddedId(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [justAddedId]);
+
+  const filtered = models.filter(
+    (m) => matchesStatusFilter(m, filter) && matchesSearchQuery(m, search)
+  );
+
+  const handleAddCompany = async (
+    input: NewCompanyInput,
+    ownerEmail?: string
+  ) => {
     setCreating(true);
     setCreateError(null);
     try {
-      await createCompany(input);
+      const created = await createCompany(input);
+
+      if (ownerEmail?.trim()) {
+        const profile = await findProfileByEmail(ownerEmail.trim());
+        if (!profile) {
+          throw new Error(PROFILE_NOT_FOUND_MESSAGE);
+        }
+        await assignCompanyOwner(created.id, profile.id);
+      }
+
       await loadCompanies();
       setShowAddCompany(false);
+      setJustAddedId(created.id);
+      setToast(`${created.name} created — onboarding started.`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create company.";
-      setCreateError(message);
+      setCreateError(err instanceof Error ? err.message : "Failed to create company.");
     } finally {
       setCreating(false);
     }
@@ -68,227 +102,79 @@ export function AdminCompaniesPage() {
 
   return (
     <>
-      <main className="flex flex-col gap-5 p-5 lg:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-bold text-stone-900">Companies</h1>
-            <p className="text-xs text-stone-500 mt-0.5 max-w-2xl">
-              Manage platform companies on AI Finance OS. Each company belongs to a
-              niche (currently Agro only) and will eventually use its own dedicated
-              Supabase database. Database routing is not connected yet — this admin
-              area reflects the planned architecture only.
-            </p>
-          </div>
+      <div className="admin-page-head">
+        <div>
+          <div className="admin-page-title">Companies</div>
+        </div>
+        <AdminButton
+          variant="primary"
+          onClick={() => {
+            setCreateError(null);
+            setShowAddCompany(true);
+          }}
+          disabled={loading}
+        >
+          <Plus className="h-4 w-4" />
+          Add Company
+        </AdminButton>
+      </div>
+
+      <div className="admin-toolbar">
+        <AdminSearch value={search} onChange={setSearch} />
+        <AdminSegmentedControl options={STATUS_FILTERS} value={filter} onChange={setFilter} />
+        <span className="mono ml-auto text-[13px] text-[var(--admin-ink-3)]">
+          {filtered.length} {filtered.length === 1 ? "company" : "companies"}
+        </span>
+      </div>
+
+      {error && (
+        <div className="admin-alert admin-alert-error mt-6">
+          {error}
           <button
             type="button"
-            onClick={() => {
-              setCreateError(null);
-              setShowAddCompany(true);
-            }}
-            disabled={loading}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-3 underline font-semibold"
+            onClick={() => void loadCompanies()}
           >
-            <Plus size={13} />
-            Add Company
+            Retry
           </button>
         </div>
+      )}
 
-        <div className="flex gap-3 rounded-xl border border-stone-200 bg-stone-50/80 px-4 py-3">
-          <Info size={16} className="shrink-0 text-stone-400 mt-0.5" />
-          <p className="text-[11px] text-stone-600 leading-relaxed">
-            <span className="font-semibold text-stone-800">Multi-company platform.</span>{" "}
-            Companies are grouped by niche. Each company will get a separate database in a
-            later phase. All companies show database status{" "}
-            <span className="font-semibold">Not connected</span> until Supabase routing is
-            implemented.
-          </p>
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-20 text-[var(--admin-ink-3)]">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-sm">Loading companies…</span>
         </div>
-
-        {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle size={16} className="shrink-0 text-red-600 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-red-800">Could not load companies</p>
-              <p className="text-[11px] text-red-700 mt-0.5">{error}</p>
-              <button
-                type="button"
-                onClick={() => void loadCompanies()}
-                className="mt-2 text-[11px] font-semibold text-red-800 underline hover:no-underline"
-              >
-                Try again
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Total Companies
-            </span>
-            <span className="text-lg font-bold text-stone-900">
-              {loading ? "—" : companies.length}
-            </span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Active
-            </span>
-            <span className="text-lg font-bold text-green-800">
-              {loading ? "—" : activeCount}
-            </span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Niches
-            </span>
-            <span className="text-lg font-bold text-stone-900">Agro</span>
-            <span className="text-[10px] text-stone-400">More niches planned</span>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-1 col-span-2 lg:col-span-1">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">
-              Databases
-            </span>
-            <span className="text-lg font-bold text-amber-700">
-              {loading ? "—" : `${connectedDbCount} connected`}
-            </span>
-            <span className="text-[10px] text-stone-400">Supabase routing later</span>
-          </div>
+      ) : filtered.length > 0 ? (
+        <div className="admin-card-grid mt-6">
+          {filtered.map((model) => (
+            <CompanyCard
+              key={model.id}
+              model={model}
+              justAdded={model.id === justAddedId}
+              onOpen={(id) => {
+                void navigate(`/admin/companies/${id}`);
+              }}
+            />
+          ))}
         </div>
-
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Building2 size={14} className="text-stone-400" />
-              <h3 className="text-sm font-bold text-stone-800 uppercase tracking-tight">
-                All Companies
-              </h3>
-            </div>
-            <span className="text-[10px] text-stone-400">
-              {loading ? "Loading…" : `${companies.length} companies`}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-stone-400">
-              <Loader2 size={24} className="animate-spin" />
-              <p className="text-xs">Loading companies…</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="text-[9px] uppercase text-stone-400 font-bold border-b border-stone-100">
-                  <tr className="h-8">
-                    <th className="font-bold pr-4">Company Name</th>
-                    <th className="font-bold pr-4">Niche</th>
-                    <th className="font-bold pr-4">Database</th>
-                    <th className="font-bold pr-4">Owner Email</th>
-                    <th className="font-bold pr-4">Status</th>
-                    <th className="font-bold pr-4">Created Date</th>
-                    <th className="font-bold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[11px] text-stone-800">
-                  {companies.length === 0 && !error ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center">
-                        <Building2
-                          size={32}
-                          className="mx-auto text-stone-300 mb-3"
-                          strokeWidth={1.5}
-                          aria-hidden
-                        />
-                        <p className="text-sm font-semibold text-stone-600">
-                          No companies yet
-                        </p>
-                        <p className="text-xs text-stone-400 mt-1 max-w-xs mx-auto leading-relaxed">
-                          Create your first company using the <strong>+ Add Company</strong> button above.
-                          You can assign an owner after creation.
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    companies.map((company) => (
-                      <tr
-                        key={company.id}
-                        className="border-b border-stone-50 hover:bg-stone-50/80 transition-colors"
-                      >
-                        <td className="py-2.5 pr-4 font-semibold text-stone-900">
-                          {company.name}
-                        </td>
-                        <td className="py-2.5 pr-4">
-                          <span className="inline-flex items-center rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-800">
-                            {getNicheDisplayName(company.niche)}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-4">
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                              databaseStatusBadgeClass(company.databaseStatus)
-                            )}
-                            title={company.databaseLabel}
-                          >
-                            {databaseStatusLabel(company.databaseStatus)}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-4 text-stone-500 italic">
-                          {ownerDisplay(company.ownerEmail)}
-                        </td>
-                        <td className="py-2.5 pr-4">
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                              statusBadgeClass(company.status)
-                            )}
-                          >
-                            {company.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-4 text-stone-500">
-                          {formatCreatedDate(company.createdAt)}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <div className="inline-flex items-center gap-1.5 justify-end">
-                            <Link
-                              to={`/admin/companies/${company.id}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-[10px] font-semibold text-stone-600 hover:border-green-200 hover:text-green-800 hover:bg-green-50 transition-colors"
-                            >
-                              <Eye size={12} />
-                              View
-                            </Link>
-                            <Link
-                              to={`/dashboard?companyId=${encodeURIComponent(company.id)}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-800 hover:bg-green-100 transition-colors"
-                              title="Open company dashboard"
-                            >
-                              <ExternalLink size={12} />
-                              Dashboard
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </main>
+      ) : (
+        <p className="mt-[60px] text-center text-sm text-[var(--admin-ink-3)]">
+          {models.length === 0
+            ? "No companies yet. Add your first company to get started."
+            : "No companies match your search."}
+        </p>
+      )}
 
       <AddCompanyDialog
         open={showAddCompany}
         saving={creating}
         saveError={createError}
-        onClose={() => {
-          if (!creating) {
-            setShowAddCompany(false);
-            setCreateError(null);
-          }
-        }}
-        onConfirm={(input) => void handleAddCompany(input)}
+        onClose={() => setShowAddCompany(false)}
+        onConfirm={handleAddCompany}
       />
+
+      {toast && <AdminToast message={toast} />}
     </>
   );
 }

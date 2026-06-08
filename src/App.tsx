@@ -12,6 +12,7 @@ import { ReportsPage } from "./components/ReportsPage";
 import { CustomersPage } from "./components/CustomersPage";
 import { AdminCompaniesPage } from "./components/admin/AdminCompaniesPage";
 import { AdminCompanyDetailsPage } from "./components/admin/AdminCompanyDetailsPage";
+import { AdminLayout } from "./components/admin/layout/AdminLayout";
 import { LoginPage } from "./components/auth/LoginPage";
 import { NoCompanyAssignedPage } from "./components/auth/NoCompanyAssignedPage";
 import {
@@ -54,8 +55,10 @@ export default function App() {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/customers" element={<CustomersPage />} />
             </Route>
+          </Route>
 
-            <Route element={<RequireSuperAdmin />}>
+          <Route element={<RequireSuperAdmin />}>
+            <Route element={<AdminLayout />}>
               <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
               <Route path="/admin/companies" element={<AdminCompaniesPage />} />
               <Route
