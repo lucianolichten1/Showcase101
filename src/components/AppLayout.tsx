@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
+import {
+  CompanyBrandingProvider,
+  useCompanyBranding,
+  useCompanyBrandingStyle,
+} from "@/domains/company/CompanyBrandingContext";
 import { Sidebar } from "./Sidebar";
+import { CompanyBrandMark } from "./CompanyBrandMark";
 
-export function AppLayout() {
+function AppLayoutShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { branding } = useCompanyBranding();
+  const brandingStyle = useCompanyBrandingStyle();
 
   return (
-    <div className="flex min-h-screen bg-[#FBFBF9]">
+    <div className="company-app flex min-h-screen bg-[#FBFBF9]" style={brandingStyle}>
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:z-30">
         <Sidebar onNavClick={() => setMobileOpen(false)} />
@@ -42,11 +50,26 @@ export function AppLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-bold text-stone-900">Financial Suite</span>
+          <CompanyBrandMark
+            className="max-h-7"
+            fallbackClassName="h-7 w-7"
+            iconClassName="h-3.5 w-3.5"
+          />
+          <span className="truncate text-sm font-bold text-stone-900">
+            {branding.resolvedDisplayName}
+          </span>
         </div>
 
         <Outlet />
       </div>
     </div>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <CompanyBrandingProvider>
+      <AppLayoutShell />
+    </CompanyBrandingProvider>
   );
 }

@@ -6,10 +6,12 @@ import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
 import { ReceivablesTable } from "./ReceivablesTable";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
-import { FinancialEmptyBanner } from "./FinancialEmptyBanner";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { dashboardWidgetKeyForKpiTitle } from "@/domains/admin/dashboardWidgets";
+import { useCompanyBranding } from "@/domains/company/CompanyBrandingContext";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -35,7 +37,7 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-2">
-      <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">{title}</h2>
+      <h2 className="text-[10px] font-bold uppercase tracking-wider text-company-primary">{title}</h2>
       {description && (
         <p className="text-xs text-stone-600 mt-0.5">{description}</p>
       )}
@@ -80,8 +82,8 @@ function DashboardGetStarted() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {steps.map(({ icon: Icon, title, description, action, onClick, primary }) => (
-          <div key={title} className={`rounded-lg border p-4 flex flex-col gap-3 ${primary ? "border-green-200 bg-green-50/50" : "border-stone-200 bg-stone-50/50"}`}>
-            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${primary ? "bg-green-800 text-white" : "bg-stone-200 text-stone-600"}`}>
+          <div key={title} className={`rounded-lg border p-4 flex flex-col gap-3 ${primary ? "border-company-primary-soft bg-company-primary-soft" : "border-stone-200 bg-stone-50/50"}`}>
+            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${primary ? "bg-company-primary text-white" : "bg-stone-200 text-stone-600"}`}>
               <Icon size={18} />
             </div>
             <div>
@@ -91,7 +93,7 @@ function DashboardGetStarted() {
             <button
               type="button"
               onClick={onClick}
-              className={`mt-auto self-start px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${primary ? "bg-green-800 text-white hover:bg-green-700" : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-50"}`}
+              className={`mt-auto self-start px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${primary ? "bg-company-primary text-white hover:bg-company-primary-dark" : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-50"}`}
             >
               {action} →
             </button>
@@ -102,7 +104,15 @@ function DashboardGetStarted() {
   );
 }
 
+function kpiGridClassName(count: number): string {
+  if (count <= 1) return "grid grid-cols-1 gap-2 sm:gap-3";
+  if (count === 2) return "grid grid-cols-2 gap-2 sm:gap-3";
+  if (count === 3) return "grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3";
+  return "grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3";
+}
+
 export function DashboardPage() {
+  const { isWidgetEnabled } = useCompanyBranding();
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
     useCompanyScopedFinancialData();
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
@@ -160,6 +170,20 @@ export function DashboardPage() {
     });
   }, [financialKpis, usesImportedData]);
 
+  const visibleKpiCards = useMemo(
+    () =>
+      kpiCards.filter((kpi) => {
+        const key = dashboardWidgetKeyForKpiTitle(kpi.title);
+        return key ? isWidgetEnabled(key) : true;
+      }),
+    [kpiCards, isWidgetEnabled]
+  );
+
+  const showFinancialOverview = isWidgetEnabled("financial-overview");
+  const showReceivablesTable = isWidgetEnabled("receivables-table");
+  const showExpenseBreakdown = isWidgetEnabled("expense-breakdown");
+  const showExpensesReceivablesSection = showReceivablesTable || showExpenseBreakdown;
+
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
       <div className="flex-1 overflow-y-auto">
@@ -185,56 +209,59 @@ export function DashboardPage() {
 
           {!usesImportedData && <DashboardGetStarted />}
 
-          {/* KPIs */}
-          <section>
-            <SectionHeading
-              title="Key metrics"
-              description={
-                usesImportedData && importedData
-                  ? `Imported data · ${periodLabel.toLowerCase()}`
-                  : "KPIs will populate once you add or import financial data"
-              }
-            />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-              {kpiCards.map((kpi) => (
-                <Fragment key={kpi.title}>
-                  <KPICard
-                    title={kpi.title}
-                    value={kpi.value}
-                    trend={kpi.trend}
-                    trendText={kpi.trendText}
-                    trendStatus={kpi.trendStatus}
-                    subtitle={kpiPeriodSubtitle(kpi.title, periodLabel)}
-                  />
-                </Fragment>
-              ))}
-            </div>
-          </section>
+          {visibleKpiCards.length > 0 && (
+            <section>
+              <SectionHeading
+                title="Key metrics"
+                description={
+                  usesImportedData && importedData
+                    ? `Imported data · ${periodLabel.toLowerCase()}`
+                    : "KPIs will populate once you add or import financial data"
+                }
+              />
+              <div className={cn(kpiGridClassName(visibleKpiCards.length))}>
+                {visibleKpiCards.map((kpi) => (
+                  <Fragment key={kpi.title}>
+                    <KPICard
+                      title={kpi.title}
+                      value={kpi.value}
+                      trend={kpi.trend}
+                      trendText={kpi.trendText}
+                      trendStatus={kpi.trendStatus}
+                      subtitle={kpiPeriodSubtitle(kpi.title, periodLabel)}
+                    />
+                  </Fragment>
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* Financial chart */}
-          <section>
-            <SectionHeading
-              title="Financial overview"
-              description={
-                usesImportedData
-                  ? "Monthly revenue and expenses from imported data"
-                  : "Monthly revenue and expenses based on your selected period"
-              }
-            />
-            <FinancialChart period={period} />
-          </section>
+          {showFinancialOverview && (
+            <section>
+              <SectionHeading
+                title="Financial overview"
+                description={
+                  usesImportedData
+                    ? "Monthly revenue and expenses from imported data"
+                    : "Monthly revenue and expenses based on your selected period"
+                }
+              />
+              <FinancialChart period={period} />
+            </section>
+          )}
 
-          {/* Expenses + Receivables */}
-          <section>
-            <SectionHeading
-              title="Expenses & Receivables"
-              description="Category breakdown and outstanding invoices"
-            />
-            <div className="flex flex-col gap-4 lg:gap-6">
-              <ReceivablesTable />
-              <ExpenseBreakdown />
-            </div>
-          </section>
+          {showExpensesReceivablesSection && (
+            <section>
+              <SectionHeading
+                title="Expenses & Receivables"
+                description="Category breakdown and outstanding invoices"
+              />
+              <div className="flex flex-col gap-4 lg:gap-6">
+                {showReceivablesTable && <ReceivablesTable />}
+                {showExpenseBreakdown && <ExpenseBreakdown />}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

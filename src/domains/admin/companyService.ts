@@ -4,9 +4,17 @@ import {
   databaseStatusLabel,
   type CompanyDatabaseStatus,
 } from "./database";
+import { normalizeEnabledDashboardWidgets } from "./dashboardWidgets";
 import { DEFAULT_ENABLED_MODULES } from "./modules";
 import type { NicheKey } from "./niches";
-import type { CompanyRecord, CompanyStatus, NewCompanyInput } from "./types";
+import { DEFAULT_COMPANY_BRANDING } from "@/domains/company/branding";
+import type {
+  CompanyBranding,
+  CompanyBrandingPatch,
+  CompanyRecord,
+  CompanyStatus,
+  NewCompanyInput,
+} from "./types";
 
 /** Row shape from the platform `companies` table. */
 export interface SupabaseCompanyRow {
@@ -17,6 +25,12 @@ export interface SupabaseCompanyRow {
   database_status: string;
   database_provider: string;
   created_at: string;
+  display_name?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
+  background_color?: string | null;
+  logo_url?: string | null;
+  enabled_dashboard_widgets?: string[] | null;
 }
 
 function normalizeNiche(raw: string): NicheKey {
@@ -38,6 +52,14 @@ function normalizeDatabaseStatus(raw: string): CompanyDatabaseStatus {
   return "not_connected";
 }
 
+function mapBrandingFromRow(row: SupabaseCompanyRow): CompanyBranding {
+  return {
+    displayName: row.display_name?.trim() || null,
+    primaryColor: row.primary_color?.trim() || DEFAULT_COMPANY_BRANDING.primaryColor,
+    logoUrl: row.logo_url?.trim() || null,
+  };
+}
+
 function databaseLabelForStatus(status: CompanyDatabaseStatus): string {
   if (status === "not_connected") {
     return "Company database not connected";
@@ -57,10 +79,14 @@ export function mapCompanyRowToRecord(row: SupabaseCompanyRow): CompanyRecord {
     status: mapDbStatusToUi(row.status),
     createdAt: row.created_at.slice(0, 10),
     enabledModules: [...DEFAULT_ENABLED_MODULES],
+    enabledDashboardWidgets: normalizeEnabledDashboardWidgets(
+      row.enabled_dashboard_widgets
+    ),
     databaseStatus,
     databaseLabel: databaseLabelForStatus(databaseStatus),
     databaseProvider:
       row.database_provider?.trim() || DEFAULT_COMPANY_DATABASE.databaseProvider,
+    branding: mapBrandingFromRow(row),
   };
 }
 
@@ -115,6 +141,55 @@ export async function updateCompany(
   const { data, error } = await supabase
     .from("companies")
     .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapCompanyRowToRecord(data as SupabaseCompanyRow);
+}
+
+function brandingPatchToDb(patch: CompanyBrandingPatch): Record<string, string | null> {
+  const dbPatch: Record<string, string | null> = {};
+  if (patch.displayName !== undefined) {
+    dbPatch.display_name = patch.displayName?.trim() || null;
+  }
+  if (patch.primaryColor !== undefined) dbPatch.primary_color = patch.primaryColor;
+  if (patch.logoUrl !== undefined) dbPatch.logo_url = patch.logoUrl;
+  return dbPatch;
+}
+
+export async function updateCompanyBranding(
+  id: string,
+  patch: CompanyBrandingPatch
+): Promise<CompanyRecord> {
+  const dbPatch = brandingPatchToDb(patch);
+  if (Object.keys(dbPatch).length === 0) {
+    const existing = await getCompanyById(id);
+    if (!existing) throw new Error("Company not found.");
+    return existing;
+  }
+
+  const { data, error } = await supabase
+    .from("companies")
+    .update(dbPatch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapCompanyRowToRecord(data as SupabaseCompanyRow);
+}
+
+export async function updateCompanyDashboardWidgets(
+  id: string,
+  widgets: string[]
+): Promise<CompanyRecord> {
+  const normalized = normalizeEnabledDashboardWidgets(widgets);
+
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ enabled_dashboard_widgets: normalized })
     .eq("id", id)
     .select()
     .single();

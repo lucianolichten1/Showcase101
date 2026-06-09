@@ -1,9 +1,11 @@
-import { BarChart3, LogOut, X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getNavigationForContext } from "@/domains/auth/navigation";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { formatRoleLabel } from "@/domains/auth/labels";
+import { useCompanyBranding } from "@/domains/company/CompanyBrandingContext";
 import { SidebarNavItem } from "./SidebarNavItem";
+import { CompanyBrandMark } from "./CompanyBrandMark";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -14,6 +16,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
   const { profile, role, primaryCompanyId, signOut } = useAuth();
+  const { branding } = useCompanyBranding();
   const location = useLocation();
   const { companyId: routeCompanyId } = useParams();
   const [searchParams] = useSearchParams();
@@ -39,14 +42,12 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
     >
       <div className="flex h-14 items-center justify-between gap-2 border-b border-stone-200 bg-white px-4">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-800 text-white">
-            <BarChart3 className="h-4 w-4" />
-          </div>
+          <CompanyBrandMark className="max-h-8" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-stone-900 leading-tight">
-              AI Finance OS
+              {branding.resolvedDisplayName}
             </p>
-            <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-green-800">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-company-primary">
               {roleLabel}
             </p>
           </div>
@@ -76,7 +77,7 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
       <div className="border-t border-stone-200 bg-white px-3 py-2.5 space-y-2">
         {profile && (
           <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-green-800">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-company-primary">
               Signed in
             </p>
             <p className="truncate text-xs font-semibold text-stone-900 mt-0.5">

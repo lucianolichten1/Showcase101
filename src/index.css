@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+.company-app {
+  --company-primary: #166534;
+}
+
+.bg-company-primary {
+  background-color: var(--company-primary);
+}
+
+.bg-company-primary-soft {
+  background-color: color-mix(in srgb, var(--company-primary) 12%, white);
+}
+
+.text-company-primary {
+  color: var(--company-primary);
+}
+
+.border-company-primary {
+  border-color: var(--company-primary);
+}
+
+.border-company-primary-soft {
+  border-color: color-mix(in srgb, var(--company-primary) 35%, white);
+}
+
+.hover\:bg-company-primary-dark:hover {
+  background-color: color-mix(in srgb, var(--company-primary) 85%, black);
+}
+
+.hover\:text-company-primary-dark:hover {
+  color: color-mix(in srgb, var(--company-primary) 85%, black);
+}

@@ -1,12 +1,19 @@
+import { DEFAULT_COMPANY_BRANDING } from "@/domains/company/branding";
 import { DEFAULT_COMPANY_DATABASE } from "./database";
+import { DEFAULT_ENABLED_DASHBOARD_WIDGETS } from "./dashboardWidgets";
 import { DEFAULT_ENABLED_MODULES } from "./modules";
 import type { CompanyRecord } from "./types";
 
 const withDatabaseDefaults = (
-  company: Omit<CompanyRecord, "databaseStatus" | "databaseLabel" | "databaseProvider">
+  company: Omit<
+    CompanyRecord,
+    "databaseStatus" | "databaseLabel" | "databaseProvider" | "branding" | "enabledDashboardWidgets"
+  >
 ): CompanyRecord => ({
   ...company,
   ...DEFAULT_COMPANY_DATABASE,
+  branding: { ...DEFAULT_COMPANY_BRANDING },
+  enabledDashboardWidgets: [...DEFAULT_ENABLED_DASHBOARD_WIDGETS],
 });
 
 export const initialCompanies: CompanyRecord[] = [

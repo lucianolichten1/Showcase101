@@ -18,7 +18,7 @@ export function FinancialEmptyBanner({
   return (
     <div
       className={cn(
-        "rounded-xl border border-dashed border-stone-300 bg-stone-50/80 px-4 py-5 sm:px-6 sm:py-6",
+        "rounded-xl border border-dashed border-company-primary-soft bg-company-primary-soft px-4 py-5 sm:px-6 sm:py-6",
         className
       )}
     >
@@ -32,7 +32,7 @@ export function FinancialEmptyBanner({
           {showImportLink && (
             <Link
               to="/export-import"
-              className="inline-flex mt-3 text-xs font-bold text-green-800 hover:text-green-900 underline underline-offset-2"
+              className="inline-flex mt-3 text-xs font-bold text-company-primary hover:text-company-primary-dark underline underline-offset-2"
             >
               Go to Export / Import →
             </Link>

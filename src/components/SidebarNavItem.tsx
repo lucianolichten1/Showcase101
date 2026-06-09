@@ -11,7 +11,7 @@ const navItemClassName = (isActive: boolean) =>
   cn(
     "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
     isActive
-      ? "bg-green-800 text-white shadow-sm"
+      ? "bg-company-primary text-white shadow-sm"
       : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
   );
 

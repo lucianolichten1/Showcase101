@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  BarChart3,
   Building2,
   Check,
   CheckSquare,
@@ -11,6 +12,7 @@ import {
   Grid3X3,
   Loader2,
   MessageSquare,
+  Palette,
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
@@ -37,6 +39,8 @@ import {
 } from "@/domains/admin/displayModel";
 import type { CompanyRecord } from "@/domains/admin/types";
 import { formatCreatedDate } from "@/domains/admin/utils";
+import { CompanyBrandingSection } from "./CompanyBrandingSection";
+import { CompanyDashboardWidgetsSection } from "./CompanyDashboardWidgetsSection";
 import { CompanyOwnerSection } from "./CompanyOwnerSection";
 import { AdminButton } from "./ui/AdminButton";
 import { AdminPanel } from "./ui/AdminPanel";
@@ -445,9 +449,26 @@ export function AdminCompanyDetailsPage() {
               })}
             </div>
           </AdminPanel>
+
+          <AdminPanel
+            title="Enabled charts & KPIs"
+            icon={<BarChart3 className="h-4 w-4" />}
+          >
+            <CompanyDashboardWidgetsSection
+              company={company}
+              onUpdated={(updated) => setCompany(updated)}
+            />
+          </AdminPanel>
         </div>
 
         <div>
+          <AdminPanel title="Appearance" icon={<Palette className="h-4 w-4" />}>
+            <CompanyBrandingSection
+              company={company}
+              onUpdated={(updated) => setCompany(updated)}
+            />
+          </AdminPanel>
+
           <AdminPanel title="Company overview" icon={<Building2 className="h-4 w-4" />}>
             <div className="admin-kv">
               <span className="k">Company ID</span>
