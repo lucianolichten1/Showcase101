@@ -4,7 +4,12 @@ import { Upload, PlusCircle, BarChart3 } from "lucide-react";
 import { FinancialPeriodFilter } from "./FinancialPeriodFilter";
 import { KPICard } from "./KPICard";
 import { FinancialChart } from "./FinancialChart";
+import { ProfitTrendChart } from "./ProfitTrendChart";
+import { CashFlowChart } from "./CashFlowChart";
+import { RevenueByCategoryChart } from "./RevenueByCategoryChart";
+import { TopCustomersChart } from "./TopCustomersChart";
 import { ReceivablesTable } from "./ReceivablesTable";
+import { ReceivablesAgingChart } from "./ReceivablesAgingChart";
 import { ExpenseBreakdown } from "./ExpenseBreakdown";
 import { dashboardKPIs, formatCurrency } from "@/data/mockData";
 import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
@@ -20,11 +25,23 @@ import {
 } from "@/domains/financial/period";
 import type { KPIData } from "@/data/types";
 
+const PERIOD_SUBTITLE_KPI_TITLES = new Set([
+  "Total Revenue",
+  "Total Costs",
+  "Net Profit",
+  "Gross Profit",
+  "Profit Margin",
+  "Collected Revenue",
+  "Outstanding Expenses",
+]);
+
 function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefined {
-  if (title === "Total Revenue" || title === "Total Costs" || title === "Net Profit") {
+  if (PERIOD_SUBTITLE_KPI_TITLES.has(title)) {
     return periodLabel;
   }
-  if (title === "Accounts Receivable") return "Open invoices";
+  if (title === "Accounts Receivable" || title === "Overdue Receivables") {
+    return "Open invoices";
+  }
   return undefined;
 }
 
@@ -129,7 +146,58 @@ export function DashboardPage() {
   };
 
   const kpiCards = useMemo((): KPIData[] => {
-    return dashboardKPIs.map((kpi) => {
+    const importHint = usesImportedData ? "" : "Import Excel to populate";
+    const extraKpis: KPIData[] = [
+      {
+        title: "Gross Profit",
+        value: formatCurrency(financialKpis.grossProfit),
+        trend: 0,
+        trendText: importHint,
+        trendStatus: "neutral",
+      },
+      {
+        title: "Profit Margin",
+        value: `${financialKpis.profitMargin}%`,
+        trend: 0,
+        trendText: importHint,
+        trendStatus: "neutral",
+      },
+      {
+        title: "Collected Revenue",
+        value: formatCurrency(financialKpis.collectedRevenue),
+        trend: 0,
+        trendText: usesImportedData
+          ? financialKpis.pendingRevenue > 0
+            ? `${formatCurrency(financialKpis.pendingRevenue)} pending`
+            : ""
+          : importHint,
+        trendStatus: "neutral",
+      },
+      {
+        title: "Overdue Receivables",
+        value: formatCurrency(financialKpis.receivablesOverdueAmount),
+        trend: 0,
+        trendText: usesImportedData
+          ? financialKpis.receivablesInvoicesOverdue > 0
+            ? `${financialKpis.receivablesInvoicesOverdue} overdue ${
+                financialKpis.receivablesInvoicesOverdue === 1 ? "invoice" : "invoices"
+              }`
+            : ""
+          : importHint,
+        trendStatus: "neutral",
+      },
+      {
+        title: "Outstanding Expenses",
+        value: formatCurrency(
+          financialKpis.pendingExpenses + financialKpis.overdueExpenses
+        ),
+        trend: 0,
+        trendText: importHint,
+        trendStatus: "neutral",
+      },
+    ];
+
+    const baseKpis = dashboardKPIs.map((kpi) => {
       if (kpi.title === "Total Revenue")
         return {
           ...kpi,
@@ -168,6 +236,8 @@ export function DashboardPage() {
         };
       return kpi;
     });
+
+    return [...baseKpis, ...extraKpis];
   }, [financialKpis, usesImportedData]);
 
   const visibleKpiCards = useMemo(
@@ -180,9 +250,17 @@ export function DashboardPage() {
   );
 
   const showFinancialOverview = isWidgetEnabled("financial-overview");
+  const showProfitTrend = isWidgetEnabled("profit-trend");
+  const showCashFlow = isWidgetEnabled("cash-flow");
+  const showRevenueByCategory = isWidgetEnabled("revenue-by-category");
+  const showTopCustomers = isWidgetEnabled("top-customers");
   const showReceivablesTable = isWidgetEnabled("receivables-table");
+  const showReceivablesAging = isWidgetEnabled("receivables-aging");
   const showExpenseBreakdown = isWidgetEnabled("expense-breakdown");
-  const showExpensesReceivablesSection = showReceivablesTable || showExpenseBreakdown;
+  const showTrendsSection = showProfitTrend || showCashFlow;
+  const showRevenueInsightsSection = showRevenueByCategory || showTopCustomers;
+  const showExpensesReceivablesSection =
+    showReceivablesTable || showReceivablesAging || showExpenseBreakdown;
 
   return (
     <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
@@ -250,6 +328,42 @@ export function DashboardPage() {
             </section>
           )}
 
+          {showTrendsSection && (
+            <section>
+              <SectionHeading
+                title="Performance trends"
+                description="Profitability and cash position over time"
+              />
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-4 lg:gap-6",
+                  showProfitTrend && showCashFlow && "lg:grid-cols-2"
+                )}
+              >
+                {showProfitTrend && <ProfitTrendChart period={period} />}
+                {showCashFlow && <CashFlowChart period={period} />}
+              </div>
+            </section>
+          )}
+
+          {showRevenueInsightsSection && (
+            <section>
+              <SectionHeading
+                title="Revenue insights"
+                description="Where revenue comes from and who drives it"
+              />
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-4 lg:gap-6",
+                  showRevenueByCategory && showTopCustomers && "lg:grid-cols-2"
+                )}
+              >
+                {showRevenueByCategory && <RevenueByCategoryChart />}
+                {showTopCustomers && <TopCustomersChart />}
+              </div>
+            </section>
+          )}
+
           {showExpensesReceivablesSection && (
             <section>
               <SectionHeading
@@ -257,8 +371,18 @@ export function DashboardPage() {
                 description="Category breakdown and outstanding invoices"
               />
               <div className="flex flex-col gap-4 lg:gap-6">
+                {(showExpenseBreakdown || showReceivablesAging) && (
+                  <div
+                    className={cn(
+                      "grid grid-cols-1 gap-4 lg:gap-6",
+                      showExpenseBreakdown && showReceivablesAging && "lg:grid-cols-2"
+                    )}
+                  >
+                    {showExpenseBreakdown && <ExpenseBreakdown />}
+                    {showReceivablesAging && <ReceivablesAgingChart />}
+                  </div>
+                )}
                 {showReceivablesTable && <ReceivablesTable />}
-                {showExpenseBreakdown && <ExpenseBreakdown />}
               </div>
             </section>
           )}
