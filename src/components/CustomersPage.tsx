@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
+import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, Users } from "lucide-react";
 import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
@@ -101,6 +102,9 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
   // Dialog / panel state
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
+
+  const openAddCustomer = useCallback(() => setShowAddCustomer(true), []);
+  useOpenCreateFromQuery("customer", openAddCustomer);
 
   // ── KPIs (full unfiltered) ───────────────────────────────────────────────────
 

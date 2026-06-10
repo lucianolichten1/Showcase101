@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Plus, Search } from "lucide-react";
 import { InventoryPageShell } from "./InventoryPageShell";
 import { ProductFormDialog } from "./ProductFormDialog";
@@ -19,6 +20,12 @@ export function InventoryProductsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductRecord | null>(null);
   const [viewTarget, setViewTarget] = useState<ProductRecord | null>(null);
+
+  const openAddProduct = useCallback(() => {
+    setEditTarget(null);
+    setFormOpen(true);
+  }, []);
+  useOpenCreateFromQuery("product", openAddProduct);
 
   const displayed = useMemo(() => {
     let list = [...products];

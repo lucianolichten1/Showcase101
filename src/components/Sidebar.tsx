@@ -6,6 +6,7 @@ import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledMod
 import { formatRoleLabel } from "@/domains/auth/labels";
 import { useCompanyBranding } from "@/domains/company/CompanyBrandingContext";
 import { SidebarNavItem } from "./SidebarNavItem";
+import { SidebarCreateMenu } from "./SidebarCreateMenu";
 import { CompanyBrandMark } from "./CompanyBrandMark";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label={navLabel}>
+        <SidebarCreateMenu onNavClick={onNavClick} />
         <ul className="space-y-0.5">
           {navItems.map((item) => (
             <li key={item.id}>

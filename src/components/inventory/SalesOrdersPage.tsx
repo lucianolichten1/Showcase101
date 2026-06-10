@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
+import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Plus } from "lucide-react";
 import { InventoryPageShell } from "./InventoryPageShell";
 import { formatCurrency } from "@/data/mockData";
@@ -11,6 +12,10 @@ export function SalesOrdersPage() {
   const { salesOrders, setSalesOrders, products, fulfillSalesOrder } = useInventoryData();
   const { customerRecords } = useCompanyScopedFinancialData();
   const [showForm, setShowForm] = useState(false);
+
+  const openCreateForm = useCallback(() => setShowForm(true), []);
+  useOpenCreateFromQuery("sales-order", openCreateForm);
+
   const [customerId, setCustomerId] = useState("");
   const [lines, setLines] = useState<{ productId: string; quantity: string; salePrice: string }[]>([
     { productId: "", quantity: "1", salePrice: "0" },

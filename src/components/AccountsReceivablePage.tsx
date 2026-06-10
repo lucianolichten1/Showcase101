@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
+import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch } from "lucide-react";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
@@ -128,6 +129,9 @@ export function AccountsReceivablePage({
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
   const [showAddInvoice, setShowAddInvoice] = useState(false);
   const [chasedIds, setChasedIds] = useState<Set<number>>(() => new Set());
+
+  const openAddInvoice = useCallback(() => setShowAddInvoice(true), []);
+  useOpenCreateFromQuery("invoice", openAddInvoice);
 
   const customerPhoneByName = useMemo(() => {
     const map = new Map<string, string>();

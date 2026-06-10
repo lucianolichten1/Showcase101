@@ -1,4 +1,5 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useState, type FormEvent } from "react";
+import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, ReceiptText, Search, X } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
@@ -124,10 +125,12 @@ export function ExpensesPage() {
     setDateRange(getDateRangeForPeriod(next));
   };
 
-  const handleOpenModal = () => {
+  const handleOpenModal = useCallback(() => {
     setForm(emptyForm());
     setIsModalOpen(true);
-  };
+  }, []);
+
+  useOpenCreateFromQuery("expense", handleOpenModal);
 
   const handleCloseModal = () => setIsModalOpen(false);
 
