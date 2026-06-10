@@ -19,6 +19,10 @@ export interface AuthContextValue {
   /** Platform role from `profiles.role`. */
   role: AppRole | null;
   memberships: CompanyMember[];
+  /**
+   * True while the session, profile, or memberships are unresolved.
+   * Guards must not redirect (e.g. to `/no-company`) while this is true.
+   */
   loading: boolean;
   authError: string | null;
   isSuperadmin: boolean;
@@ -72,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [memberships, setMemberships] = useState<CompanyMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const loadUserData = useCallback(async (nextUser: User | null) => {
@@ -118,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = await supabase.auth.getSession();
       if (!mounted) return;
       await loadUserData(session?.user ?? null);
-      if (mounted) setLoading(false);
+      if (mounted) setInitializing(false);
     };
 
     void init();
@@ -149,6 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMemberships([]);
     setAuthError(null);
   }, []);
+
+  // After a sign-in event, `user` is set before the profile/memberships fetch
+  // resolves. Treat that window as loading so guards never act on partial data.
+  // Profile and memberships are always set together, so once `profile` exists
+  // (or the fetch errored), memberships are final too.
+  const resolvingProfile = user !== null && profile === null && authError === null;
+  const loading = initializing || resolvingProfile;
 
   const role = profile?.role ?? null;
   const primaryCompanyId = getPrimaryCompanyId(profile, memberships);

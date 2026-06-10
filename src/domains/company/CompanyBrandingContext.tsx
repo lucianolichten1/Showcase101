@@ -54,23 +54,23 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
   );
 
   const [fetchedCompany, setFetchedCompany] = useState<CompanyRecord | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
+  /** Company id whose fetch has finished (found or not). Used to detect stale results. */
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeCompanyId) {
       setFetchedCompany(null);
-      setIsResolving(false);
+      setResolvedCompanyId(null);
       return;
     }
 
     if (fromContext) {
       setFetchedCompany(fromContext);
-      setIsResolving(false);
+      setResolvedCompanyId(activeCompanyId);
       return;
     }
 
     let cancelled = false;
-    setIsResolving(true);
     getCompanyById(activeCompanyId)
       .then((record) => {
         if (!cancelled) setFetchedCompany(record);
@@ -79,7 +79,7 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setFetchedCompany(null);
       })
       .finally(() => {
-        if (!cancelled) setIsResolving(false);
+        if (!cancelled) setResolvedCompanyId(activeCompanyId);
       });
 
     return () => {
@@ -88,6 +88,11 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
   }, [activeCompanyId, fromContext]);
 
   const company = fromContext ?? fetchedCompany;
+  // True from the first render whenever a company is expected but not yet
+  // resolved — prevents painting the workspace with default branding/widgets.
+  const isLoading = Boolean(
+    activeCompanyId && !fromContext && resolvedCompanyId !== activeCompanyId
+  );
   const branding = useMemo(() => resolveCompanyBranding(company), [company]);
   const cssVars = useMemo(() => brandingToCssVars(branding), [branding]);
   const enabledDashboardWidgets = useMemo(
@@ -109,10 +114,10 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
       cssVars,
       enabledDashboardWidgets,
       isWidgetEnabled,
-      isLoading: Boolean(activeCompanyId && isResolving && !company),
+      isLoading,
       companyId: activeCompanyId,
     }),
-    [company, branding, cssVars, enabledDashboardWidgets, isWidgetEnabled, activeCompanyId, isResolving]
+    [company, branding, cssVars, enabledDashboardWidgets, isWidgetEnabled, activeCompanyId, isLoading]
   );
 
   return (
