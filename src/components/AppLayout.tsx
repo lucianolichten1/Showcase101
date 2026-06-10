@@ -8,11 +8,16 @@ import {
 } from "@/domains/company/CompanyBrandingContext";
 import { Sidebar } from "./Sidebar";
 import { CompanyBrandMark } from "./CompanyBrandMark";
+import { CompanyWorkspaceLoading } from "./CompanyWorkspaceLoading";
 
 function AppLayoutShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { branding } = useCompanyBranding();
+  const { branding, isLoading } = useCompanyBranding();
   const brandingStyle = useCompanyBrandingStyle();
+
+  // Hold the workspace behind a skeleton until the company record (branding,
+  // enabled widgets) is resolved, so pages never flash with default data.
+  if (isLoading) return <CompanyWorkspaceLoading />;
 
   return (
     <div className="company-app flex min-h-screen bg-[#FBFBF9]" style={brandingStyle}>

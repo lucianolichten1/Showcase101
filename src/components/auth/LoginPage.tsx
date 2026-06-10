@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import { useAuth, getPostLoginPath } from "@/domains/auth/AuthContext";
+import { AuthLoadingScreen } from "./AuthLoadingScreen";
 import { cn } from "@/lib/utils";
 
 export function LoginPage() {
@@ -13,6 +14,11 @@ export function LoginPage() {
 
   if (!loading && user && profile && !authError) {
     return <Navigate to={getPostLoginPath(profile, memberships)} replace />;
+  }
+
+  // Signed in but profile/memberships still resolving — don't flash the form.
+  if (loading && user) {
+    return <AuthLoadingScreen />;
   }
 
   const handleSubmit = async (e: FormEvent) => {
