@@ -2,14 +2,19 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
 } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/domains/auth/AuthContext";
+import { resolveActiveCompanyId } from "@/domains/company/resolveActiveCompanyId";
 import { computeInventoryKPIs } from "./calculations";
-import { loadInventoryData, saveInventoryData } from "./storage";
+import { fetchCompanyInventory, persistCompanyInventory } from "./inventoryService";
+import { loadInventoryData } from "./storage";
 import type {
   InventoryAdjustmentRecord,
   InventoryKPIs,
@@ -30,6 +35,8 @@ export interface InventoryDataContextValue {
   adjustments: InventoryAdjustmentRecord[];
   setAdjustments: Dispatch<SetStateAction<InventoryAdjustmentRecord[]>>;
   kpis: InventoryKPIs;
+  loading: boolean;
+  error: string | null;
   upsertProduct: (product: ProductRecord) => void;
   receivePurchaseOrder: (poId: number) => void;
   fulfillSalesOrder: (soId: number) => void;
@@ -43,28 +50,74 @@ export interface InventoryDataContextValue {
 
 const InventoryDataContext = createContext<InventoryDataContextValue | null>(null);
 
-function persistState(state: {
-  products: ProductRecord[];
-  suppliers: SupplierRecord[];
-  purchaseOrders: PurchaseOrderRecord[];
-  salesOrders: SalesOrderRecord[];
-  adjustments: InventoryAdjustmentRecord[];
-}) {
-  saveInventoryData(state);
-}
-
 export function InventoryDataProvider({ children }: { children: ReactNode }) {
-  const initial = loadInventoryData();
-  const [products, setProductsState] = useState<ProductRecord[]>(initial.products);
-  const [suppliers] = useState<SupplierRecord[]>(initial.suppliers);
-  const [purchaseOrders, setPurchaseOrdersState] = useState<PurchaseOrderRecord[]>(
-    initial.purchaseOrders
-  );
-  const [salesOrders, setSalesOrdersState] = useState<SalesOrderRecord[]>(
-    initial.salesOrders
-  );
-  const [adjustments, setAdjustmentsState] = useState<InventoryAdjustmentRecord[]>(
-    initial.adjustments
+  const { role, primaryCompanyId } = useAuth();
+  const [searchParams] = useSearchParams();
+  const activeCompanyId = resolveActiveCompanyId(role, primaryCompanyId, searchParams.get("companyId"));
+
+  const fallback = loadInventoryData();
+  const [products, setProductsState] = useState<ProductRecord[]>(fallback.products);
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>(fallback.suppliers);
+  const [purchaseOrders, setPurchaseOrdersState] = useState<PurchaseOrderRecord[]>(fallback.purchaseOrders);
+  const [salesOrders, setSalesOrdersState] = useState<SalesOrderRecord[]>(fallback.salesOrders);
+  const [adjustments, setAdjustmentsState] = useState<InventoryAdjustmentRecord[]>(fallback.adjustments);
+  const [loading, setLoading] = useState(Boolean(activeCompanyId));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeCompanyId) {
+      const data = loadInventoryData();
+      setProductsState(data.products);
+      setSuppliers(data.suppliers);
+      setPurchaseOrdersState(data.purchaseOrders);
+      setSalesOrdersState(data.salesOrders);
+      setAdjustmentsState(data.adjustments);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const data = await fetchCompanyInventory(activeCompanyId);
+        if (cancelled) return;
+        setProductsState(data.products);
+        setSuppliers(data.suppliers);
+        setPurchaseOrdersState(data.purchaseOrders);
+        setSalesOrdersState(data.salesOrders);
+        setAdjustmentsState(data.adjustments);
+        setError(null);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "No se pudo cargar el inventario");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCompanyId]);
+
+  const persist = useCallback(
+    (patch: {
+      products: ProductRecord[];
+      suppliers: SupplierRecord[];
+      purchaseOrders: PurchaseOrderRecord[];
+      salesOrders: SalesOrderRecord[];
+      adjustments: InventoryAdjustmentRecord[];
+    }) => {
+      if (!activeCompanyId) {
+        return;
+      }
+      void persistCompanyInventory(activeCompanyId, patch).catch((err) => {
+        setError(err instanceof Error ? err.message : "No se pudo guardar el inventario");
+      });
+    },
+    [activeCompanyId]
   );
 
   const sync = useCallback(
@@ -74,15 +127,16 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
       salesOrders: SalesOrderRecord[];
       adjustments: InventoryAdjustmentRecord[];
     }>) => {
-      persistState({
+      const next = {
         products: patch.products ?? products,
         suppliers,
         purchaseOrders: patch.purchaseOrders ?? purchaseOrders,
         salesOrders: patch.salesOrders ?? salesOrders,
         adjustments: patch.adjustments ?? adjustments,
-      });
+      };
+      persist(next);
     },
-    [products, suppliers, purchaseOrders, salesOrders, adjustments]
+    [products, suppliers, purchaseOrders, salesOrders, adjustments, persist]
   );
 
   const setProducts: Dispatch<SetStateAction<ProductRecord[]>> = useCallback(
@@ -210,7 +264,7 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
       );
       setAdjustments((prev) => [
         {
-          id: prev.length > 0 ? Math.max(...prev.map((a) => a.id)) + 1 : 1,
+          id: prev.length > 0 ? Math.max(...prev.map((a) => a.id), 999999) + 1 : 1_000_000,
           productId,
           quantityChange,
           reason,
@@ -240,6 +294,8 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
       adjustments,
       setAdjustments,
       kpis,
+      loading,
+      error,
       upsertProduct,
       receivePurchaseOrder,
       fulfillSalesOrder,
@@ -256,6 +312,8 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
       adjustments,
       setAdjustments,
       kpis,
+      loading,
+      error,
       upsertProduct,
       receivePurchaseOrder,
       fulfillSalesOrder,

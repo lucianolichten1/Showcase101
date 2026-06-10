@@ -1,11 +1,14 @@
-import { useCallback, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/data/mockData";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { FinancialPeriodFilter } from "@/components/FinancialPeriodFilter";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RevenueFormDialog } from "@/components/revenue/RevenueFormDialog";
 import { isActiveRevenue, sortRevenueRecords } from "@/domains/financial/calculations";
-import { useFinancialData, useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useSyncFinancialPeriod } from "@/domains/financial/hooks";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   DEFAULT_FINANCIAL_PERIOD,
   getDateRangeForPeriod,
@@ -14,54 +17,48 @@ import {
 } from "@/domains/financial/period";
 import {
   REVENUE_CATEGORIES,
-  REVENUE_PAYMENT_METHODS,
+  REVENUE_PAGE_COPY,
   REVENUE_STATUSES,
-  type RevenueCategory,
-  type PaymentMethod,
-  type RevenueRecord,
-  type RevenuePaymentStatus,
-  type RevenueSortDirection,
-  type RevenueSortKey,
+  paymentMethodLabel,
+  revenueCategoryLabel,
+  revenueStatusLabel,
+} from "@/domains/financial/revenue/labels";
+import type {
+  RevenueRecord,
+  RevenueSortDirection,
+  RevenueSortKey,
 } from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
 import { KPICard } from "@/components/KPICard";
 import { revenueStatusTextClass } from "@/lib/statusText";
 
 const ALL_FILTER = "all";
-type RevenueFormState = Omit<RevenueRecord, "id">;
-
-const emptyForm = (): RevenueFormState => ({
-  date: new Date().toISOString().slice(0, 10),
-  sourceClient: "",
-  productService: "",
-  category: "Other",
-  amount: 0,
-  currency: "Bs",
-  status: "Pending",
-  paymentMethod: "Bank Transfer",
-  invoiceNumber: "",
-  notes: "",
-});
 
 function formatDisplayDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-");
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "ene", "feb", "mar", "abr", "may", "jun",
+    "jul", "ago", "sep", "oct", "nov", "dic",
   ];
   const m = parseInt(month, 10) - 1;
-  return `${months[m] ?? month} ${parseInt(day, 10)}, ${year}`;
+  return `${parseInt(day, 10)} ${months[m] ?? month} ${year}`;
 }
 
-const SORTABLE_COLUMNS: { key: RevenueSortKey; label: string }[] = [
-  { key: "date", label: "Date" },
-  { key: "sourceClient", label: "Source / Client" },
-  { key: "productService", label: "Product / Service" },
-  { key: "category", label: "Category" },
-  { key: "amount", label: "Amount" },
-  { key: "status", label: "Status" },
-  { key: "paymentMethod", label: "Payment" },
-  { key: "invoiceNumber", label: "Invoice #" },
+const TABLE_COLUMNS: {
+  key: RevenueSortKey | "actions";
+  label: string;
+  sortKey?: RevenueSortKey;
+  align?: "right";
+}[] = [
+  { key: "date", label: REVENUE_PAGE_COPY.dateColumn, sortKey: "date" },
+  { key: "sourceClient", label: REVENUE_PAGE_COPY.sourceColumn, sortKey: "sourceClient" },
+  { key: "productService", label: REVENUE_PAGE_COPY.productColumn, sortKey: "productService" },
+  { key: "category", label: REVENUE_PAGE_COPY.categoryColumn, sortKey: "category" },
+  { key: "amount", label: REVENUE_PAGE_COPY.amountColumn, sortKey: "amount", align: "right" },
+  { key: "status", label: REVENUE_PAGE_COPY.statusColumn, sortKey: "status" },
+  { key: "paymentMethod", label: REVENUE_PAGE_COPY.paymentColumn, sortKey: "paymentMethod" },
+  { key: "invoiceNumber", label: REVENUE_PAGE_COPY.invoiceColumn, sortKey: "invoiceNumber" },
+  { key: "actions", label: REVENUE_PAGE_COPY.actionsColumn },
 ];
 
 function SortIcon({
@@ -83,20 +80,32 @@ function SortIcon({
 }
 
 export function RevenuePage() {
-  const { setRevenueRecords, setDateRange, filteredRevenueRecords, kpis, usesImportedData } =
-    useFinancialData();
+  const {
+    setDateRange,
+    filteredRevenueRecords,
+    revenueRecords,
+    kpis,
+    saveRevenue,
+    deleteRevenue,
+    revenueError,
+  } = useCompanyScopedFinancialData();
+
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel = getFinancialPeriodLabel(period);
 
   useSyncFinancialPeriod(period, setDateRange);
-
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
   const [sortKey, setSortKey] = useState<RevenueSortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<RevenueSortDirection>("asc");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState<RevenueFormState>(emptyForm);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<RevenueRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RevenueRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const hasAnyRevenue = revenueRecords.length > 0;
 
   const filteredRevenue = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -125,14 +134,45 @@ export function RevenuePage() {
     setDateRange(getDateRangeForPeriod(next));
   };
 
-  const handleOpenModal = useCallback(() => {
-    setForm(emptyForm());
-    setIsModalOpen(true);
+  const handleOpenCreate = useCallback(() => {
+    setEditTarget(null);
+    setFormOpen(true);
   }, []);
 
-  useOpenCreateFromQuery("revenue", handleOpenModal);
+  useOpenCreateFromQuery("revenue", handleOpenCreate);
 
-  const handleCloseModal = () => setIsModalOpen(false);
+  const handleOpenEdit = (record: RevenueRecord) => {
+    setEditTarget(record);
+    setFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    if (saving) return;
+    setFormOpen(false);
+    setEditTarget(null);
+  };
+
+  const handleSave = async (input: Omit<RevenueRecord, "id">) => {
+    setSaving(true);
+    try {
+      await saveRevenue(editTarget?.id ?? null, input);
+      setFormOpen(false);
+      setEditTarget(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteRevenue(deleteTarget.id);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleSort = (column: RevenueSortKey) => {
     if (sortKey !== column) {
@@ -148,447 +188,340 @@ export function RevenuePage() {
     setSortDirection("asc");
   };
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (
-      !form.sourceClient.trim() ||
-      !form.productService.trim() ||
-      !form.invoiceNumber.trim() ||
-      (form.status !== "Cancelled" && form.amount <= 0)
-    ) {
-      return;
-    }
-
-    const newRecord: RevenueRecord = {
-      id: `rev-${Date.now()}`,
-      ...form,
-      sourceClient: form.sourceClient.trim(),
-      productService: form.productService.trim(),
-      invoiceNumber: form.invoiceNumber.trim(),
-      notes: form.notes.trim(),
-    };
-
-    setRevenueRecords((prev) => [newRecord, ...prev]);
-    setIsModalOpen(false);
-    setForm(emptyForm());
-  };
-
   return (
     <>
       <div className="flex flex-1 flex-col text-[#1C1917] font-sans min-h-0 bg-stone-50/40">
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-5">
-        <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
-          <div>
-            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Revenue</h1>
-            <p className="text-sm text-stone-700 mt-1 max-w-xl">
-              Track sales income, client payments, and pending receivables.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="inline-flex items-center justify-center gap-2 bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors shadow-sm shrink-0"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Revenue
-          </button>
-        </section>
-
-        {!usesImportedData && (
-          <FinancialEmptyBanner
-            title="No revenue yet"
-            description="Add revenue manually using the button above, or import an Excel workbook with a Sales sheet."
-          />
-        )}
-
-        <section>
-          <div className="mb-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-            <KPICard title="Total Revenue" value={formatCurrency(kpis.totalRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={usesImportedData ? `${periodLabel} · ${filteredRevenueRecords.filter(isActiveRevenue).length} records` : "Import Excel to populate"} />
-            <KPICard title="Collected Revenue" value={formatCurrency(kpis.collectedRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · payments received`} />
-            <KPICard title="Pending Revenue" value={formatCurrency(kpis.pendingRevenue)} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · awaiting collection`} />
-            <KPICard title="Top Revenue Source" value={kpis.topRevenueCategory} trend={0} trendText="" trendStatus="neutral" subtitle={`${periodLabel} · by category`} />
-          </div>
-        </section>
-
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
-            <div className="flex-1 min-w-[200px]">
-              <label
-                htmlFor="revenue-search"
-                className="block text-[10px] font-semibold text-stone-700 mb-1"
+            <section className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
+              <div>
+                <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
+                  {REVENUE_PAGE_COPY.title}
+                </h1>
+                <p className="text-sm text-stone-700 mt-1 max-w-xl">
+                  {REVENUE_PAGE_COPY.subtitle}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenCreate}
+                className="inline-flex items-center justify-center gap-2 bg-green-800 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors shadow-sm shrink-0"
               >
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-                <input
-                  id="revenue-search"
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Client, product, category, or invoice #…"
-                  className="w-full pl-8 pr-3 py-2 text-xs border border-stone-200 rounded-lg bg-stone-50 focus:outline-none focus:ring-1 focus:ring-green-700 focus:border-green-700"
+                <Plus className="h-3.5 w-3.5" />
+                {REVENUE_PAGE_COPY.addButton}
+              </button>
+            </section>
+
+            {revenueError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+                {revenueError}
+              </div>
+            )}
+
+            {!hasAnyRevenue && (
+              <FinancialEmptyBanner
+                title={REVENUE_PAGE_COPY.noRevenueTitle}
+                description={REVENUE_PAGE_COPY.noRevenueDescription}
+              />
+            )}
+
+            <section>
+              <div className="mb-2">
+                <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">
+                  {REVENUE_PAGE_COPY.overview}
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                <KPICard
+                  title={REVENUE_PAGE_COPY.totalRevenue}
+                  value={formatCurrency(kpis.totalRevenue)}
+                  trend={0}
+                  trendText=""
+                  trendStatus="neutral"
+                  subtitle={
+                    hasAnyRevenue
+                      ? `${periodLabel} · ${filteredRevenueRecords.filter(isActiveRevenue).length} ${REVENUE_PAGE_COPY.recordsSubtitle}`
+                      : "Importa Excel o agrega ingresos manualmente"
+                  }
+                />
+                <KPICard
+                  title={REVENUE_PAGE_COPY.collectedRevenue}
+                  value={formatCurrency(kpis.collectedRevenue)}
+                  trend={0}
+                  trendText=""
+                  trendStatus="neutral"
+                  subtitle={`${periodLabel} · ${REVENUE_PAGE_COPY.paymentsReceived}`}
+                />
+                <KPICard
+                  title={REVENUE_PAGE_COPY.pendingRevenue}
+                  value={formatCurrency(kpis.pendingRevenue)}
+                  trend={0}
+                  trendText=""
+                  trendStatus="neutral"
+                  subtitle={`${periodLabel} · ${REVENUE_PAGE_COPY.awaitingCollection}`}
+                />
+                <KPICard
+                  title={REVENUE_PAGE_COPY.topSource}
+                  value={
+                    kpis.topRevenueCategory === "—"
+                      ? "—"
+                      : revenueCategoryLabel(
+                          kpis.topRevenueCategory as (typeof REVENUE_CATEGORIES)[number]
+                        )
+                  }
+                  trend={0}
+                  trendText=""
+                  trendStatus="neutral"
+                  subtitle={`${periodLabel} · ${REVENUE_PAGE_COPY.byCategory}`}
                 />
               </div>
-            </div>
-            <div className="w-full lg:w-44">
-              <label
-                htmlFor="revenue-category-filter"
-                className="block text-[10px] font-semibold text-stone-700 mb-1"
-              >
-                Category
-              </label>
-              <select
-                id="revenue-category-filter"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-green-700"
-              >
-                <option value={ALL_FILTER}>All categories</option>
-                {REVENUE_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-full lg:w-36">
-              <label
-                htmlFor="revenue-status-filter"
-                className="block text-[10px] font-semibold text-stone-700 mb-1"
-              >
-                Status
-              </label>
-              <select
-                id="revenue-status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-green-700"
-              >
-                <option value={ALL_FILTER}>All statuses</option>
-                {REVENUE_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <FinancialPeriodFilter
-              id="revenue-period"
-              period={period}
-              onPeriodChange={handlePeriodChange}
-              className="w-full lg:w-44"
-            />
-          </div>
+            </section>
 
-          <h3 className="text-xs font-bold uppercase tracking-wider text-green-800 mb-3">
-            All Revenue
-            <span className="ml-2 text-stone-600 font-medium normal-case">
-              ({filteredRevenue.length})
-            </span>
-          </h3>
+            <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5 overflow-hidden">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-3">
+                <div className="col-span-2 xl:col-span-1">
+                  <label
+                    htmlFor="revenue-search"
+                    className="block text-[10px] font-semibold text-stone-700 mb-1"
+                  >
+                    {REVENUE_PAGE_COPY.search}
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+                    <input
+                      id="revenue-search"
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder={REVENUE_PAGE_COPY.searchPlaceholder}
+                      className="w-full pl-8 pr-3 py-2 text-xs border border-stone-200 rounded-lg bg-stone-50 focus:outline-none focus:ring-1 focus:ring-green-700 focus:border-green-700"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor="revenue-category-filter"
+                    className="block text-[10px] font-semibold text-stone-700 mb-1"
+                  >
+                    {REVENUE_PAGE_COPY.categoryFilter}
+                  </label>
+                  <select
+                    id="revenue-category-filter"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-green-700"
+                  >
+                    <option value={ALL_FILTER}>{REVENUE_PAGE_COPY.allCategories}</option>
+                    {REVENUE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {revenueCategoryLabel(cat)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="revenue-status-filter"
+                    className="block text-[10px] font-semibold text-stone-700 mb-1"
+                  >
+                    {REVENUE_PAGE_COPY.statusFilter}
+                  </label>
+                  <select
+                    id="revenue-status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-green-700"
+                  >
+                    <option value={ALL_FILTER}>{REVENUE_PAGE_COPY.allStatuses}</option>
+                    {REVENUE_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {revenueStatusLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <FinancialPeriodFilter
+                  id="revenue-period"
+                  period={period}
+                  onPeriodChange={handlePeriodChange}
+                  className="col-span-2 xl:col-span-1 w-full"
+                />
+              </div>
 
-          <div className="overflow-x-auto rounded-lg border border-stone-100">
-            <table className="w-full text-left border-collapse min-w-[1040px]">
-              <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
-                  {SORTABLE_COLUMNS.map(({ key, label }) => (
-                    <th key={key} className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
-                      <button
-                        type="button"
-                        onClick={() => handleSort(key)}
-                        className={cn(
-                          "inline-flex items-center gap-1 cursor-pointer",
-                          "hover:text-green-800 transition-colors",
-                          sortKey === key && "text-green-800"
-                        )}
-                        aria-label={`Sort by ${label}${
-                          sortKey === key
-                            ? `, ${sortDirection === "asc" ? "ascending" : "descending"}`
-                            : ""
-                        }`}
-                      >
-                        <span>{label}</span>
-                        <SortIcon column={key} sortKey={sortKey} sortDirection={sortDirection} />
-                      </button>
-                    </th>
-                  ))}
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs text-stone-900">
-                {sortedRevenue.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-stone-500">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-stone-600">No revenue records yet</p>
-                        <p className="text-xs max-w-sm mx-auto">
-                          {sortedRevenue.length === 0 && !usesImportedData
-                            ? "Add revenue manually with the button above, or import an Excel workbook."
-                            : "No revenue records match your search or filters."}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  sortedRevenue.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
-                    >
-                      <td className="pr-3 py-2 whitespace-nowrap">
-                        {formatDisplayDate(record.date)}
-                      </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{record.sourceClient}</td>
-                      <td
-                        className="pr-3 py-2 max-w-[160px] truncate"
-                        title={record.productService}
-                      >
-                        {record.productService}
-                      </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{record.category}</td>
-                      <td className="pr-3 py-2 font-bold whitespace-nowrap">
-                        {record.currency} {record.amount.toLocaleString()}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={revenueStatusTextClass(record.status)}>{record.status}</span>
-                      </td>
-                      <td className="pr-3 py-2 whitespace-nowrap">{record.paymentMethod}</td>
-                      <td className="pr-3 py-2 whitespace-nowrap font-medium">
-                        {record.invoiceNumber}
-                      </td>
-                      <td
-                        className="px-3 py-3 max-w-[120px] truncate text-stone-600"
-                        title={record.notes}
-                      >
-                        {record.notes || "—"}
-                      </td>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-green-800 mb-3">
+                {REVENUE_PAGE_COPY.allRevenue}
+                <span className="ml-2 text-stone-600 font-medium normal-case">
+                  ({filteredRevenue.length})
+                </span>
+              </h3>
+
+              <div className="rounded-lg border border-stone-100 overflow-x-auto">
+                <table className="w-full table-fixed text-left border-collapse min-w-[960px]">
+                  <colgroup>
+                    <col className="w-[80px]" />
+                    <col className="w-[110px]" />
+                    <col />
+                    <col className="w-[100px]" />
+                    <col className="w-[88px]" />
+                    <col className="w-[76px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[88px]" />
+                    <col className="w-[72px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b-2 border-green-800/20 bg-green-50">
+                      {TABLE_COLUMNS.map(({ key, label, sortKey: columnSortKey, align }) => (
+                        <th
+                          key={key}
+                          className={cn(
+                            "px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider",
+                            align === "right" && "text-right"
+                          )}
+                        >
+                          {columnSortKey ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSort(columnSortKey)}
+                              className={cn(
+                                "inline-flex items-center gap-0.5 cursor-pointer max-w-full",
+                                align === "right" && "ml-auto",
+                                "hover:text-green-800 transition-colors",
+                                sortKey === columnSortKey && "text-green-800"
+                              )}
+                            >
+                              <span className="truncate">{label}</span>
+                              <SortIcon
+                                column={columnSortKey}
+                                sortKey={sortKey}
+                                sortDirection={sortDirection}
+                              />
+                            </button>
+                          ) : (
+                            <span className="truncate">{label}</span>
+                          )}
+                        </th>
+                      ))}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="text-[11px] text-stone-900">
+                    {sortedRevenue.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-2 text-stone-400">
+                            <TrendingUp size={32} strokeWidth={1.5} />
+                            {!hasAnyRevenue ? (
+                              <>
+                                <p className="text-sm font-medium">
+                                  {REVENUE_PAGE_COPY.noRevenueTitle}
+                                </p>
+                                <p className="text-xs max-w-sm text-center">
+                                  {REVENUE_PAGE_COPY.noRevenueDescription}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium">
+                                  {REVENUE_PAGE_COPY.noMatchTitle}
+                                </p>
+                                <p className="text-xs">{REVENUE_PAGE_COPY.noMatchDescription}</p>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedRevenue.map((record) => (
+                        <tr
+                          key={record.id}
+                          className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
+                        >
+                          <td className="px-2 py-2 whitespace-nowrap align-top">
+                            {formatDisplayDate(record.date)}
+                          </td>
+                          <td className="px-2 py-2 truncate align-top" title={record.sourceClient}>
+                            {record.sourceClient}
+                          </td>
+                          <td className="px-2 py-2 min-w-0 align-top">
+                            <div className="font-medium truncate" title={record.productService}>
+                              {record.productService}
+                            </div>
+                            {record.notes && (
+                              <div className="text-[10px] text-stone-600 truncate" title={record.notes}>
+                                {record.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 truncate align-top">
+                            {revenueCategoryLabel(record.category)}
+                          </td>
+                          <td className="px-2 py-2 font-semibold text-right tabular-nums whitespace-nowrap align-top">
+                            {formatCurrency(record.amount)}
+                          </td>
+                          <td className="px-2 py-2 align-top">
+                            <span className={revenueStatusTextClass(record.status)}>
+                              {revenueStatusLabel(record.status)}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 truncate align-top">
+                            {paymentMethodLabel(record.paymentMethod)}
+                          </td>
+                          <td className="px-2 py-2 font-medium truncate align-top">
+                            {record.invoiceNumber}
+                          </td>
+                          <td className="px-2 py-2 align-top">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(record)}
+                                className="text-left text-[10px] font-semibold text-green-800 hover:text-green-900"
+                              >
+                                {REVENUE_PAGE_COPY.edit}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(record)}
+                                className="text-left text-[10px] font-semibold text-red-700 hover:text-red-800"
+                              >
+                                {REVENUE_PAGE_COPY.delete}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-revenue-title"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-stone-900/40"
-            aria-label="Close dialog"
-            onClick={handleCloseModal}
-          />
-          <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl border border-stone-200 shadow-xl">
-            <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-              <h2 id="add-revenue-title" className="text-sm font-bold text-stone-900">
-                Add Revenue
-              </h2>
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <RevenueFormDialog
+        open={formOpen}
+        revenue={editTarget}
+        saving={saving}
+        onClose={handleCloseForm}
+        onSave={handleSave}
+      />
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={form.date}
-                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Category
-                  </label>
-                  <select
-                    required
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        category: e.target.value as RevenueCategory,
-                      }))
-                    }
-                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  >
-                    {REVENUE_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  Source / Client
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.sourceClient}
-                  onChange={(e) => setForm((f) => ({ ...f, sourceClient: e.target.value }))}
-                  className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  placeholder="Buyer or client name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  Product / Service
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.productService}
-                  onChange={(e) => setForm((f) => ({ ...f, productService: e.target.value }))}
-                  className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  placeholder="e.g. Consulting Services — Q1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  Invoice Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.invoiceNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, invoiceNumber: e.target.value }))}
-                  className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  placeholder="INV-2026-0000"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    required={form.status !== "Cancelled"}
-                    min={0}
-                    step={0.01}
-                    value={form.amount || ""}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
-                    }
-                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Currency
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.currency}
-                    onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
-                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value as RevenuePaymentStatus }))
-                    }
-                    className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                  >
-                    {REVENUE_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  Payment Method
-                </label>
-                <select
-                  value={form.paymentMethod}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      paymentMethod: e.target.value as PaymentMethod,
-                    }))
-                  }
-                  className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
-                >
-                  {REVENUE_PAYMENT_METHODS.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={2}
-                  className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg resize-none"
-                  placeholder="Optional notes"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-xs font-bold text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-green-800 rounded-lg hover:bg-green-900"
-                >
-                  Save Revenue
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={REVENUE_PAGE_COPY.deleteTitle}
+        message={
+          deleteTarget
+            ? REVENUE_PAGE_COPY.deleteMessage(
+                deleteTarget.productService || deleteTarget.invoiceNumber
+              )
+            : ""
+        }
+        confirmLabel={REVENUE_PAGE_COPY.deleteConfirm}
+        cancelLabel="Cancelar"
+        destructive
+        loading={deleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onClose={() => !deleting && setDeleteTarget(null)}
+      />
     </>
   );
 }

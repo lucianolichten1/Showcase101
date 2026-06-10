@@ -6,8 +6,10 @@ import type { ReceivableRecord } from "@/domains/financial/types";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { AddCustomerDialog } from "./AddCustomerDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { CustomerFormDialog } from "./customers/CustomerFormDialog";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
+import { CUSTOMER_PAGE_COPY, CUSTOMER_INDUSTRY_LABELS } from "@/domains/customers/labels";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { riskTextClass } from "@/lib/statusText";
@@ -82,12 +84,10 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
   const {
     customerRecords: customers,
     receivableRecords: receivables,
-    setCustomerRecords,
+    saveCustomer,
+    deleteCustomer,
+    customersError,
   } = useCompanyScopedFinancialData();
-
-  const onAddCustomer =
-    onAddCustomerProp ??
-    ((customer: CustomerRecord) => setCustomerRecords((prev) => [...prev, customer]));
   // Filter state
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -100,10 +100,17 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Dialog / panel state
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<CustomerRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
 
-  const openAddCustomer = useCallback(() => setShowAddCustomer(true), []);
+  const openAddCustomer = useCallback(() => {
+    setEditTarget(null);
+    setFormOpen(true);
+  }, []);
   useOpenCreateFromQuery("customer", openAddCustomer);
 
   // ── KPIs (full unfiltered) ───────────────────────────────────────────────────
@@ -174,9 +181,32 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const handleAddCustomer = (c: CustomerRecord) => {
-    onAddCustomer(c);
-    setShowAddCustomer(false);
+  const handleSaveCustomer = async (input: Omit<CustomerRecord, "id">) => {
+    setSaving(true);
+    try {
+      if (onAddCustomerProp && !editTarget) {
+        const nextId = customers.length > 0 ? Math.max(...customers.map((c) => c.id)) + 1 : 1;
+        onAddCustomerProp({ id: nextId, ...input });
+      } else {
+        await saveCustomer(editTarget?.id ?? null, input);
+      }
+      setFormOpen(false);
+      setEditTarget(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteCustomer(deleteTarget.id);
+      setDeleteTarget(null);
+      if (selectedCustomer?.id === deleteTarget.id) setSelectedCustomer(null);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleExportCsv = () => {
@@ -196,8 +226,6 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
     downloadCsvFile(rowsToCsv(headers, rows), "customers.csv");
   };
 
-  const nextId = customers.length > 0 ? Math.max(...customers.map((c) => c.id)) + 1 : 1;
-
   const activeFiltersCount = [search, statusFilter, industryFilter, riskFilter, cityFilter].filter(Boolean).length;
 
   const clearAll = () => {
@@ -215,59 +243,65 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
         {/* Header */}
         <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between rounded-xl border border-stone-200 bg-white shadow-sm px-4 py-3.5 sm:px-5">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Customers</h1>
-            <p className="text-sm text-stone-700 mt-1">All customers and their account status</p>
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">{CUSTOMER_PAGE_COPY.title}</h1>
+            <p className="text-sm text-stone-700 mt-1">{CUSTOMER_PAGE_COPY.subtitle}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={handleExportCsv}
               className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors">
               <Download size={13} />
-              Export
+              {CUSTOMER_PAGE_COPY.export}
             </button>
-            <button onClick={() => setShowAddCustomer(true)}
+            <button onClick={openAddCustomer}
               className="flex items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-700 transition-colors">
               <Plus size={13} />
-              Add Customer
+              {CUSTOMER_PAGE_COPY.addButton}
             </button>
           </div>
         </section>
 
+        {customersError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+            {customersError}
+          </div>
+        )}
+
         {/* KPI Row */}
         <section>
           <div className="mb-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">{CUSTOMER_PAGE_COPY.overview}</h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             <KPICard
-              title="Total Customers"
+              title={CUSTOMER_PAGE_COPY.totalCustomers}
               value={String(totalCustomers)}
               trend={0}
               trendText=""
               trendStatus="neutral"
-              subtitle="All time"
+              subtitle={CUSTOMER_PAGE_COPY.allTime}
             />
             <KPICard
-              title="Active"
+              title={CUSTOMER_PAGE_COPY.active}
               value={String(activeCustomers)}
               trend={0}
-              trendText="Currently buying"
+              trendText={CUSTOMER_PAGE_COPY.currentlyBuying}
               trendStatus="neutral"
             />
             <KPICard
-              title="Total Outstanding"
+              title={CUSTOMER_PAGE_COPY.totalOutstanding}
               value={formatCurrency(totalOutstanding)}
               trend={0}
               trendText=""
               trendStatus="neutral"
-              subtitle="Unpaid balances"
+              subtitle={CUSTOMER_PAGE_COPY.unpaidBalances}
             />
             <KPICard
-              title="At Risk"
+              title={CUSTOMER_PAGE_COPY.atRisk}
               value={String(atRiskCount)}
               trend={0}
               trendText=""
               trendStatus="neutral"
-              subtitle="High overdue risk"
+              subtitle={CUSTOMER_PAGE_COPY.highOverdueRisk}
             />
           </div>
         </section>
@@ -280,7 +314,7 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
                 type="text"
-                placeholder="Search by customer name…"
+                placeholder={CUSTOMER_PAGE_COPY.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-lg border border-stone-200 bg-white pl-8 pr-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 transition-colors placeholder:text-stone-500"
@@ -360,12 +394,15 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                   <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("risk")}>
                     Risk <SortIcon colKey="risk" sortKey={sortKey} sortDir={sortDir} />
                   </th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                    {CUSTOMER_PAGE_COPY.actions}
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-xs text-stone-900">
                 {displayed.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <div className="flex flex-col items-center gap-2 py-12 text-stone-600">
                         <Users size={32} strokeWidth={1.5} />
                         <p className="text-sm font-medium text-stone-800">No customers found</p>
@@ -411,6 +448,27 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                       <td className="px-3 py-3">
                         <span className={riskTextClass(c.risk)}>{c.risk}</span>
                       </td>
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditTarget(c);
+                              setFormOpen(true);
+                            }}
+                            className="text-left text-[10px] font-semibold text-green-800 hover:text-green-900"
+                          >
+                            {CUSTOMER_PAGE_COPY.edit}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(c)}
+                            className="text-left text-[10px] font-semibold text-red-700 hover:text-red-800"
+                          >
+                            {CUSTOMER_PAGE_COPY.delete}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -437,11 +495,28 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
       </div>
 
       {/* Dialogs & Panels */}
-      <AddCustomerDialog
-        open={showAddCustomer}
-        nextId={nextId}
-        onClose={() => setShowAddCustomer(false)}
-        onConfirm={handleAddCustomer}
+      <CustomerFormDialog
+        open={formOpen}
+        customer={editTarget}
+        saving={saving}
+        onClose={() => {
+          if (!saving) {
+            setFormOpen(false);
+            setEditTarget(null);
+          }
+        }}
+        onSave={handleSaveCustomer}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={CUSTOMER_PAGE_COPY.deleteTitle}
+        message={deleteTarget ? CUSTOMER_PAGE_COPY.deleteMessage(deleteTarget.name) : ""}
+        confirmLabel={CUSTOMER_PAGE_COPY.deleteConfirm}
+        cancelLabel="Cancelar"
+        destructive
+        loading={deleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onClose={() => !deleting && setDeleteTarget(null)}
       />
       <CustomerDetailPanel
         customer={selectedCustomer}

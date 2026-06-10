@@ -1,0 +1,292 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { X } from "lucide-react";
+import type {
+  ExpenseCategory,
+  ExpensePaymentStatus,
+  ExpenseRecord,
+  PaymentMethod,
+} from "@/domains/financial/types";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_FORM_COPY,
+  EXPENSE_PAYMENT_METHODS,
+  EXPENSE_STATUSES,
+  expenseCategoryLabel,
+  expenseStatusLabel,
+  paymentMethodLabel,
+} from "@/domains/financial/expenses/labels";
+
+export type ExpenseFormState = Omit<ExpenseRecord, "id">;
+
+const emptyForm = (): ExpenseFormState => ({
+  date: new Date().toISOString().slice(0, 10),
+  category: "Other",
+  description: "",
+  vendor: "",
+  amount: 0,
+  currency: "Bs",
+  status: "Pending",
+  paymentMethod: "Bank Transfer",
+  notes: "",
+});
+
+interface Props {
+  open: boolean;
+  expense: ExpenseRecord | null;
+  saving?: boolean;
+  onClose: () => void;
+  onSave: (input: ExpenseFormState) => void;
+}
+
+export function ExpenseFormDialog({
+  open,
+  expense,
+  saving = false,
+  onClose,
+  onSave,
+}: Props) {
+  const [form, setForm] = useState<ExpenseFormState>(emptyForm);
+  const isEdit = Boolean(expense);
+
+  useEffect(() => {
+    if (!open) return;
+    if (expense) {
+      setForm({
+        date: expense.date,
+        category: expense.category,
+        description: expense.description,
+        vendor: expense.vendor,
+        amount: expense.amount,
+        currency: expense.currency,
+        status: expense.status,
+        paymentMethod: expense.paymentMethod,
+        notes: expense.notes,
+      });
+    } else {
+      setForm(emptyForm());
+    }
+  }, [open, expense]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, saving, onClose]);
+
+  if (!open) return null;
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!form.description.trim() || !form.vendor.trim() || form.amount <= 0) return;
+    onSave({
+      ...form,
+      description: form.description.trim(),
+      vendor: form.vendor.trim(),
+      notes: form.notes.trim(),
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="expense-form-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-stone-900/40"
+        aria-label="Cerrar"
+        onClick={() => !saving && onClose()}
+      />
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl border border-stone-200 shadow-xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
+          <h2 id="expense-form-title" className="text-sm font-bold text-stone-900">
+            {isEdit ? EXPENSE_FORM_COPY.editTitle : EXPENSE_FORM_COPY.addTitle}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 disabled:opacity-50"
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+                {EXPENSE_FORM_COPY.date}
+              </label>
+              <input
+                type="date"
+                required
+                value={form.date}
+                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+                {EXPENSE_FORM_COPY.category}
+              </label>
+              <select
+                required
+                value={form.category}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    category: e.target.value as ExpenseCategory,
+                  }))
+                }
+                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              >
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {expenseCategoryLabel(cat)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+              {EXPENSE_FORM_COPY.description}
+            </label>
+            <input
+              type="text"
+              required
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              placeholder={EXPENSE_FORM_COPY.descriptionPlaceholder}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+              {EXPENSE_FORM_COPY.vendor}
+            </label>
+            <input
+              type="text"
+              required
+              value={form.vendor}
+              onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
+              className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              placeholder={EXPENSE_FORM_COPY.vendorPlaceholder}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+                {EXPENSE_FORM_COPY.amount}
+              </label>
+              <input
+                type="number"
+                required
+                min={0.01}
+                step={0.01}
+                value={form.amount || ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
+                }
+                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+                {EXPENSE_FORM_COPY.currency}
+              </label>
+              <input
+                type="text"
+                required
+                value={form.currency}
+                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+                {EXPENSE_FORM_COPY.status}
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, status: e.target.value as ExpensePaymentStatus }))
+                }
+                className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+              >
+                {EXPENSE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {expenseStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+              {EXPENSE_FORM_COPY.paymentMethod}
+            </label>
+            <select
+              value={form.paymentMethod}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  paymentMethod: e.target.value as PaymentMethod,
+                }))
+              }
+              className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
+            >
+              {EXPENSE_PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {paymentMethodLabel(method)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
+              {EXPENSE_FORM_COPY.notes}
+            </label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              rows={2}
+              className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg resize-none"
+              placeholder={EXPENSE_FORM_COPY.notesPlaceholder}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-xs font-bold text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 disabled:opacity-50"
+            >
+              {EXPENSE_FORM_COPY.cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-xs font-bold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-50"
+            >
+              {EXPENSE_FORM_COPY.save}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

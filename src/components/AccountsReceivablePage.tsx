@@ -13,8 +13,10 @@ import {
 } from "@/domains/financial/calculations";
 import { formatCurrency, customers as allCustomers } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { InvoiceFormDialog } from "./receivables/InvoiceFormDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
-import { AddInvoiceDialog } from "./AddInvoiceDialog";
+import { RECEIVABLE_PAGE_COPY } from "@/domains/financial/receivables/labels";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
@@ -103,18 +105,12 @@ export function AccountsReceivablePage({
 }: Props = {}) {
   const {
     receivableRecords: receivables,
-    setReceivableRecords,
     customerRecords,
+    saveReceivable,
+    deleteReceivable,
+    recordReceivablePayment,
+    receivablesError,
   } = useCompanyScopedFinancialData();
-
-  const onUpdateReceivable =
-    onUpdateReceivableProp ??
-    ((updated: ReceivableRecord) =>
-      setReceivableRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r))));
-
-  const onAddReceivable =
-    onAddReceivableProp ??
-    ((newR: ReceivableRecord) => setReceivableRecords((prev) => [...prev, newR]));
 
   // Filter state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
@@ -127,10 +123,17 @@ export function AccountsReceivablePage({
 
   // Dialog state
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
-  const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+  const [editInvoice, setEditInvoice] = useState<ReceivableRecord | null>(null);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ReceivableRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [chasedIds, setChasedIds] = useState<Set<number>>(() => new Set());
 
-  const openAddInvoice = useCallback(() => setShowAddInvoice(true), []);
+  const openAddInvoice = useCallback(() => {
+    setEditInvoice(null);
+    setInvoiceFormOpen(true);
+  }, []);
   useOpenCreateFromQuery("invoice", openAddInvoice);
 
   const customerPhoneByName = useMemo(() => {
@@ -251,21 +254,60 @@ export function AccountsReceivablePage({
     }
   };
 
-  const handleConfirmPayment = (id: number, payment: number) => {
-    const r = receivables.find((x) => x.id === id);
-    if (!r) return;
-    const newTotalPaid = r.amountPaid + payment;
-    const status: ReceivableRecord["status"] =
-      newTotalPaid <= 0 ? "Pending"
-      : newTotalPaid < r.amount ? "Partially Paid"
-      : "Paid";
-    onUpdateReceivable({ ...r, amountPaid: newTotalPaid, status });
+  const handleConfirmPayment = async (id: number, payment: number) => {
+    if (onUpdateReceivableProp) {
+      const r = receivables.find((x) => x.id === id);
+      if (!r) return;
+      const newTotalPaid = r.amountPaid + payment;
+      const status: ReceivableRecord["status"] =
+        newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
+      onUpdateReceivableProp({ ...r, amountPaid: newTotalPaid, status });
+    } else {
+      await recordReceivablePayment(id, payment);
+    }
     setPaymentTarget(null);
   };
 
-  const handleAddInvoice = (newR: ReceivableRecord) => {
-    onAddReceivable(newR);
-    setShowAddInvoice(false);
+  const handleSaveInvoice = async (input: {
+    customer: string;
+    invoiceNumber: string;
+    amount: number;
+    dueDateIso: string;
+    amountPaid: number;
+  }) => {
+    setSavingInvoice(true);
+    try {
+      if (onAddReceivableProp && !editInvoice) {
+        const nextId = receivables.length > 0 ? Math.max(...receivables.map((r) => r.id)) + 1 : 1;
+        onAddReceivableProp({
+          id: nextId,
+          customer: input.customer,
+          invoiceNumber: input.invoiceNumber,
+          amount: input.amount,
+          amountPaid: 0,
+          dueDate: input.dueDateIso,
+          overdueDays: 0,
+          status: "Pending",
+        });
+      } else {
+        await saveReceivable(editInvoice?.id ?? null, input);
+      }
+      setInvoiceFormOpen(false);
+      setEditInvoice(null);
+    } finally {
+      setSavingInvoice(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteReceivable(deleteTarget.id);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleChase = (row: ReceivableRecord) => {
@@ -306,7 +348,12 @@ export function AccountsReceivablePage({
 
   const nextId = receivables.length > 0 ? Math.max(...receivables.map((r) => r.id)) + 1 : 1;
   const nextInvoiceNumber = `INV-${String(nextId).padStart(3, "0")}`;
-  const customerNames = allCustomers.map((c) => c.name);
+  const customerNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const c of customerRecords) names.add(c.name);
+    for (const c of allCustomers) names.add(c.name);
+    return [...names].sort();
+  }, [customerRecords]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -331,7 +378,7 @@ export function AccountsReceivablePage({
               Export
             </button>
             <button
-              onClick={() => setShowAddInvoice(true)}
+              onClick={openAddInvoice}
               className="flex items-center gap-1.5 rounded-lg bg-green-800 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
             >
               <Plus size={13} />
@@ -339,6 +386,12 @@ export function AccountsReceivablePage({
             </button>
           </div>
         </section>
+
+        {receivablesError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+            {receivablesError}
+          </div>
+        )}
 
         <section>
           <div className="mb-2">
@@ -494,9 +547,26 @@ export function AccountsReceivablePage({
                                 onClick={() => setPaymentTarget(row)}
                                 className="text-[10px] font-semibold text-green-800 hover:underline"
                               >
-                                Pay
+                                {RECEIVABLE_PAGE_COPY.pay}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditInvoice(row);
+                                setInvoiceFormOpen(true);
+                              }}
+                              className="text-[10px] font-semibold text-green-800 hover:underline"
+                            >
+                              {RECEIVABLE_PAGE_COPY.edit}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(row)}
+                              className="text-[10px] font-semibold text-red-700 hover:underline"
+                            >
+                              {RECEIVABLE_PAGE_COPY.delete}
+                            </button>
                             {isChaseableReceivable(row.status) &&
                               (chasedIds.has(row.id) ? (
                                 <span className="text-[10px] font-medium text-stone-500">
@@ -514,7 +584,7 @@ export function AccountsReceivablePage({
                                   }
                                   className="text-[10px] font-semibold text-green-800 hover:underline disabled:text-stone-400 disabled:no-underline disabled:cursor-not-allowed"
                                 >
-                                  Chase
+                                  {RECEIVABLE_PAGE_COPY.chase}
                                 </button>
                               ))}
                           </div>
@@ -567,13 +637,34 @@ export function AccountsReceivablePage({
         onClose={() => setPaymentTarget(null)}
         onConfirm={handleConfirmPayment}
       />
-      <AddInvoiceDialog
-        open={showAddInvoice}
+      <InvoiceFormDialog
+        open={invoiceFormOpen}
+        receivable={editInvoice}
         customerNames={customerNames}
         nextInvoiceNumber={nextInvoiceNumber}
-        nextId={nextId}
-        onClose={() => setShowAddInvoice(false)}
-        onConfirm={handleAddInvoice}
+        saving={savingInvoice}
+        onClose={() => {
+          if (!savingInvoice) {
+            setInvoiceFormOpen(false);
+            setEditInvoice(null);
+          }
+        }}
+        onSave={handleSaveInvoice}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={RECEIVABLE_PAGE_COPY.deleteTitle}
+        message={
+          deleteTarget
+            ? RECEIVABLE_PAGE_COPY.deleteMessage(deleteTarget.invoiceNumber)
+            : ""
+        }
+        confirmLabel={RECEIVABLE_PAGE_COPY.deleteConfirm}
+        cancelLabel="Cancelar"
+        destructive
+        loading={deleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onClose={() => !deleting && setDeleteTarget(null)}
       />
     </>
   );
