@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
 import type { ExpenseRecord } from "@/domains/financial/types";
 import {
   createCompanyExpense,
@@ -49,29 +49,7 @@ export function useCompanyNativeExpenses(
     void refreshExpenses();
   }, [refreshExpenses]);
 
-  useEffect(() => {
-    if (!companyId || !isSupabaseConfigured) return;
-
-    const channel = supabase
-      .channel(`company-expenses-${companyId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "company_expenses",
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          void refreshExpenses();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [companyId, refreshExpenses]);
+  useSupabaseRealtimeRefresh(companyId, "company-expenses", "company_expenses", refreshExpenses);
 
   const createExpense = useCallback(
     async (input: ExpenseInput) => {

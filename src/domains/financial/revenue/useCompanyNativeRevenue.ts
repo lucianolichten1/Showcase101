@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
 import type { RevenueRecord } from "@/domains/financial/types";
 import {
   createCompanyRevenue,
@@ -49,29 +49,7 @@ export function useCompanyNativeRevenue(
     void refreshRevenue();
   }, [refreshRevenue]);
 
-  useEffect(() => {
-    if (!companyId || !isSupabaseConfigured) return;
-
-    const channel = supabase
-      .channel(`company-revenue-${companyId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "company_revenue",
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          void refreshRevenue();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [companyId, refreshRevenue]);
+  useSupabaseRealtimeRefresh(companyId, "company-revenue", "company_revenue", refreshRevenue);
 
   const createRevenue = useCallback(
     async (input: RevenueInput) => {

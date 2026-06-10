@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
 import type { CustomerRecord } from "./types";
 import {
   createCompanyCustomer,
@@ -35,20 +35,7 @@ export function useCompanyNativeCustomers(companyId: string | null) {
     void refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    if (!companyId || !isSupabaseConfigured) return;
-    const channel = supabase
-      .channel(`company-customers-${companyId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "company_customers", filter: `company_id=eq.${companyId}` },
-        () => void refresh()
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [companyId, refresh]);
+  useSupabaseRealtimeRefresh(companyId, "company-customers", "company_customers", refresh);
 
   const createCustomer = useCallback(
     async (input: CustomerInput) => {

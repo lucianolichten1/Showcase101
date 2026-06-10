@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   createCompanyReceivable,
@@ -36,20 +36,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
     void refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    if (!companyId || !isSupabaseConfigured) return;
-    const channel = supabase
-      .channel(`company-receivables-${companyId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "company_receivables", filter: `company_id=eq.${companyId}` },
-        () => void refresh()
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [companyId, refresh]);
+  useSupabaseRealtimeRefresh(companyId, "company-receivables", "company_receivables", refresh);
 
   const createReceivable = useCallback(
     async (input: ReceivableInput) => {
