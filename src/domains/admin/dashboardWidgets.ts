@@ -26,15 +26,75 @@ export const DASHBOARD_WIDGET_DEFINITIONS = [
     kind: "kpi",
   },
   {
+    key: "gross-profit",
+    name: "Gross Profit",
+    description: "Revenue minus cost of goods sold KPI card.",
+    kind: "kpi",
+  },
+  {
+    key: "profit-margin",
+    name: "Profit Margin",
+    description: "Net profit as a percentage of revenue KPI card.",
+    kind: "kpi",
+  },
+  {
+    key: "collected-revenue",
+    name: "Collected Revenue",
+    description: "Revenue already collected KPI card.",
+    kind: "kpi",
+  },
+  {
+    key: "overdue-receivables",
+    name: "Overdue Receivables",
+    description: "Overdue invoice balance KPI card.",
+    kind: "kpi",
+  },
+  {
+    key: "outstanding-expenses",
+    name: "Outstanding Expenses",
+    description: "Pending and overdue expenses KPI card.",
+    kind: "kpi",
+  },
+  {
     key: "financial-overview",
     name: "Financial overview",
     description: "Monthly revenue and expenses chart.",
     kind: "chart",
   },
   {
+    key: "profit-trend",
+    name: "Profit trend",
+    description: "Monthly net profit trend chart.",
+    kind: "chart",
+  },
+  {
+    key: "cash-flow",
+    name: "Cumulative cash flow",
+    description: "Running net cash flow chart.",
+    kind: "chart",
+  },
+  {
+    key: "revenue-by-category",
+    name: "Revenue by category",
+    description: "Revenue category donut chart.",
+    kind: "chart",
+  },
+  {
+    key: "top-customers",
+    name: "Top customers",
+    description: "Top clients by revenue bar chart.",
+    kind: "chart",
+  },
+  {
     key: "expense-breakdown",
     name: "Expense breakdown",
     description: "Expense category donut chart.",
+    kind: "chart",
+  },
+  {
+    key: "receivables-aging",
+    name: "Receivables aging",
+    description: "Outstanding invoices grouped by days overdue.",
     kind: "chart",
   },
   {
@@ -63,6 +123,11 @@ export const KPI_TITLE_TO_WIDGET_KEY: Record<string, DashboardWidgetKey> = {
   "Total Costs": "total-costs",
   "Net Profit": "net-profit",
   "Accounts Receivable": "accounts-receivable",
+  "Gross Profit": "gross-profit",
+  "Profit Margin": "profit-margin",
+  "Collected Revenue": "collected-revenue",
+  "Overdue Receivables": "overdue-receivables",
+  "Outstanding Expenses": "outstanding-expenses",
 };
 
 export function isKnownDashboardWidgetKey(key: string): key is DashboardWidgetKey {
