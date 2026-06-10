@@ -2,6 +2,7 @@ import { LogOut, X } from "lucide-react";
 import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getNavigationForContext } from "@/domains/auth/navigation";
 import { useAuth } from "@/domains/auth/AuthContext";
+import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledModules";
 import { formatRoleLabel } from "@/domains/auth/labels";
 import { useCompanyBranding } from "@/domains/company/CompanyBrandingContext";
 import { SidebarNavItem } from "./SidebarNavItem";
@@ -20,12 +21,14 @@ export function Sidebar({ className, onClose, onNavClick }: SidebarProps) {
   const location = useLocation();
   const { companyId: routeCompanyId } = useParams();
   const [searchParams] = useSearchParams();
+  const { enabledModules } = useCompanyEnabledModules();
   const navItems = getNavigationForContext({
     role,
     primaryCompanyId,
     pathname: location.pathname,
     routeCompanyId,
     queryCompanyId: searchParams.get("companyId"),
+    enabledModules,
   });
   const roleLabel = formatRoleLabel(role);
   const navLabel =

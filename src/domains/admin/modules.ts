@@ -39,6 +39,11 @@ export const BASE_FINANCIAL_MODULE_DEFINITIONS = [
     name: "Import/Export",
     description: "Import and export financial data.",
   },
+  {
+    key: "inventory",
+    name: "Inventory",
+    description: "Products, stock levels, purchase and sales orders.",
+  },
 ] as const;
 
 export type BaseFinancialModuleKey =

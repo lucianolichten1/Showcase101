@@ -25,6 +25,12 @@ import {
 import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
+import { InventoryOverviewPage } from "./components/inventory/InventoryOverviewPage";
+import { InventoryProductsPage } from "./components/inventory/InventoryProductsPage";
+import { PurchaseOrdersPage } from "./components/inventory/PurchaseOrdersPage";
+import { SalesOrdersPage } from "./components/inventory/SalesOrdersPage";
+import { InventoryAdjustmentsPage } from "./components/inventory/InventoryAdjustmentsPage";
+import { InventoryReportsPage } from "./components/inventory/InventoryReportsPage";
 
 export default function App() {
   return (
@@ -54,6 +60,12 @@ export default function App() {
               <Route path="/accounts-receivable" element={<AccountsReceivablePage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/inventory" element={<InventoryOverviewPage />} />
+              <Route path="/inventory/products" element={<InventoryProductsPage />} />
+              <Route path="/inventory/purchase-orders" element={<PurchaseOrdersPage />} />
+              <Route path="/inventory/sales-orders" element={<SalesOrdersPage />} />
+              <Route path="/inventory/adjustments" element={<InventoryAdjustmentsPage />} />
+              <Route path="/inventory/reports" element={<InventoryReportsPage />} />
             </Route>
           </Route>
 

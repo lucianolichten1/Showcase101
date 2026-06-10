@@ -24,6 +24,10 @@ import {
   DEFAULT_ENABLED_MODULES,
   isModuleEnabled,
 } from "@/domains/admin/modules";
+import {
+  loadCompanyEnabledModules,
+  saveCompanyEnabledModules,
+} from "@/domains/admin/moduleStorage";
 import { getNicheDisplayName } from "@/domains/admin/niches";
 import {
   buildChecklistSteps,
@@ -77,7 +81,9 @@ export function AdminCompanyDetailsPage() {
       const record = await getCompanyById(companyId);
       setCompany(record);
       if (record) {
-        setEnabledModules(record.enabledModules);
+        setEnabledModules(
+          loadCompanyEnabledModules(record.id, record.enabledModules)
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load company.");
@@ -99,7 +105,9 @@ export function AdminCompanyDetailsPage() {
 
     initializedCompanyId.current = company.id;
     setOwner(null);
-    setEnabledModules(company.enabledModules);
+    setEnabledModules(
+      loadCompanyEnabledModules(company.id, company.enabledModules)
+    );
     setChecklist(
       buildChecklistSteps(company, null, company.enabledModules.length > 0)
     );
@@ -156,6 +164,9 @@ export function AdminCompanyDetailsPage() {
       ? nextModules
       : [...nextModules, DASHBOARD_MODULE_KEY];
     setEnabledModules(normalized);
+    if (companyId) {
+      saveCompanyEnabledModules(companyId, normalized);
+    }
     const mod = BASE_FINANCIAL_MODULE_DEFINITIONS.find((m) => m.key === moduleKey);
     if (mod) {
       setActivity((prev) => [

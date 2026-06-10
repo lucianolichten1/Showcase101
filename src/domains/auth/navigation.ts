@@ -6,8 +6,11 @@ import {
   FileBarChart,
   Users,
   Building2,
+  Package,
   type LucideIcon,
 } from "lucide-react";
+import { isModuleEnabled } from "@/domains/admin/modules";
+import { isAppModulePath } from "@/domains/admin/modulePaths";
 import type { AppRole } from "./types";
 
 export interface RoleNavItem {
@@ -23,9 +26,10 @@ export interface NavigationContext {
   pathname: string;
   routeCompanyId?: string | null;
   queryCompanyId?: string | null;
+  enabledModules?: string[];
 }
 
-const FINANCIAL_MODULE_PATHS = [
+const MODULE_NAV_PATHS = [
   { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { id: "reports", label: "Reports", path: "/reports", icon: FileBarChart },
   { id: "expenses", label: "Expenses", path: "/expenses", icon: Receipt },
@@ -36,17 +40,8 @@ const FINANCIAL_MODULE_PATHS = [
     icon: HandCoins,
   },
   { id: "customers", label: "Customers", path: "/customers", icon: Users },
+  { id: "inventory", label: "Inventory", path: "/inventory", icon: Package },
   { id: "export-import", label: "Import / Export", path: "/export-import", icon: ArrowUpDown },
-] as const;
-
-const FINANCIAL_PATH_PREFIXES = [
-  "/dashboard",
-  "/reports",
-  "/expenses",
-  "/revenue",
-  "/accounts-receivable",
-  "/customers",
-  "/export-import",
 ] as const;
 
 function withCompanyId(path: string, companyId: string): string {
@@ -58,10 +53,8 @@ export function companyDashboardPath(companyId: string): string {
   return withCompanyId("/dashboard", companyId);
 }
 
-function isFinancialModulePath(pathname: string): boolean {
-  return FINANCIAL_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
+function isCompanyModulePath(pathname: string): boolean {
+  return isAppModulePath(pathname);
 }
 
 /** Sidebar items for platform admin area (`/admin/*`). */
@@ -83,9 +76,10 @@ export function getSuperAdminNavigation(): RoleNavItem[] {
 
 function getCompanyScopedNavigation(
   companyId: string,
-  options?: { includeAdminLink?: boolean }
+  options?: { includeAdminLink?: boolean; enabledModules?: string[] }
 ): RoleNavItem[] {
   const items: RoleNavItem[] = [];
+  const modules = options?.enabledModules;
 
   if (options?.includeAdminLink) {
     items.push({
@@ -96,8 +90,12 @@ function getCompanyScopedNavigation(
     });
   }
 
+  const visible = MODULE_NAV_PATHS.filter(
+    (m) => !modules || isModuleEnabled(modules, m.id)
+  );
+
   items.push(
-    ...FINANCIAL_MODULE_PATHS.map((m) => ({
+    ...visible.map((m) => ({
       id: m.id,
       label: m.label,
       href: withCompanyId(m.path, companyId),
@@ -108,34 +106,37 @@ function getCompanyScopedNavigation(
   return items;
 }
 
-// TODO: Support multiple companies per owner in a later version.
-// TODO: Add company switcher later if needed.
-
-/** Sidebar items for company_owner (scoped financial modules). */
-export function getCompanyOwnerNavigation(companyId: string): RoleNavItem[] {
-  return getCompanyScopedNavigation(companyId);
+/** Sidebar items for company_owner (scoped modules). */
+export function getCompanyOwnerNavigation(
+  companyId: string,
+  enabledModules?: string[]
+): RoleNavItem[] {
+  return getCompanyScopedNavigation(companyId, { enabledModules });
 }
 
 function resolveSuperAdminCompanyId(ctx: NavigationContext): string | null {
-  if (isFinancialModulePath(ctx.pathname) && ctx.queryCompanyId) {
+  if (isCompanyModulePath(ctx.pathname) && ctx.queryCompanyId) {
     return ctx.queryCompanyId;
   }
   return null;
 }
 
 export function getNavigationForContext(ctx: NavigationContext): RoleNavItem[] {
-  const { role, primaryCompanyId } = ctx;
+  const { role, primaryCompanyId, enabledModules } = ctx;
 
   if (role === "superadmin") {
     const companyId = resolveSuperAdminCompanyId(ctx);
     if (companyId) {
-      return getCompanyScopedNavigation(companyId, { includeAdminLink: true });
+      return getCompanyScopedNavigation(companyId, {
+        includeAdminLink: true,
+        enabledModules,
+      });
     }
     return getAdminNavigation();
   }
 
   if (role === "company_owner" && primaryCompanyId) {
-    return getCompanyOwnerNavigation(primaryCompanyId);
+    return getCompanyOwnerNavigation(primaryCompanyId, enabledModules);
   }
 
   return [];
@@ -143,11 +144,13 @@ export function getNavigationForContext(ctx: NavigationContext): RoleNavItem[] {
 
 export function getNavigationForRole(
   role: AppRole | null | undefined,
-  companyId: string | null | undefined
+  companyId: string | null | undefined,
+  enabledModules?: string[]
 ): RoleNavItem[] {
   return getNavigationForContext({
     role,
     primaryCompanyId: companyId,
     pathname: "",
+    enabledModules,
   });
 }

@@ -6,6 +6,9 @@ import {
   isUnassignedCompanyOwner,
 } from "@/domains/auth/AuthContext";
 import { companyDashboardPath } from "@/domains/auth/navigation";
+import { isModuleEnabled } from "@/domains/admin/modules";
+import { resolveModuleKeyForPath, isAppModulePath } from "@/domains/admin/modulePaths";
+import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledModules";
 import { AuthLoadingScreen } from "./AuthLoadingScreen";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
@@ -69,19 +72,9 @@ export function LegacyCompanyWorkspaceRedirect() {
   return <Navigate to={companyDashboardPath(companyId)} replace />;
 }
 
-const FINANCIAL_PATHS = new Set([
-  "/dashboard",
-  "/reports",
-  "/expenses",
-  "/revenue",
-  "/accounts-receivable",
-  "/customers",
-  "/export-import",
-]);
-
 /**
- * Financial module routes.
- * - superadmin: full access (optional companyId query).
+ * Company module routes (financial + inventory).
+ * - superadmin: optional companyId query; module toggles apply per company.
  * - company_owner: must include own companyId query param.
  */
 export function RequireFinancialModuleAccess() {
@@ -89,12 +82,26 @@ export function RequireFinancialModuleAccess() {
     useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { enabledModules, loading: modulesLoading } = useCompanyEnabledModules();
 
-  if (!FINANCIAL_PATHS.has(location.pathname)) {
+  if (!isAppModulePath(location.pathname)) {
     return <Outlet />;
   }
 
+  const moduleKey = resolveModuleKeyForPath(location.pathname);
+
   if (isSuperadmin) {
+    const queryCompanyId = searchParams.get("companyId");
+    if (queryCompanyId && moduleKey && !modulesLoading) {
+      if (!isModuleEnabled(enabledModules, moduleKey)) {
+        return (
+          <AccessDeniedPage
+            title="Module not enabled"
+            message="This module is turned off for the selected company. Enable it in Admin → Companies."
+          />
+        );
+      }
+    }
     return <Outlet />;
   }
 
@@ -121,6 +128,15 @@ export function RequireFinancialModuleAccess() {
 
     if (!userCanAccessCompany(profile, memberships, queryCompanyId)) {
       return <Navigate to={companyDashboardPath(allowedId)} replace />;
+    }
+
+    if (moduleKey && !modulesLoading && !isModuleEnabled(enabledModules, moduleKey)) {
+      return (
+        <AccessDeniedPage
+          title="Module not enabled"
+          message="This module is not enabled for your company. Contact your platform administrator."
+        />
+      );
     }
 
     return <Outlet />;

@@ -24,6 +24,9 @@ import {
   type FinancialPeriod,
 } from "@/domains/financial/period";
 import type { KPIData } from "@/data/types";
+import { InventoryDashboardSection } from "./inventory/InventoryDashboardSection";
+import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledModules";
+import { isModuleEnabled } from "@/domains/admin/modules";
 
 const PERIOD_SUBTITLE_KPI_TITLES = new Set([
   "Total Revenue",
@@ -132,6 +135,8 @@ export function DashboardPage() {
   const { isWidgetEnabled } = useCompanyBranding();
   const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
     useCompanyScopedFinancialData();
+  const { enabledModules } = useCompanyEnabledModules();
+  const showInventory = isModuleEnabled(enabledModules, "inventory");
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel =
     usesImportedData && period.kind === "all"
@@ -363,6 +368,8 @@ export function DashboardPage() {
               </div>
             </section>
           )}
+
+          {showInventory && <InventoryDashboardSection />}
 
           {showExpensesReceivablesSection && (
             <section>
