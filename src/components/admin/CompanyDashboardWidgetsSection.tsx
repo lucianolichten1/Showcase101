@@ -115,6 +115,13 @@ export function CompanyDashboardWidgetsSection({ company, onUpdated }: Props) {
         <WidgetToggleGrid kind="chart" enabled={enabled} onToggle={handleToggle} />
       </div>
 
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--admin-ink-3)]">
+          Inventory
+        </p>
+        <WidgetToggleGrid kind="inventory" enabled={enabled} onToggle={handleToggle} />
+      </div>
+
       <p className="text-[11.5px] text-[var(--admin-ink-3)]">
         {enabledCount}/{DASHBOARD_WIDGET_DEFINITIONS.length} enabled on the company dashboard.
         At least one must stay on.
