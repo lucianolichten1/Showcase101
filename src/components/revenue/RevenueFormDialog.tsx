@@ -6,6 +6,8 @@ import type {
   RevenuePaymentStatus,
   RevenueRecord,
 } from "@/domains/financial/types";
+import { BankAccountSelect } from "@/components/bank-accounts/BankAccountSelect";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import {
   REVENUE_CATEGORIES,
   REVENUE_FORM_COPY,
@@ -27,6 +29,7 @@ const emptyForm = (): RevenueFormState => ({
   currency: "Bs",
   status: "Pending",
   paymentMethod: "Bank Transfer",
+  bankAccountId: null,
   invoiceNumber: "",
   notes: "",
 });
@@ -47,7 +50,10 @@ export function RevenueFormDialog({
   onSave,
 }: Props) {
   const [form, setForm] = useState<RevenueFormState>(emptyForm);
+  const [bankAccountError, setBankAccountError] = useState<string | null>(null);
+  const { activeBankAccounts } = useCompanyScopedFinancialData();
   const isEdit = Boolean(revenue);
+  const showBankAccount = form.paymentMethod === "Bank Transfer";
 
   useEffect(() => {
     if (!open) return;
@@ -61,6 +67,7 @@ export function RevenueFormDialog({
         currency: revenue.currency,
         status: revenue.status,
         paymentMethod: revenue.paymentMethod,
+        bankAccountId: revenue.bankAccountId ?? null,
         invoiceNumber: revenue.invoiceNumber,
         notes: revenue.notes,
         cost: revenue.cost,
@@ -91,12 +98,18 @@ export function RevenueFormDialog({
     ) {
       return;
     }
+    if (showBankAccount && !form.bankAccountId) {
+      setBankAccountError(REVENUE_FORM_COPY.bankAccountRequired);
+      return;
+    }
+    setBankAccountError(null);
     onSave({
       ...form,
       sourceClient: form.sourceClient.trim(),
       productService: form.productService.trim(),
       invoiceNumber: form.invoiceNumber.trim(),
       notes: form.notes.trim(),
+      bankAccountId: showBankAccount ? form.bankAccountId ?? null : null,
     });
   };
 
@@ -261,9 +274,15 @@ export function RevenueFormDialog({
             </label>
             <select
               value={form.paymentMethod}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, paymentMethod: e.target.value as PaymentMethod }))
-              }
+              onChange={(e) => {
+                const paymentMethod = e.target.value as PaymentMethod;
+                setForm((f) => ({
+                  ...f,
+                  paymentMethod,
+                  bankAccountId:
+                    paymentMethod === "Bank Transfer" ? f.bankAccountId ?? null : null,
+                }));
+              }}
               className="w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
             >
               {REVENUE_PAYMENT_METHODS.map((method) => (
@@ -273,6 +292,30 @@ export function RevenueFormDialog({
               ))}
             </select>
           </div>
+
+          {showBankAccount && (
+            <div>
+              <BankAccountSelect
+                label={REVENUE_FORM_COPY.bankAccount}
+                placeholder={REVENUE_FORM_COPY.bankAccountPlaceholder}
+                value={form.bankAccountId}
+                accounts={activeBankAccounts}
+                required
+                onChange={(bankAccountId) => {
+                  setBankAccountError(null);
+                  setForm((f) => ({ ...f, bankAccountId }));
+                }}
+              />
+              {bankAccountError && (
+                <p className="mt-1 text-xs text-red-700">{bankAccountError}</p>
+              )}
+              {activeBankAccounts.length === 0 && (
+                <p className="mt-1 text-xs text-amber-800">
+                  {REVENUE_FORM_COPY.bankAccountMissingHint}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">

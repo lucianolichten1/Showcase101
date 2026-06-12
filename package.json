@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "test:import-dates": "tsx src/domains/import/dateUtils.test.ts",
     "test:import-merge": "tsx src/domains/import/merge.test.ts",
-    "test:financial-calculations": "tsx src/domains/financial/calculations.test.ts"
+    "test:financial-calculations": "tsx src/domains/financial/calculations.test.ts",
+    "test:bank-account-sync": "tsx src/domains/financial/bank-accounts/bankAccountSyncLogic.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

@@ -25,6 +25,7 @@ import {
 } from "@/domains/financial/period";
 import type { KPIData } from "@/data/types";
 import { InventoryDashboardSection } from "./inventory/InventoryDashboardSection";
+import { BankAccountsDashboardCard } from "./bank-accounts/BankAccountsDashboardCard";
 import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledModules";
 import { isModuleEnabled } from "@/domains/admin/modules";
 
@@ -137,6 +138,9 @@ export function DashboardPage() {
     useCompanyScopedFinancialData();
   const { enabledModules } = useCompanyEnabledModules();
   const showInventory = isModuleEnabled(enabledModules, "inventory");
+  const showBankAccounts =
+    isModuleEnabled(enabledModules, "bank-accounts") &&
+    isWidgetEnabled("bank-accounts");
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel =
     usesImportedData && period.kind === "all"
@@ -366,6 +370,12 @@ export function DashboardPage() {
                 {showRevenueByCategory && <RevenueByCategoryChart />}
                 {showTopCustomers && <TopCustomersChart />}
               </div>
+            </section>
+          )}
+
+          {showBankAccounts && (
+            <section>
+              <BankAccountsDashboardCard />
             </section>
           )}
 

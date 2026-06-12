@@ -7,6 +7,14 @@ import type {
 } from "@/domains/financial/types";
 import { isPersistedRecordId } from "@/domains/financial/persistence/isPersistedRecordId";
 import {
+  loadCompanyBankAccountsFromStorage,
+  saveCompanyBankAccountsToStorage,
+} from "@/domains/financial/bank-accounts/bankAccountStorage";
+import {
+  removeLocalLinkedTransactions,
+  syncLocalRevenueBankTransaction,
+} from "@/domains/financial/bank-accounts/bankAccountLocalSync";
+import {
   loadCompanyRevenueFromStorage,
   saveCompanyRevenueToStorage,
 } from "./revenueStorage";
@@ -25,6 +33,7 @@ export interface CompanyRevenueRow {
   invoice_number: string;
   notes: string;
   cost: number;
+  bank_account_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +54,7 @@ function mapRowToRecord(row: CompanyRevenueRow): RevenueRecord {
     invoiceNumber: row.invoice_number,
     notes: row.notes ?? "",
     cost: Number(row.cost) || 0,
+    bankAccountId: row.bank_account_id ?? null,
   };
 }
 
@@ -62,6 +72,7 @@ function mapRecordToInsert(companyId: string, input: RevenueInput) {
     invoice_number: input.invoiceNumber,
     notes: input.notes,
     cost: input.cost ?? 0,
+    bank_account_id: input.bankAccountId ?? null,
   };
 }
 
@@ -78,6 +89,7 @@ function mapRecordToUpdate(input: RevenueInput) {
     invoice_number: input.invoiceNumber,
     notes: input.notes,
     cost: input.cost ?? 0,
+    bank_account_id: input.bankAccountId ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -105,6 +117,9 @@ export async function createCompanyRevenue(
     const record: RevenueRecord = { id: crypto.randomUUID(), ...input, cost: input.cost ?? 0 };
     const next = [record, ...loadCompanyRevenueFromStorage(companyId)];
     saveCompanyRevenueToStorage(companyId, next);
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = syncLocalRevenueBankTransaction(companyId, accounts, record);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return record;
   }
 
@@ -129,6 +144,9 @@ export async function updateCompanyRevenue(
     saveCompanyRevenueToStorage(companyId, next);
     const updated = next.find((row) => row.id === id);
     if (!updated) throw new Error("Revenue record not found");
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = syncLocalRevenueBankTransaction(companyId, accounts, updated);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return updated;
   }
 
@@ -155,6 +173,9 @@ export async function deleteCompanyRevenue(companyId: string, id: string): Promi
       companyId,
       current.filter((row) => row.id !== id)
     );
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = removeLocalLinkedTransactions(companyId, accounts, "revenue", id);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return;
   }
 

@@ -27,6 +27,14 @@ export const CREATE_ACTION_REGISTRY: CreateActionDefinition[] = [
     source: "ExpensesPage",
   },
   {
+    id: "bank-account",
+    moduleKey: "bank-accounts",
+    label: "Cuenta bancaria",
+    path: "/accounts",
+    pattern: "modal",
+    source: "BankAccountsPage",
+  },
+  {
     id: "customer",
     moduleKey: "customers",
     label: "Customer",

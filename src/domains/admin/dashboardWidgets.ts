@@ -92,6 +92,12 @@ export const DASHBOARD_WIDGET_DEFINITIONS = [
     kind: "chart",
   },
   {
+    key: "bank-accounts",
+    name: "Bank accounts",
+    description: "Cash balances across bank accounts.",
+    kind: "chart",
+  },
+  {
     key: "receivables-aging",
     name: "Receivables aging",
     description: "Outstanding invoices grouped by days overdue.",

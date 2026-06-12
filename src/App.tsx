@@ -25,6 +25,8 @@ import {
 import { CompanyDataProvider } from "./domains/company/CompanyDataContext";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { RevenuePage } from "./components/RevenuePage";
+import { BankAccountsPage } from "./components/BankAccountsPage";
+import { BankAccountDetailPage } from "./components/BankAccountDetailPage";
 import { InventoryOverviewPage } from "./components/inventory/InventoryOverviewPage";
 import { InventoryProductsPage } from "./components/inventory/InventoryProductsPage";
 import { PurchaseOrdersPage } from "./components/inventory/PurchaseOrdersPage";
@@ -57,6 +59,8 @@ export default function App() {
               <Route path="/export-import" element={<ExportImportPage />} />
               <Route path="/expenses" element={<ExpensesPage />} />
               <Route path="/revenue" element={<RevenuePage />} />
+              <Route path="/accounts" element={<BankAccountsPage />} />
+              <Route path="/accounts/:id" element={<BankAccountDetailPage />} />
               <Route path="/accounts-receivable" element={<AccountsReceivablePage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/customers" element={<CustomersPage />} />

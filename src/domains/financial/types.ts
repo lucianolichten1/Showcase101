@@ -95,6 +95,8 @@ export interface RevenueRecord extends FinancialTransaction {
   notes: string;
   /** Product cost from import (COGS); defaults to 0 when absent */
   cost?: number;
+  /** Linked bank account when payment method is Bank Transfer */
+  bankAccountId?: string | null;
 }
 
 export interface ExpenseRecord extends FinancialTransaction {
@@ -104,6 +106,8 @@ export interface ExpenseRecord extends FinancialTransaction {
   status: ExpensePaymentStatus;
   paymentMethod: PaymentMethod;
   notes: string;
+  /** Linked bank account when payment method is Bank Transfer */
+  bankAccountId?: string | null;
 }
 
 /** Accounts receivable invoice (display due dates; numeric id for legacy UI) */

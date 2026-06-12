@@ -61,6 +61,10 @@ export const EXPENSE_FORM_COPY = {
   currency: "Moneda",
   status: "Estado",
   paymentMethod: "Método de pago",
+  bankAccount: "Cuenta bancaria",
+  bankAccountPlaceholder: "Seleccione una cuenta",
+  bankAccountRequired: "Seleccione una cuenta bancaria para transferencias.",
+  bankAccountMissingHint: "Registre una cuenta bancaria activa antes de guardar.",
   notes: "Notas",
   notesPlaceholder: "Notas opcionales",
 } as const;

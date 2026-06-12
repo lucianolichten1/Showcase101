@@ -7,6 +7,7 @@ import {
   Users,
   Building2,
   Package,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import { isModuleEnabled } from "@/domains/admin/modules";
@@ -33,6 +34,12 @@ const MODULE_NAV_PATHS = [
   { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { id: "reports", label: "Reports", path: "/reports", icon: FileBarChart },
   { id: "expenses", label: "Expenses", path: "/expenses", icon: Receipt },
+  {
+    id: "bank-accounts",
+    label: "Cuentas bancarias",
+    path: "/accounts",
+    icon: Landmark,
+  },
   {
     id: "accounts-receivable",
     label: "Accounts Receivable",

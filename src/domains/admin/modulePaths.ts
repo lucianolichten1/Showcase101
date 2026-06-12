@@ -3,6 +3,7 @@ export const MODULE_PATH_RULES = [
   { prefix: "/dashboard", moduleKey: "dashboard" },
   { prefix: "/revenue", moduleKey: "revenue" },
   { prefix: "/expenses", moduleKey: "expenses" },
+  { prefix: "/accounts", moduleKey: "bank-accounts" },
   { prefix: "/customers", moduleKey: "customers" },
   { prefix: "/accounts-receivable", moduleKey: "accounts-receivable" },
   { prefix: "/reports", moduleKey: "reports" },

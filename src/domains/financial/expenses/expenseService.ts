@@ -6,6 +6,14 @@ import type {
   PaymentMethod,
 } from "@/domains/financial/types";
 import {
+  loadCompanyBankAccountsFromStorage,
+  saveCompanyBankAccountsToStorage,
+} from "@/domains/financial/bank-accounts/bankAccountStorage";
+import {
+  removeLocalLinkedTransactions,
+  syncLocalExpenseBankTransaction,
+} from "@/domains/financial/bank-accounts/bankAccountLocalSync";
+import {
   loadCompanyExpensesFromStorage,
   saveCompanyExpensesToStorage,
 } from "./expenseStorage";
@@ -23,6 +31,7 @@ export interface CompanyExpenseRow {
   status: string;
   payment_method: string;
   notes: string;
+  bank_account_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +50,7 @@ function mapRowToRecord(row: CompanyExpenseRow): ExpenseRecord {
     status: row.status as ExpensePaymentStatus,
     paymentMethod: row.payment_method as PaymentMethod,
     notes: row.notes ?? "",
+    bankAccountId: row.bank_account_id ?? null,
   };
 }
 
@@ -56,6 +66,7 @@ function mapRecordToInsert(companyId: string, input: ExpenseInput) {
     status: input.status,
     payment_method: input.paymentMethod,
     notes: input.notes,
+    bank_account_id: input.bankAccountId ?? null,
   };
 }
 
@@ -70,6 +81,7 @@ function mapRecordToUpdate(input: ExpenseInput) {
     status: input.status,
     payment_method: input.paymentMethod,
     notes: input.notes,
+    bank_account_id: input.bankAccountId ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -100,6 +112,9 @@ export async function createCompanyExpense(
     };
     const next = [record, ...loadCompanyExpensesFromStorage(companyId)];
     saveCompanyExpensesToStorage(companyId, next);
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = syncLocalExpenseBankTransaction(companyId, accounts, record);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return record;
   }
 
@@ -126,6 +141,9 @@ export async function updateCompanyExpense(
     saveCompanyExpensesToStorage(companyId, next);
     const updated = next.find((row) => row.id === id);
     if (!updated) throw new Error("Expense not found");
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = syncLocalExpenseBankTransaction(companyId, accounts, updated);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return updated;
   }
 
@@ -152,6 +170,9 @@ export async function deleteCompanyExpense(companyId: string, id: string): Promi
       companyId,
       current.filter((row) => row.id !== id)
     );
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const synced = removeLocalLinkedTransactions(companyId, accounts, "expense", id);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return;
   }
 

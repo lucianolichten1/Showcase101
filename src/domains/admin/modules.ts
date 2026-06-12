@@ -20,6 +20,11 @@ export const BASE_FINANCIAL_MODULE_DEFINITIONS = [
     description: "Manage and categorize business expenses.",
   },
   {
+    key: "bank-accounts",
+    name: "Bank Accounts",
+    description: "Track bank accounts, balances, and cash movements.",
+  },
+  {
     key: "customers",
     name: "Customers",
     description: "Customer directory and account status.",
