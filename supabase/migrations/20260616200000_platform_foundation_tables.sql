@@ -1,5 +1,5 @@
--- Platform foundation: auth profiles, companies, memberships.
--- (Restored — this file was previously empty, which broke fresh db push.)
+-- Repair migration: original foundation file was empty when first db push ran.
+-- Creates core platform tables if missing so subsequent migrations can apply.
 
 CREATE TABLE IF NOT EXISTS public.companies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
