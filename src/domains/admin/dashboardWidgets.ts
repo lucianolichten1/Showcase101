@@ -109,6 +109,30 @@ export const DASHBOARD_WIDGET_DEFINITIONS = [
     description: "Outstanding invoices table.",
     kind: "chart",
   },
+  {
+    key: "inventory-total-products",
+    name: "Total Products",
+    description: "Inventory KPI — count of active products.",
+    kind: "inventory",
+  },
+  {
+    key: "inventory-stock-value",
+    name: "Stock Value",
+    description: "Inventory KPI — total stock value at cost.",
+    kind: "inventory",
+  },
+  {
+    key: "inventory-low-stock",
+    name: "Low on Stock",
+    description: "Inventory KPI — products that are limited or out of stock.",
+    kind: "inventory",
+  },
+  {
+    key: "inventory-open-pos",
+    name: "Open POs",
+    description: "Inventory KPI — purchase orders pending delivery.",
+    kind: "inventory",
+  },
 ] as const;
 
 export type DashboardWidgetKey = (typeof DASHBOARD_WIDGET_DEFINITIONS)[number]["key"];
@@ -134,6 +158,10 @@ export const KPI_TITLE_TO_WIDGET_KEY: Record<string, DashboardWidgetKey> = {
   "Collected Revenue": "collected-revenue",
   "Overdue Receivables": "overdue-receivables",
   "Outstanding Expenses": "outstanding-expenses",
+  "Total Products": "inventory-total-products",
+  "Stock Value": "inventory-stock-value",
+  "Low on Stock": "inventory-low-stock",
+  "Open POs": "inventory-open-pos",
 };
 
 export function isKnownDashboardWidgetKey(key: string): key is DashboardWidgetKey {
