@@ -27,7 +27,7 @@ const emptyForm = (): ExpenseFormState => ({
   vendor: "",
   amount: 0,
   currency: "Bs",
-  status: "Pending",
+  status: "Paid",
   paymentMethod: "Bank Transfer",
   bankAccountId: null,
   notes: "",
@@ -37,6 +37,7 @@ interface Props {
   open: boolean;
   expense: ExpenseRecord | null;
   saving?: boolean;
+  saveError?: string | null;
   onClose: () => void;
   onSave: (input: ExpenseFormState) => void;
 }
@@ -45,6 +46,7 @@ export function ExpenseFormDialog({
   open,
   expense,
   saving = false,
+  saveError = null,
   onClose,
   onSave,
 }: Props) {
@@ -132,6 +134,11 @@ export function ExpenseFormDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {saveError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+              {saveError}
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold uppercase text-green-800 mb-1">
@@ -286,6 +293,9 @@ export function ExpenseFormDialog({
               />
               {bankAccountError && (
                 <p className="mt-1 text-xs text-red-700">{bankAccountError}</p>
+              )}
+              {!bankAccountError && form.status !== "Paid" && (
+                <p className="mt-1 text-xs text-amber-800">{EXPENSE_FORM_COPY.bankBalanceHint}</p>
               )}
               {activeBankAccounts.length === 0 && (
                 <p className="mt-1 text-xs text-amber-800">

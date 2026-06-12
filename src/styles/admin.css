@@ -1,6 +1,7 @@
 /* AI Finance OS — Admin design system (scoped to .admin) */
 
-.admin {
+.admin,
+.admin-modal-overlay {
   --admin-bg: #f4f4f1;
   --admin-surface: #ffffff;
   --admin-surface-2: #fafaf8;
@@ -32,7 +33,9 @@
   --admin-shadow-md: 0 2px 4px rgba(28, 30, 27, 0.04), 0 8px 24px rgba(28, 30, 27, 0.06);
   --admin-font: "General Sans", -apple-system, BlinkMacSystemFont, sans-serif;
   --admin-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
 
+.admin {
   font-family: var(--admin-font);
   color: var(--admin-ink);
   -webkit-font-smoothing: antialiased;
@@ -40,7 +43,8 @@
   letter-spacing: -0.006em;
 }
 
-.admin .mono {
+.admin .mono,
+.admin-modal-overlay .mono {
   font-family: var(--admin-mono);
   font-feature-settings: "tnum" 1;
 }
@@ -923,13 +927,16 @@
 .admin-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(24, 26, 23, 0.4);
-  backdrop-filter: blur(2px);
+  background: rgba(24, 26, 23, 0.55);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
-  z-index: 200;
+  z-index: 500;
   padding: 28px;
   animation: admin-ovin 0.16s ease;
+  font-family: var(--admin-font);
+  color: var(--admin-ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 @keyframes admin-ovin {
@@ -939,6 +946,7 @@
 
 .admin-modal {
   width: min(580px, 100%);
+  background: #ffffff;
   background: var(--admin-surface);
   border: 1px solid var(--admin-line);
   border-radius: 18px;
@@ -992,6 +1000,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  background: #fafaf8;
   background: var(--admin-surface-2);
   flex-wrap: wrap;
 }

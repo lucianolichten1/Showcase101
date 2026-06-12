@@ -99,6 +99,7 @@ export function ExpensesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ExpenseRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -132,6 +133,7 @@ export function ExpensesPage() {
 
   const handleOpenCreate = useCallback(() => {
     setEditTarget(null);
+    setSaveError(null);
     setFormOpen(true);
   }, []);
 
@@ -139,6 +141,7 @@ export function ExpensesPage() {
 
   const handleOpenEdit = (expense: ExpenseRecord) => {
     setEditTarget(expense);
+    setSaveError(null);
     setFormOpen(true);
   };
 
@@ -150,10 +153,13 @@ export function ExpensesPage() {
 
   const handleSave = async (input: Omit<ExpenseRecord, "id">) => {
     setSaving(true);
+    setSaveError(null);
     try {
       await saveExpense(editTarget?.id ?? null, input);
       setFormOpen(false);
       setEditTarget(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "No se pudo guardar el gasto.");
     } finally {
       setSaving(false);
     }
@@ -496,6 +502,7 @@ export function ExpensesPage() {
         open={formOpen}
         expense={editTarget}
         saving={saving}
+        saveError={saveError}
         onClose={handleCloseForm}
         onSave={handleSave}
       />

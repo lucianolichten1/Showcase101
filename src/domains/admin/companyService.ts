@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import {
   DEFAULT_COMPANY_DATABASE,
   databaseStatusLabel,
@@ -45,6 +46,10 @@ function mapDbStatusToUi(status: string): CompanyStatus {
   if (normalized === "inactive") return "Inactive";
   if (status === "Active" || status === "Inactive") return status;
   return "Active";
+}
+
+function mapUiStatusToDb(status: CompanyStatus): string {
+  return status === "Inactive" ? "inactive" : "active";
 }
 
 function normalizeDatabaseStatus(raw: string): CompanyDatabaseStatus {
@@ -96,7 +101,7 @@ export async function listCompanies(): Promise<CompanyRecord[]> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, error.message));
   return (data ?? []).map((row) => mapCompanyRowToRecord(row as SupabaseCompanyRow));
 }
 
@@ -118,14 +123,14 @@ export async function createCompany(input: NewCompanyInput): Promise<CompanyReco
     .insert({
       name: input.name,
       niche: input.niche,
-      status: input.status,
+      status: mapUiStatusToDb(input.status),
       database_status: "not_connected",
       database_provider: "Supabase planned",
     })
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, "Failed to create company."));
   return mapCompanyRowToRecord(data as SupabaseCompanyRow);
 }
 
@@ -196,4 +201,23 @@ export async function updateCompanyDashboardWidgets(
 
   if (error) throw new Error(error.message);
   return mapCompanyRowToRecord(data as SupabaseCompanyRow);
+}
+
+export async function deleteCompany(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("companies")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(getSupabaseErrorMessage(error, "Failed to delete company."));
+  }
+
+  if (!data) {
+    throw new Error(
+      "No company was deleted. Apply the companies_delete_superadmin RLS policy in Supabase SQL Editor, or confirm you are signed in as superadmin."
+    );
+  }
 }

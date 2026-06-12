@@ -65,6 +65,8 @@ export const EXPENSE_FORM_COPY = {
   bankAccountPlaceholder: "Seleccione una cuenta",
   bankAccountRequired: "Seleccione una cuenta bancaria para transferencias.",
   bankAccountMissingHint: "Registre una cuenta bancaria activa antes de guardar.",
+  bankBalanceHint:
+    "El saldo de la cuenta solo se descuenta cuando el estado es Pagado y el método es Transferencia bancaria.",
   notes: "Notas",
   notesPlaceholder: "Notas opcionales",
 } as const;

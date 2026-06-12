@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { companyDashboardPath } from "./navigation";
 import type { AppRole, CompanyMember, Profile } from "./types";
 import { isAppRole } from "./types";
@@ -102,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setProfile(null);
       setMemberships([]);
-      setAuthError(err instanceof Error ? err.message : "Failed to load profile.");
+      setAuthError(getSupabaseErrorMessage(err, "Failed to load profile."));
     }
   }, []);
 

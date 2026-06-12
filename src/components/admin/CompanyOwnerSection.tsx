@@ -9,16 +9,21 @@ import {
   type CompanyOwnerInfo,
 } from "@/domains/admin/companyOwnerService";
 import { OWNER_META, type AdminOwnerState } from "@/domains/admin/displayModel";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { AdminButton } from "./ui/AdminButton";
 
 interface Props {
   companyId: string;
+  showAssignForm?: boolean;
+  onShowAssignFormChange?: (open: boolean) => void;
   onOwnerLoaded?: (owner: CompanyOwnerInfo | null) => void;
   onOwnerAssigned?: (owner: CompanyOwnerInfo) => void;
 }
 
 export function CompanyOwnerSection({
   companyId,
+  showAssignForm: showAssignFormProp,
+  onShowAssignFormChange,
   onOwnerLoaded,
   onOwnerAssigned,
 }: Props) {
@@ -36,11 +41,24 @@ export function CompanyOwnerSection({
   const [owners, setOwners] = useState<CompanyOwnerInfo[]>([]);
   const [loadingOwner, setLoadingOwner] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showAssignForm, setShowAssignForm] = useState(false);
+  const [showAssignFormInternal, setShowAssignFormInternal] = useState(false);
 
   const [email, setEmail] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+
+  const showAssignForm = showAssignFormProp ?? showAssignFormInternal;
+
+  const setShowAssignForm = useCallback(
+    (open: boolean) => {
+      if (onShowAssignFormChange) {
+        onShowAssignFormChange(open);
+      } else {
+        setShowAssignFormInternal(open);
+      }
+    },
+    [onShowAssignFormChange]
+  );
 
   const primaryOwner = owners[0] ?? null;
   const ownerState: AdminOwnerState = primaryOwner ? "active" : "unassigned";
@@ -54,7 +72,7 @@ export function CompanyOwnerSection({
       setOwners(records);
       onOwnerLoadedRef.current?.(records[0] ?? null);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Failed to load company owner.");
+      setLoadError(getSupabaseErrorMessage(err, "Failed to load company owner."));
       setOwners([]);
       onOwnerLoadedRef.current?.(null);
     } finally {
@@ -98,31 +116,16 @@ export function CompanyOwnerSection({
         onOwnerAssignedRef.current?.(result.owner);
       }
     } catch (err) {
-      setAssignError(err instanceof Error ? err.message : "Failed to assign company owner.");
+      setAssignError(getSupabaseErrorMessage(err, "Failed to assign company owner."));
     } finally {
       setAssigning(false);
     }
   };
 
-  if (loadingOwner) {
-    return (
-      <div className="flex items-center gap-2 py-2 text-[var(--admin-ink-3)]">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">Loading owner…</span>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="admin-alert admin-alert-error">
-        {loadError}
-        <button type="button" className="ml-2 underline" onClick={() => void loadOwners()}>
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const openAssignForm = () => {
+    setAssignError(null);
+    setShowAssignForm(true);
+  };
 
   return (
     <div>
@@ -130,8 +133,13 @@ export function CompanyOwnerSection({
         <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[var(--admin-green-tint)] text-sm font-semibold text-[var(--admin-green-ink)]">
           {primaryOwner ? primaryOwner.email[0]?.toUpperCase() : "?"}
         </span>
-        <div className="min-w-0">
-          {primaryOwner ? (
+        <div className="min-w-0 flex-1">
+          {loadingOwner ? (
+            <div className="flex items-center gap-2 text-[var(--admin-ink-3)]">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="text-sm">Loading owner…</span>
+            </div>
+          ) : primaryOwner ? (
             <div className="mono truncate text-[12.5px]" title={primaryOwner.email}>
               {primaryOwner.email}
             </div>
@@ -140,12 +148,23 @@ export function CompanyOwnerSection({
               No owner assigned
             </div>
           )}
-          <div className="mt-1 inline-flex items-center gap-[7px] text-xs text-[var(--admin-ink-3)]">
-            <span className={`admin-dot ${ownerMeta.tone}`} />
-            {ownerMeta.label}
-          </div>
+          {!loadingOwner && (
+            <div className="mt-1 inline-flex items-center gap-[7px] text-xs text-[var(--admin-ink-3)]">
+              <span className={`admin-dot ${ownerMeta.tone}`} />
+              {ownerMeta.label}
+            </div>
+          )}
         </div>
       </div>
+
+      {loadError && (
+        <div className="admin-alert admin-alert-error mb-3">
+          {loadError}
+          <button type="button" className="ml-2 underline" onClick={() => void loadOwners()}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {assignError && <p className="admin-field-err mb-3">{assignError}</p>}
 
@@ -155,8 +174,9 @@ export function CompanyOwnerSection({
             type="email"
             className="admin-input"
             value={email}
+            autoFocus
             disabled={assigning}
-            placeholder="owner@company.com"
+            placeholder="company@gmail.com"
             onChange={(e) => {
               setEmail(e.target.value);
               setAssignError(null);
@@ -167,7 +187,7 @@ export function CompanyOwnerSection({
               variant="primary"
               size="sm"
               type="submit"
-              disabled={assigning || !email.trim()}
+              disabled={assigning}
               className="flex-1 justify-center"
             >
               {assigning ? (
@@ -179,7 +199,12 @@ export function CompanyOwnerSection({
                 "Assign owner"
               )}
             </AdminButton>
-            <AdminButton size="sm" onClick={() => setShowAssignForm(false)} disabled={assigning}>
+            <AdminButton
+              size="sm"
+              type="button"
+              onClick={() => setShowAssignForm(false)}
+              disabled={assigning}
+            >
               Cancel
             </AdminButton>
           </div>
@@ -187,8 +212,9 @@ export function CompanyOwnerSection({
       ) : (
         <AdminButton
           size="sm"
+          type="button"
           className="w-full justify-center"
-          onClick={() => setShowAssignForm(true)}
+          onClick={openAssignForm}
         >
           <Mail className="h-[15px] w-[15px]" />
           {primaryOwner ? "Manage access" : "Invite owner"}

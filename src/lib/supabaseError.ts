@@ -16,6 +16,22 @@ export function getSupabaseErrorMessage(err: unknown, fallback: string): string 
       if (/stack depth limit exceeded/i.test(combined)) {
         return "Error de base de datos al calcular saldos. Un administrador debe aplicar la migración fix_bank_balance_trigger_recursion en Supabase.";
       }
+      if (/infinite recursion detected in policy/i.test(combined)) {
+        return "Error de permisos en la base de datos (RLS). Aplica la migración fix_profiles_rls_recursion en Supabase.";
+      }
+      if (
+        /companies/i.test(combined) &&
+        /(row-level security|permission denied|policy)/i.test(combined)
+      ) {
+        return "No tienes permiso para crear o ver empresas. En Supabase SQL Editor, aplica las políticas RLS de companies (is_superadmin).";
+      }
+      if (
+        /delete/i.test(combined) &&
+        /companies/i.test(combined) &&
+        /(row-level security|permission denied|policy)/i.test(combined)
+      ) {
+        return "No tienes permiso para eliminar empresas. En Supabase SQL Editor, aplica la política companies_delete_superadmin.";
+      }
       return combined;
     }
   }

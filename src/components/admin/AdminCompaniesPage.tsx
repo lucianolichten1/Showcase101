@@ -16,6 +16,7 @@ import {
   type StatusFilter,
 } from "@/domains/admin/displayModel";
 import type { NewCompanyInput } from "@/domains/admin/types";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { CompanyCard } from "./CompanyCard";
 import { AddCompanyDialog } from "./AddCompanyDialog";
 import { AdminButton } from "./ui/AdminButton";
@@ -94,7 +95,7 @@ export function AdminCompaniesPage() {
       setJustAddedId(created.id);
       setToast(`${created.name} created — onboarding started.`);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create company.");
+      setCreateError(getSupabaseErrorMessage(err, "Failed to create company."));
     } finally {
       setCreating(false);
     }
@@ -112,7 +113,6 @@ export function AdminCompaniesPage() {
             setCreateError(null);
             setShowAddCompany(true);
           }}
-          disabled={loading}
         >
           <Plus className="h-4 w-4" />
           Add Company

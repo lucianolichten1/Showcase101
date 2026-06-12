@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import {
   DEFAULT_NICHE_KEY,
@@ -80,14 +81,19 @@ export function AddCompanyDialog({
     );
   };
 
-  return (
+  return createPortal(
     <div
       className="admin-modal-overlay"
-      onMouseDown={(e) => {
+      onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose();
       }}
     >
-      <div className="admin-modal" role="dialog" aria-modal="true">
+      <div
+        className="admin-modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="admin-modal-head">
           <div>
             <div className="admin-modal-title">Add company</div>
@@ -242,7 +248,7 @@ export function AddCompanyDialog({
               variant="primary"
               size="sm"
               onClick={submit}
-              disabled={saving || (tried && !valid)}
+              disabled={saving}
             >
               {saving ? (
                 <>
@@ -259,6 +265,7 @@ export function AddCompanyDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

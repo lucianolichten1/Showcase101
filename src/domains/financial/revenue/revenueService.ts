@@ -15,6 +15,10 @@ import {
   syncLocalRevenueBankTransaction,
 } from "@/domains/financial/bank-accounts/bankAccountLocalSync";
 import {
+  removeServerLinkedBankTransactions,
+  syncServerRevenueBankTransaction,
+} from "@/domains/financial/bank-accounts/bankAccountLinkedSync";
+import {
   loadCompanyRevenueFromStorage,
   saveCompanyRevenueToStorage,
 } from "./revenueStorage";
@@ -130,7 +134,9 @@ export async function createCompanyRevenue(
     .single();
 
   if (error) throw error;
-  return mapRowToRecord(data as CompanyRevenueRow);
+  const record = mapRowToRecord(data as CompanyRevenueRow);
+  await syncServerRevenueBankTransaction(companyId, record);
+  return record;
 }
 
 export async function updateCompanyRevenue(
@@ -159,7 +165,9 @@ export async function updateCompanyRevenue(
     .single();
 
   if (error) throw error;
-  return mapRowToRecord(data as CompanyRevenueRow);
+  const record = mapRowToRecord(data as CompanyRevenueRow);
+  await syncServerRevenueBankTransaction(companyId, record);
+  return record;
 }
 
 export async function deleteCompanyRevenue(companyId: string, id: string): Promise<void> {
@@ -178,6 +186,8 @@ export async function deleteCompanyRevenue(companyId: string, id: string): Promi
     saveCompanyBankAccountsToStorage(companyId, synced);
     return;
   }
+
+  await removeServerLinkedBankTransactions(companyId, "revenue", id);
 
   const { error } = await supabase
     .from("company_revenue")

@@ -150,19 +150,21 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
       if (id) {
         if (isPersistedExpenseId(id)) await expenseHook.updateExpense(id, input);
         else financial.setExpenseRecords((prev) => prev.map((r) => (r.id === id ? { id, ...input } : r)));
-        return;
+      } else {
+        await expenseHook.createExpense(input);
       }
-      await expenseHook.createExpense(input);
+      await bankAccountHook.refreshBankAccounts();
     },
-    [expenseHook, financial]
+    [expenseHook, financial, bankAccountHook]
   );
 
   const deleteExpense = useCallback(
     async (id: string) => {
       if (isPersistedExpenseId(id)) await expenseHook.deleteExpense(id);
       else financial.setExpenseRecords((prev) => prev.filter((r) => r.id !== id));
+      await bankAccountHook.refreshBankAccounts();
     },
-    [expenseHook, financial]
+    [expenseHook, financial, bankAccountHook]
   );
 
   const saveRevenue = useCallback(
@@ -170,19 +172,21 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
       if (id) {
         if (isPersistedRecordId(id)) await revenueHook.updateRevenue(id, input);
         else financial.setRevenueRecords((prev) => prev.map((r) => (r.id === id ? { id, ...input, cost: input.cost ?? 0 } : r)));
-        return;
+      } else {
+        await revenueHook.createRevenue(input);
       }
-      await revenueHook.createRevenue(input);
+      await bankAccountHook.refreshBankAccounts();
     },
-    [revenueHook, financial]
+    [revenueHook, financial, bankAccountHook]
   );
 
   const deleteRevenue = useCallback(
     async (id: string) => {
       if (isPersistedRecordId(id)) await revenueHook.deleteRevenue(id);
       else financial.setRevenueRecords((prev) => prev.filter((r) => r.id !== id));
+      await bankAccountHook.refreshBankAccounts();
     },
-    [revenueHook, financial]
+    [revenueHook, financial, bankAccountHook]
   );
 
   const saveCustomer = useCallback(

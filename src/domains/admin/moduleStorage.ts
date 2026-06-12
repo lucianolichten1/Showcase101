@@ -28,3 +28,10 @@ export function saveCompanyEnabledModules(
   all[companyId] = modules;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
+
+export function removeCompanyEnabledModules(companyId: string): void {
+  const all = readAll();
+  if (!(companyId in all)) return;
+  delete all[companyId];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}

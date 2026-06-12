@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import type { AppRole } from "@/domains/auth/types";
 
 export interface PlatformProfile {
@@ -95,39 +96,48 @@ export async function findProfileByEmail(email: string): Promise<PlatformProfile
     .from("profiles")
     .select("id, email, full_name, role")
     .ilike("email", trimmed)
+    .limit(1)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, error.message));
   if (!data) return null;
   return mapProfileRow(data as ProfileRow);
 }
 
 /** Lists owner memberships for a company (role = owner). */
 export async function listCompanyOwners(companyId: string): Promise<CompanyOwnerInfo[]> {
-  const { data, error } = await supabase
+  const { data: members, error } = await supabase
     .from("company_members")
-    .select(
-      `
-      id,
-      user_id,
-      created_at,
-      profiles (
-        id,
-        email,
-        full_name,
-        role
-      )
-    `
-    )
+    .select("id, user_id, created_at")
     .eq("company_id", companyId)
     .eq("role", "owner")
     .order("created_at", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, error.message));
+  if (!members?.length) return [];
 
-  return (data ?? [])
-    .map((row) => mapMemberRowToOwnerInfo(row as MemberWithProfileRow))
-    .filter((owner): owner is CompanyOwnerInfo => owner !== null);
+  const owners: CompanyOwnerInfo[] = [];
+  for (const member of members) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, role")
+      .eq("id", member.user_id)
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(getSupabaseErrorMessage(profileError, profileError.message));
+    }
+    if (!profile) continue;
+
+    owners.push(
+      ownerInfoFromMembership(
+        { id: member.id, created_at: member.created_at },
+        profile as ProfileRow
+      )
+    );
+  }
+
+  return owners;
 }
 
 /** Owner memberships for a user (MVP: at most one expected). */
@@ -140,7 +150,7 @@ async function listOwnerMembershipsForProfile(
     .eq("user_id", profileId)
     .eq("role", "owner");
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, error.message));
   return (data ?? []) as OwnerMembershipRow[];
 }
 
@@ -151,7 +161,7 @@ export async function updateProfileRole(
 ): Promise<void> {
   const { error } = await supabase.from("profiles").update({ role }).eq("id", profileId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, error.message));
 }
 
 /**
@@ -169,7 +179,7 @@ export async function assignCompanyOwner(
     .eq("id", profileId)
     .maybeSingle();
 
-  if (profileError) throw new Error(profileError.message);
+  if (profileError) throw new Error(getSupabaseErrorMessage(profileError, profileError.message));
   if (!profileRow) {
     throw new Error(PROFILE_NOT_FOUND_MESSAGE);
   }
@@ -201,7 +211,9 @@ export async function assignCompanyOwner(
     .eq("user_id", profile.id)
     .maybeSingle();
 
-  if (memberCheckError) throw new Error(memberCheckError.message);
+  if (memberCheckError) {
+    throw new Error(getSupabaseErrorMessage(memberCheckError, memberCheckError.message));
+  }
 
   if (existingMember) {
     throw new Error("This user is already a member of this company.");
@@ -221,7 +233,9 @@ export async function assignCompanyOwner(
     .select("id, user_id, created_at")
     .single();
 
-  if (insertError) throw new Error(insertError.message);
+  if (insertError) {
+    throw new Error(getSupabaseErrorMessage(insertError, insertError.message));
+  }
 
   return {
     outcome: "assigned",

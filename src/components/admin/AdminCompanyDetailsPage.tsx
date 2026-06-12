@@ -15,8 +15,9 @@ import {
   Palette,
   RefreshCw,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
-import { getCompanyById } from "@/domains/admin/companyService";
+import { deleteCompany, getCompanyById } from "@/domains/admin/companyService";
 import type { CompanyOwnerInfo } from "@/domains/admin/companyOwnerService";
 import {
   BASE_FINANCIAL_MODULE_DEFINITIONS,
@@ -26,6 +27,7 @@ import {
 } from "@/domains/admin/modules";
 import {
   loadCompanyEnabledModules,
+  removeCompanyEnabledModules,
   saveCompanyEnabledModules,
 } from "@/domains/admin/moduleStorage";
 import { getNicheDisplayName } from "@/domains/admin/niches";
@@ -43,9 +45,11 @@ import {
 } from "@/domains/admin/displayModel";
 import type { CompanyRecord } from "@/domains/admin/types";
 import { formatCreatedDate } from "@/domains/admin/utils";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { CompanyBrandingSection } from "./CompanyBrandingSection";
 import { CompanyDashboardWidgetsSection } from "./CompanyDashboardWidgetsSection";
 import { CompanyOwnerSection } from "./CompanyOwnerSection";
+import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { AdminButton } from "./ui/AdminButton";
 import { AdminPanel } from "./ui/AdminPanel";
 import { AdminPill } from "./ui/AdminPill";
@@ -67,6 +71,35 @@ export function AdminCompanyDetailsPage() {
   const [activity, setActivity] = useState<AdminActivityItem[]>([]);
   const [importLabel, setImportLabel] = useState("Queued");
   const [importProgress, setImportProgress] = useState<number | null>(null);
+  const [showOwnerAssignForm, setShowOwnerAssignForm] = useState(false);
+  const [showDeleteCompany, setShowDeleteCompany] = useState(false);
+  const [deletingCompany, setDeletingCompany] = useState(false);
+  const [deleteCompanyError, setDeleteCompanyError] = useState<string | null>(null);
+  const ownerSectionRef = useRef<HTMLDivElement>(null);
+
+  const openOwnerAssignForm = useCallback(() => {
+    setShowOwnerAssignForm(true);
+    window.requestAnimationFrame(() => {
+      ownerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
+
+  const handleDeleteCompany = useCallback(async () => {
+    if (!company) return;
+
+    setDeletingCompany(true);
+    setDeleteCompanyError(null);
+    try {
+      await deleteCompany(company.id);
+      removeCompanyEnabledModules(company.id);
+      setShowDeleteCompany(false);
+      navigate("/admin/companies", { replace: true });
+    } catch (err) {
+      setDeleteCompanyError(getSupabaseErrorMessage(err, "Failed to delete company."));
+    } finally {
+      setDeletingCompany(false);
+    }
+  }, [company, navigate]);
 
   const loadCompany = useCallback(async () => {
     if (!companyId) {
@@ -300,7 +333,7 @@ export function AdminCompanyDetailsPage() {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <AdminButton size="sm">
+          <AdminButton size="sm" type="button" onClick={openOwnerAssignForm}>
             {owner ? "Manage access" : "Assign owner"}
           </AdminButton>
           <AdminButton size="sm" onClick={runImport} disabled={importProgress !== null}>
@@ -508,11 +541,15 @@ export function AdminCompanyDetailsPage() {
           </AdminPanel>
 
           <AdminPanel title="Owner & access">
-            <CompanyOwnerSection
-              companyId={company.id}
-              onOwnerLoaded={handleOwnerLoaded}
-              onOwnerAssigned={handleOwnerAssigned}
-            />
+            <div ref={ownerSectionRef}>
+              <CompanyOwnerSection
+                companyId={company.id}
+                showAssignForm={showOwnerAssignForm}
+                onShowAssignFormChange={setShowOwnerAssignForm}
+                onOwnerLoaded={handleOwnerLoaded}
+                onOwnerAssigned={handleOwnerAssigned}
+              />
+            </div>
           </AdminPanel>
 
           <AdminPanel
@@ -586,8 +623,38 @@ export function AdminCompanyDetailsPage() {
               ))}
             </div>
           </AdminPanel>
+
+          <AdminPanel title="Danger zone" icon={<Trash2 className="h-4 w-4" />}>
+            <p className="mb-4 text-[13px] leading-relaxed text-[var(--admin-ink-2)]">
+              Permanently delete this company and all associated financial data. Owner
+              accounts are not deleted — only their link to this company.
+            </p>
+            <AdminButton
+              size="sm"
+              type="button"
+              className="!border-[#eed8cd] !text-[var(--admin-rust)] hover:!bg-[var(--admin-rust-tint)]"
+              onClick={() => {
+                setDeleteCompanyError(null);
+                setShowDeleteCompany(true);
+              }}
+            >
+              <Trash2 className="h-[15px] w-[15px]" />
+              Delete company
+            </AdminButton>
+          </AdminPanel>
         </div>
       </div>
+
+      <DeleteCompanyDialog
+        open={showDeleteCompany}
+        companyName={company.name}
+        deleting={deletingCompany}
+        deleteError={deleteCompanyError}
+        onClose={() => {
+          if (!deletingCompany) setShowDeleteCompany(false);
+        }}
+        onConfirm={() => void handleDeleteCompany()}
+      />
     </>
   );
 }
