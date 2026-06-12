@@ -28,6 +28,7 @@ interface Props {
   open: boolean;
   account: BankAccountRecord | null;
   saving?: boolean;
+  saveError?: string | null;
   onClose: () => void;
   onSave: (input: BankAccountFormState | BankAccountInput) => void;
 }
@@ -36,10 +37,12 @@ export function BankAccountFormDialog({
   open,
   account,
   saving = false,
+  saveError = null,
   onClose,
   onSave,
 }: Props) {
   const [form, setForm] = useState<BankAccountFormState>(emptyForm);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const isEdit = Boolean(account);
 
   useEffect(() => {
@@ -72,7 +75,11 @@ export function BankAccountFormDialog({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!form.accountName.trim() || !form.bankName.trim()) return;
+    if (!form.accountName.trim() || !form.bankName.trim()) {
+      setValidationError("Complete el nombre de la cuenta y el banco.");
+      return;
+    }
+    setValidationError(null);
 
     if (isEdit) {
       const { openingBalance: _opening, ...input } = form;
@@ -236,6 +243,12 @@ export function BankAccountFormDialog({
               />
               {BANK_ACCOUNT_FORM_COPY.active}
             </label>
+          )}
+
+          {(validationError || saveError) && (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {validationError ?? saveError}
+            </p>
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">

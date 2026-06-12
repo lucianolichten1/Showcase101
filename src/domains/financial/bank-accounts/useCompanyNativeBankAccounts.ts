@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
 import type {
   BankAccountInput,
@@ -54,7 +55,9 @@ export function useCompanyNativeBankAccounts(
       setBankAccounts(rows);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las cuentas bancarias");
+      setError(
+        getSupabaseErrorMessage(err, "No se pudieron cargar las cuentas bancarias")
+      );
     } finally {
       setLoading(false);
     }
@@ -81,15 +84,21 @@ export function useCompanyNativeBankAccounts(
   const createBankAccount = useCallback(
     async (input: CreateBankAccountInput) => {
       if (!companyId) throw new Error("No hay empresa activa");
-      const created = await createCompanyBankAccount(companyId, input);
-      setBankAccounts((prev) => {
-        const without = prev.filter((a) => a.id !== created.id);
-        return [...without, created].sort((a, b) =>
-          a.accountName.localeCompare(b.accountName)
-        );
-      });
-      setError(null);
-      return created;
+      try {
+        const created = await createCompanyBankAccount(companyId, input);
+        setBankAccounts((prev) => {
+          const without = prev.filter((a) => a.id !== created.id);
+          return [...without, created].sort((a, b) =>
+            a.accountName.localeCompare(b.accountName)
+          );
+        });
+        setError(null);
+        return created;
+      } catch (err) {
+        const message = getSupabaseErrorMessage(err, "No se pudo crear la cuenta bancaria");
+        setError(message);
+        throw err;
+      }
     },
     [companyId]
   );
@@ -97,10 +106,16 @@ export function useCompanyNativeBankAccounts(
   const updateBankAccount = useCallback(
     async (id: string, input: BankAccountInput) => {
       if (!companyId) throw new Error("No hay empresa activa");
-      const updated = await updateCompanyBankAccount(companyId, id, input);
-      setBankAccounts((prev) => prev.map((row) => (row.id === id ? updated : row)));
-      setError(null);
-      return updated;
+      try {
+        const updated = await updateCompanyBankAccount(companyId, id, input);
+        setBankAccounts((prev) => prev.map((row) => (row.id === id ? updated : row)));
+        setError(null);
+        return updated;
+      } catch (err) {
+        const message = getSupabaseErrorMessage(err, "No se pudo actualizar la cuenta bancaria");
+        setError(message);
+        throw err;
+      }
     },
     [companyId]
   );

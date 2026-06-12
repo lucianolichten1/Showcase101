@@ -17,10 +17,12 @@ import {
   bankAccountTypeLabel,
   maskAccountNumber,
 } from "@/domains/financial/bank-accounts/labels";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { cn } from "@/lib/utils";
 
 export function BankAccountsPage() {
   const {
+    activeCompanyId,
     bankAccounts,
     bankAccountsLoading,
     bankAccountsError,
@@ -37,9 +39,11 @@ export function BankAccountsPage() {
   const [saving, setSaving] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<BankAccountRecord | null>(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleOpenCreate = useCallback(() => {
     setEditTarget(null);
+    setSaveError(null);
     setFormOpen(true);
   }, []);
 
@@ -59,11 +63,22 @@ export function BankAccountsPage() {
   );
 
   const handleSave = async (input: CreateBankAccountInput | BankAccountInput) => {
+    if (!activeCompanyId) {
+      setSaveError(
+        "No hay empresa activa. Use el enlace del menú lateral o agregue ?companyId= a la URL."
+      );
+      return;
+    }
     setSaving(true);
+    setSaveError(null);
     try {
       await saveBankAccount(editTarget?.id ?? null, input);
       setFormOpen(false);
       setEditTarget(null);
+    } catch (err) {
+      setSaveError(
+        getSupabaseErrorMessage(err, "No se pudo guardar la cuenta bancaria")
+      );
     } finally {
       setSaving(false);
     }
@@ -132,6 +147,7 @@ export function BankAccountsPage() {
             type="button"
             onClick={() => {
               setEditTarget(account);
+              setSaveError(null);
               setFormOpen(true);
             }}
             className="p-2 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -181,6 +197,13 @@ export function BankAccountsPage() {
               {BANK_ACCOUNTS_PAGE_COPY.addAccount}
             </button>
           </section>
+
+          {!activeCompanyId && (
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+              Seleccione una empresa para administrar cuentas bancarias. Abra el módulo desde el
+              menú lateral con una empresa activa.
+            </p>
+          )}
 
           {bankAccountsError && (
             <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
@@ -247,10 +270,12 @@ export function BankAccountsPage() {
         open={formOpen}
         account={editTarget}
         saving={saving}
+        saveError={saveError}
         onClose={() => {
           if (!saving) {
             setFormOpen(false);
             setEditTarget(null);
+            setSaveError(null);
           }
         }}
         onSave={handleSave}

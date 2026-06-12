@@ -101,6 +101,11 @@ AS $$
 DECLARE
   v_account_id uuid;
 BEGIN
+  -- Skip nested fires when recalculate_bank_account_balances updates running_balance.
+  IF pg_trigger_depth() > 1 THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
   IF TG_OP = 'DELETE' THEN
     v_account_id := OLD.bank_account_id;
   ELSE
