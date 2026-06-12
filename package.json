@@ -12,7 +12,9 @@
     "test:import-dates": "tsx src/domains/import/dateUtils.test.ts",
     "test:import-merge": "tsx src/domains/import/merge.test.ts",
     "test:financial-calculations": "tsx src/domains/financial/calculations.test.ts",
-    "test:bank-account-sync": "tsx src/domains/financial/bank-accounts/bankAccountSyncLogic.test.ts"
+    "test:bank-account-sync": "tsx src/domains/financial/bank-accounts/bankAccountSyncLogic.test.ts",
+    "db:apply": "node scripts/apply-supabase-migrations.mjs",
+    "verify:supabase": "node scripts/verify-supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
@@ -32,6 +34,7 @@
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "pg": "^8.21.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
