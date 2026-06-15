@@ -224,6 +224,25 @@ export async function promoteImportedReceivableToNative(
   });
 }
 
+/** Ensures the invoice exists in the native store before recording payments. */
+export async function ensureReceivableInNativeStore(
+  companyId: string,
+  receivable: ReceivableRecord
+): Promise<ReceivableRecord> {
+  const native = isSupabaseConfigured
+    ? await fetchCompanyReceivables(companyId)
+    : loadFromStorage(companyId);
+
+  const existing = native.find(
+    (row) =>
+      row.id === receivable.id ||
+      row.invoiceNumber.trim().toLowerCase() === receivable.invoiceNumber.trim().toLowerCase()
+  );
+  if (existing) return existing;
+
+  return promoteImportedReceivableToNative(companyId, receivable);
+}
+
 export async function fetchCompanyReceivablePayments(
   companyId: string,
   invoiceId?: number

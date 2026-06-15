@@ -25,7 +25,7 @@ import type {
   ReceivablePaymentInput,
   ReceivablePaymentRecord,
 } from "@/domains/financial/receivables/receivablePaymentTypes";
-import { promoteImportedReceivableToNative } from "@/domains/financial/receivables/receivableService";
+import { ensureReceivableInNativeStore } from "@/domains/financial/receivables/receivableService";
 import { useCompanyNativeReceivables } from "@/domains/financial/receivables/useCompanyNativeReceivables";
 import type { BankAccountInput, CreateBankAccountInput } from "@/domains/financial/bank-accounts/types";
 import type { ManualTransactionInput, TransferInput } from "@/domains/financial/bank-accounts/types";
@@ -278,17 +278,20 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
 
   const recordReceivablePayment = useCallback(
     async (id: number, input: ReceivablePaymentInput) => {
-      let targetId = id;
-      if (!isPersistedNumericId(id)) {
-        const current = mergedReceivableRecords.find((r) => r.id === id);
-        if (!current) throw new Error("Factura no encontrada");
-        if (!activeCompanyId) throw new Error("No hay empresa activa");
-        const promoted = await promoteImportedReceivableToNative(activeCompanyId, current);
-        targetId = promoted.id;
+      if (!activeCompanyId) {
+        throw new Error("Selecciona una empresa antes de registrar pagos.");
+      }
+
+      const current = mergedReceivableRecords.find((r) => r.id === id);
+      if (!current) throw new Error("Factura no encontrada");
+
+      const nativeInvoice = await ensureReceivableInNativeStore(activeCompanyId, current);
+      if (nativeInvoice.id !== id) {
         financial.setReceivableRecords((prev) => prev.filter((r) => r.id !== id));
         await receivableHook.refresh();
       }
-      await receivableHook.recordPayment(targetId, input);
+
+      await receivableHook.recordPayment(nativeInvoice.id, input);
       await bankAccountHook.refreshBankAccounts();
     },
     [receivableHook, financial, bankAccountHook, mergedReceivableRecords, activeCompanyId]

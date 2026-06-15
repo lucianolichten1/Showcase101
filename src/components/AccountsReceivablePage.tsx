@@ -123,6 +123,7 @@ export function AccountsReceivablePage({
     receivableRecords: receivables,
     receivablePayments,
     customerRecords,
+    activeCompanyId,
     activeBankAccounts,
     bankAccounts,
     saveReceivable,
@@ -472,6 +473,12 @@ export function AccountsReceivablePage({
           </div>
         )}
 
+        {!activeCompanyId && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            Selecciona una empresa para registrar pagos y sincronizar con cuentas bancarias.
+          </div>
+        )}
+
         <section>
           <div className="mb-2">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
@@ -668,6 +675,12 @@ export function AccountsReceivablePage({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!activeCompanyId) {
+                                    setPaymentError(
+                                      "Selecciona una empresa antes de registrar pagos."
+                                    );
+                                    return;
+                                  }
                                   setPaymentError(null);
                                   setPaymentTarget(row);
                                 }}

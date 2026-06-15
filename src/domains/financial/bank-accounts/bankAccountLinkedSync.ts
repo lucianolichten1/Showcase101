@@ -103,6 +103,22 @@ export async function syncServerRevenueBankTransaction(
   }
 }
 
+export async function recalculateServerBankAccountBalance(
+  bankAccountId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { error } = await supabase.rpc("recalculate_bank_account_balances", {
+    p_account_id: bankAccountId,
+  });
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "No se pudo actualizar el saldo de la cuenta bancaria.")
+    );
+  }
+}
+
 export async function syncServerReceivablePaymentBankTransaction(
   companyId: string,
   payment: ReceivablePaymentBankSyncInput
@@ -133,6 +149,8 @@ export async function syncServerReceivablePaymentBankTransaction(
       getSupabaseErrorMessage(error, "No se pudo registrar el cobro en la cuenta bancaria.")
     );
   }
+
+  await recalculateServerBankAccountBalance(payment.bankAccountId);
 }
 
 export async function syncServerPurchaseOrderBankTransaction(
