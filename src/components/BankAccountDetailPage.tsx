@@ -84,6 +84,10 @@ export function BankAccountDetailPage() {
   }, [id, fetchBankAccountTransactions]);
 
   useEffect(() => {
+    void refreshBankAccounts();
+  }, [refreshBankAccounts, id]);
+
+  useEffect(() => {
     void loadTransactions();
   }, [loadTransactions, account?.currentBalance]);
 

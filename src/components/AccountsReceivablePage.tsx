@@ -1,6 +1,6 @@
 import { useCallback, useState, useMemo } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch, Wallet, History } from "lucide-react";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   calculateAverageDaysOverdue,
@@ -15,9 +15,11 @@ import { formatCurrency, customers as allCustomers } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { InvoiceFormDialog } from "./receivables/InvoiceFormDialog";
+import { InvoicePaymentsDialog } from "./receivables/InvoicePaymentsDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { RECEIVABLE_PAGE_COPY } from "@/domains/financial/receivables/labels";
-import type { ReceivablePaymentInput } from "@/domains/financial/receivables/receivablePaymentTypes";
+import type { ReceivablePaymentInput, ReceivablePaymentRecord } from "@/domains/financial/receivables/receivablePaymentTypes";
+import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
@@ -54,6 +56,19 @@ function parseDueDate(dueDate: string): Date | null {
   const day = parseInt(dayStr, 10);
   if (monthIdx === -1 || isNaN(day)) return null;
   return new Date(2026, monthIdx, day);
+}
+
+function latestBankDepositName(
+  payments: ReceivablePaymentRecord[],
+  bankAccountNameById: Map<string, string>
+): string | null {
+  const bankPayments = payments
+    .filter((p) => p.paymentMethod === "Bank Transfer" && p.bankAccountId)
+    .sort((a, b) => b.paymentDate.localeCompare(a.paymentDate));
+  if (bankPayments.length === 0) return null;
+  const accountId = bankPayments[0].bankAccountId;
+  if (!accountId) return null;
+  return bankAccountNameById.get(accountId) ?? null;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -106,16 +121,21 @@ export function AccountsReceivablePage({
 }: Props = {}) {
   const {
     receivableRecords: receivables,
+    receivablePayments,
     customerRecords,
+    activeBankAccounts,
+    bankAccounts,
     saveReceivable,
     deleteReceivable,
     recordReceivablePayment,
+    deleteReceivablePayment,
     receivablesError,
   } = useCompanyScopedFinancialData();
 
   // Filter state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [riskFilters, setRiskFilters] = useState<Set<string>>(new Set());
+  const [bankAccountFilter, setBankAccountFilter] = useState("");
   const [search, setSearch] = useState("");
 
   // Sort state
@@ -124,7 +144,10 @@ export function AccountsReceivablePage({
 
   // Dialog state
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
+  const [paymentsTarget, setPaymentsTarget] = useState<ReceivableRecord | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [editInvoice, setEditInvoice] = useState<ReceivableRecord | null>(null);
   const [savingInvoice, setSavingInvoice] = useState(false);
@@ -137,6 +160,26 @@ export function AccountsReceivablePage({
     setInvoiceFormOpen(true);
   }, []);
   useOpenCreateFromQuery("invoice", openAddInvoice);
+
+  const bankAccountNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const account of bankAccounts) {
+      map.set(account.id, account.accountName);
+    }
+    return map;
+  }, [bankAccounts]);
+
+  const paymentsByInvoiceId = useMemo(() => {
+    const map = new Map<number, ReceivablePaymentRecord[]>();
+    for (const payment of receivablePayments) {
+      const list = map.get(payment.invoiceId) ?? [];
+      list.push(payment);
+      map.set(payment.invoiceId, list);
+    }
+    return map;
+  }, [receivablePayments]);
+
+  const showDepositColumn = activeBankAccounts.length > 0;
 
   const customerPhoneByName = useMemo(() => {
     const map = new Map<string, string>();
@@ -203,6 +246,13 @@ export function AccountsReceivablePage({
         r.customer.toLowerCase().includes(search.trim().toLowerCase())
       );
 
+    if (bankAccountFilter) {
+      list = list.filter((r) => {
+        const payments = paymentsByInvoiceId.get(r.id) ?? [];
+        return payments.some((p) => p.bankAccountId === bankAccountFilter);
+      });
+    }
+
     if (sortKey) {
       list.sort((a, b) => {
         let av: number | string = 0;
@@ -222,7 +272,7 @@ export function AccountsReceivablePage({
     }
 
     return list;
-  }, [receivables, statusFilters, riskFilters, search, sortKey, sortDir]);
+  }, [receivables, statusFilters, riskFilters, search, bankAccountFilter, paymentsByInvoiceId, sortKey, sortDir]);
 
   // Table footer totals
   const footerAmount = displayed.reduce((s, r) => s + r.amount, 0);
@@ -258,6 +308,7 @@ export function AccountsReceivablePage({
 
   const handleConfirmPayment = async (id: number, input: ReceivablePaymentInput) => {
     setSavingPayment(true);
+    setPaymentError(null);
     try {
       if (onUpdateReceivableProp) {
         const r = receivables.find((x) => x.id === id);
@@ -270,8 +321,23 @@ export function AccountsReceivablePage({
         await recordReceivablePayment(id, input);
       }
       setPaymentTarget(null);
+      setPaymentsTarget(null);
+    } catch (err) {
+      setPaymentError(getSupabaseErrorMessage(err, RECEIVABLE_PAGE_COPY.paymentError));
     } finally {
       setSavingPayment(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: number) => {
+    setDeletingPaymentId(paymentId);
+    setPaymentError(null);
+    try {
+      await deleteReceivablePayment(paymentId);
+    } catch (err) {
+      setPaymentError(getSupabaseErrorMessage(err, RECEIVABLE_PAGE_COPY.paymentError));
+    } finally {
+      setDeletingPaymentId(null);
     }
   };
 
@@ -400,6 +466,12 @@ export function AccountsReceivablePage({
           </div>
         )}
 
+        {paymentError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+            {paymentError}
+          </div>
+        )}
+
         <section>
           <div className="mb-2">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-green-800">Overview</h2>
@@ -447,6 +519,29 @@ export function AccountsReceivablePage({
               <FilterChip label="Medium" active={riskFilters.has("Medium")} onClick={() => toggleRiskFilter("Medium")} color="amber" />
               <FilterChip label="High" active={riskFilters.has("High")} onClick={() => toggleRiskFilter("High")} color="red" />
             </div>
+
+            {activeBankAccounts.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <label className="text-[10px] font-semibold text-stone-700 shrink-0">
+                  {RECEIVABLE_PAGE_COPY.bankAccountFilter}
+                </label>
+                <select
+                  value={bankAccountFilter}
+                  onChange={(e) => setBankAccountFilter(e.target.value)}
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:border-green-700 max-w-xs"
+                >
+                  <option value="">{RECEIVABLE_PAGE_COPY.bankAccountFilterAll}</option>
+                  {activeBankAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.accountName}
+                    </option>
+                  ))}
+                </select>
+                {bankAccountFilter && (
+                  <p className="text-[10px] text-stone-600">{RECEIVABLE_PAGE_COPY.bankAccountFilterHint}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Results count */}
@@ -459,14 +554,15 @@ export function AccountsReceivablePage({
             </span>
           </div>
 
-          <div className="rounded-lg border border-stone-100 overflow-hidden">
-            <table className="w-full table-fixed text-left border-collapse">
+          <div className="rounded-lg border border-stone-100 overflow-hidden overflow-x-auto">
+            <table className="w-full table-fixed text-left border-collapse min-w-[720px]">
               <colgroup>
                 <col />
-                <col className="w-[124px]" />
+                <col className="w-[112px]" />
+                <col className="w-[88px]" />
                 <col className="w-[92px]" />
-                <col className="w-[100px]" />
-                <col className="w-[64px]" />
+                {showDepositColumn && <col className="w-[108px]" />}
+                <col className="w-[128px]" />
               </colgroup>
               <thead>
                 <tr className="border-b-2 border-green-800/20 bg-green-50">
@@ -489,15 +585,20 @@ export function AccountsReceivablePage({
                     Due <SortIcon colKey="dueDate" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
+                  {showDepositColumn && (
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                      {RECEIVABLE_PAGE_COPY.depositColumn}
+                    </th>
+                  )}
                   <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">
-                    Action
+                    {RECEIVABLE_PAGE_COPY.actions}
                   </th>
                 </tr>
               </thead>
               <tbody className="text-xs text-stone-900">
                 {displayed.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-16 text-center">
+                    <td colSpan={showDepositColumn ? 6 : 5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-stone-600">
                         <FileSearch size={32} strokeWidth={1.5} />
                         <p className="text-sm font-medium text-stone-800">No invoices match your filters</p>
@@ -509,6 +610,8 @@ export function AccountsReceivablePage({
                   displayed.map((row) => {
                     const balance = row.amount - row.amountPaid;
                     const risk = getRiskLevel(row.overdueDays, row.status);
+                    const invoicePayments = paymentsByInvoiceId.get(row.id) ?? [];
+                    const depositName = latestBankDepositName(invoicePayments, bankAccountNameById);
                     return (
                       <tr
                         key={row.id}
@@ -546,15 +649,45 @@ export function AccountsReceivablePage({
                             <div className={cn(riskTextClass(risk), "text-[10px] mt-0.5")}>{risk}</div>
                           )}
                         </td>
+                        {showDepositColumn && (
+                          <td className="px-3 py-3 align-top">
+                            {depositName ? (
+                              <div className="text-[10px] font-medium text-green-800 leading-snug truncate" title={depositName}>
+                                {depositName}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-stone-400 leading-snug">
+                                {RECEIVABLE_PAGE_COPY.noDepositYet}
+                              </div>
+                            )}
+                          </td>
+                        )}
                         <td className="px-3 py-3 align-top text-right">
-                          <div className="flex flex-col items-end gap-1">
+                          <div className="flex flex-col items-end gap-1.5">
                             {row.status !== "Paid" && (
                               <button
                                 type="button"
-                                onClick={() => setPaymentTarget(row)}
-                                className="text-[10px] font-semibold text-green-800 hover:underline"
+                                onClick={() => {
+                                  setPaymentError(null);
+                                  setPaymentTarget(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-green-800 px-2 py-1 text-[10px] font-semibold text-white hover:bg-green-700 transition-colors"
                               >
+                                <Wallet size={11} />
                                 {RECEIVABLE_PAGE_COPY.pay}
+                              </button>
+                            )}
+                            {invoicePayments.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPaymentError(null);
+                                  setPaymentsTarget(row);
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-stone-700 hover:text-green-800"
+                              >
+                                <History size={11} />
+                                {RECEIVABLE_PAGE_COPY.viewPayments} ({invoicePayments.length})
                               </button>
                             )}
                             <button
@@ -616,7 +749,7 @@ export function AccountsReceivablePage({
                         </div>
                       )}
                     </td>
-                    <td colSpan={3} />
+                    <td colSpan={showDepositColumn ? 4 : 3} />
                   </tr>
                 </tfoot>
               )}
@@ -644,6 +777,20 @@ export function AccountsReceivablePage({
         saving={savingPayment}
         onClose={() => !savingPayment && setPaymentTarget(null)}
         onConfirm={handleConfirmPayment}
+      />
+      <InvoicePaymentsDialog
+        open={paymentsTarget !== null}
+        receivable={paymentsTarget}
+        payments={receivablePayments}
+        bankAccounts={bankAccounts}
+        deletingPaymentId={deletingPaymentId}
+        onClose={() => !deletingPaymentId && setPaymentsTarget(null)}
+        onRecordPayment={() => {
+          if (!paymentsTarget) return;
+          setPaymentTarget(paymentsTarget);
+          setPaymentsTarget(null);
+        }}
+        onDeletePayment={(paymentId) => void handleDeletePayment(paymentId)}
       />
       <InvoiceFormDialog
         open={invoiceFormOpen}

@@ -5,27 +5,35 @@ import {
   createCompanyReceivable,
   deleteCompanyReceivable,
   deleteCompanyReceivablePayment,
+  fetchCompanyReceivablePayments,
   fetchCompanyReceivables,
   recordCompanyReceivablePayment,
   updateCompanyReceivable,
   type ReceivableInput,
 } from "./receivableService";
-import type { ReceivablePaymentInput } from "./receivablePaymentTypes";
+import type { ReceivablePaymentInput, ReceivablePaymentRecord } from "./receivablePaymentTypes";
 
 export function useCompanyNativeReceivables(companyId: string | null) {
   const [nativeReceivables, setNativeReceivables] = useState<ReceivableRecord[]>([]);
+  const [receivablePayments, setReceivablePayments] = useState<ReceivablePaymentRecord[]>([]);
   const [loading, setLoading] = useState(Boolean(companyId));
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!companyId) {
       setNativeReceivables([]);
+      setReceivablePayments([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      setNativeReceivables(await fetchCompanyReceivables(companyId));
+      const [receivables, payments] = await Promise.all([
+        fetchCompanyReceivables(companyId),
+        fetchCompanyReceivablePayments(companyId),
+      ]);
+      setNativeReceivables(receivables);
+      setReceivablePayments(payments);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudieron cargar las facturas");
@@ -66,6 +74,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
       if (!companyId) throw new Error("No hay empresa activa");
       await deleteCompanyReceivable(companyId, id);
       setNativeReceivables((prev) => prev.filter((r) => r.id !== id));
+      setReceivablePayments((prev) => prev.filter((p) => p.invoiceId !== id));
     },
     [companyId]
   );
@@ -73,8 +82,9 @@ export function useCompanyNativeReceivables(companyId: string | null) {
   const recordPayment = useCallback(
     async (id: number, input: ReceivablePaymentInput) => {
       if (!companyId) throw new Error("No hay empresa activa");
-      const { invoice } = await recordCompanyReceivablePayment(companyId, id, input);
+      const { invoice, payment } = await recordCompanyReceivablePayment(companyId, id, input);
       setNativeReceivables((prev) => prev.map((r) => (r.id === id ? invoice : r)));
+      setReceivablePayments((prev) => [payment, ...prev.filter((p) => p.id !== payment.id)]);
       return invoice;
     },
     [companyId]
@@ -85,6 +95,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
       if (!companyId) throw new Error("No hay empresa activa");
       const invoice = await deleteCompanyReceivablePayment(companyId, paymentId);
       setNativeReceivables((prev) => prev.map((r) => (r.id === invoice.id ? invoice : r)));
+      setReceivablePayments((prev) => prev.filter((p) => p.id !== paymentId));
       return invoice;
     },
     [companyId]
@@ -92,6 +103,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
 
   return {
     nativeReceivables,
+    receivablePayments,
     loading,
     error,
     createReceivable,

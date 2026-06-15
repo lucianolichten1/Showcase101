@@ -1,7 +1,7 @@
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { isPersistedNumericId } from "@/domains/financial/persistence/isPersistedNumericId";
 import type { PaymentMethod, ReceivablePaymentStatus, ReceivableRecord } from "@/domains/financial/types";
-import { loadCompanyBankAccountsFromStorage } from "@/domains/financial/bank-accounts/bankAccountStorage";
+import { loadCompanyBankAccountsFromStorage, saveCompanyBankAccountsToStorage } from "@/domains/financial/bank-accounts/bankAccountStorage";
 import {
   syncLocalReceivablePaymentBankTransaction,
   removeLocalReceivablePaymentBankTransaction,
@@ -169,7 +169,8 @@ async function syncPaymentBankLedger(
 
   if (!isSupabaseConfigured) {
     const accounts = loadCompanyBankAccountsFromStorage(companyId);
-    syncLocalReceivablePaymentBankTransaction(companyId, accounts, bankInput);
+    const synced = syncLocalReceivablePaymentBankTransaction(companyId, accounts, bankInput);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return;
   }
 
@@ -179,7 +180,8 @@ async function syncPaymentBankLedger(
 async function removePaymentBankLedger(companyId: string, paymentId: number): Promise<void> {
   if (!isSupabaseConfigured) {
     const accounts = loadCompanyBankAccountsFromStorage(companyId);
-    removeLocalReceivablePaymentBankTransaction(companyId, accounts, paymentId);
+    const synced = removeLocalReceivablePaymentBankTransaction(companyId, accounts, paymentId);
+    saveCompanyBankAccountsToStorage(companyId, synced);
     return;
   }
 
@@ -204,6 +206,22 @@ export async function fetchCompanyReceivables(companyId: string): Promise<Receiv
 
   if (error) throw error;
   return (data as CompanyReceivableRow[]).map(mapRowToRecord);
+}
+
+/** Copies an import/mock invoice into the native store so payments can post to the ledger. */
+export async function promoteImportedReceivableToNative(
+  companyId: string,
+  receivable: ReceivableRecord
+): Promise<ReceivableRecord> {
+  if (isPersistedNumericId(receivable.id)) return receivable;
+
+  return createCompanyReceivable(companyId, {
+    customer: receivable.customer,
+    invoiceNumber: receivable.invoiceNumber,
+    amount: receivable.amount,
+    amountPaid: receivable.amountPaid,
+    dueDateIso: receivableDueDateIso(receivable),
+  });
 }
 
 export async function fetchCompanyReceivablePayments(

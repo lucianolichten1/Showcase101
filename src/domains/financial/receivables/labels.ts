@@ -34,7 +34,8 @@ export const RECEIVABLE_PAGE_COPY = {
   addInvoice: "Agregar factura",
   edit: "Editar",
   delete: "Eliminar",
-  pay: "Pagar",
+  pay: "Registrar pago",
+  viewPayments: "Ver pagos",
   chase: "Cobrar",
   sent: "Enviado",
   deleteTitle: "Eliminar factura",
@@ -42,4 +43,23 @@ export const RECEIVABLE_PAGE_COPY = {
     `¿Eliminar permanentemente la factura «${invoice}»? Esta acción no se puede deshacer.`,
   deleteConfirm: "Eliminar",
   actions: "Acciones",
+  bankAccountFilter: "Cuenta de depósito",
+  bankAccountFilterAll: "Todas las cuentas",
+  bankAccountFilterHint: "Muestra facturas con pagos depositados en la cuenta seleccionada.",
+  depositColumn: "Depósito en",
+  noDepositYet: "Sin depósito",
+  paymentError: "No se pudo registrar el pago.",
+} as const;
+
+export const INVOICE_PAYMENTS_COPY = {
+  title: "Historial de pagos",
+  total: "Total",
+  paid: "Pagado",
+  balance: "Saldo",
+  empty: "Aún no hay pagos registrados para esta factura.",
+  depositedTo: "Depositado en",
+  unknownAccount: "Cuenta desconocida",
+  deletePayment: "Eliminar pago",
+  close: "Cerrar",
+  recordPayment: "Registrar pago",
 } as const;

@@ -21,7 +21,11 @@ import {
   isoToDisplayDueDate,
 } from "@/domains/financial/receivables/receivableDates";
 import type { ReceivableInput } from "@/domains/financial/receivables/receivableService";
-import type { ReceivablePaymentInput } from "@/domains/financial/receivables/receivablePaymentTypes";
+import type {
+  ReceivablePaymentInput,
+  ReceivablePaymentRecord,
+} from "@/domains/financial/receivables/receivablePaymentTypes";
+import { promoteImportedReceivableToNative } from "@/domains/financial/receivables/receivableService";
 import { useCompanyNativeReceivables } from "@/domains/financial/receivables/useCompanyNativeReceivables";
 import type { BankAccountInput, CreateBankAccountInput } from "@/domains/financial/bank-accounts/types";
 import type { ManualTransactionInput, TransferInput } from "@/domains/financial/bank-accounts/types";
@@ -63,6 +67,8 @@ export type CompanyScopedFinancialDataResult = UseFinancialDataResult &
     saveReceivable: (id: number | null, input: ReceivableInput) => Promise<void>;
     deleteReceivable: (id: number) => Promise<void>;
     recordReceivablePayment: (id: number, input: ReceivablePaymentInput) => Promise<void>;
+    deleteReceivablePayment: (paymentId: number) => Promise<void>;
+    receivablePayments: ReceivablePaymentRecord[];
     bankAccounts: BankAccountRecord[];
     bankAccountsLoading: boolean;
     bankAccountsError: string | null;
@@ -272,22 +278,28 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
 
   const recordReceivablePayment = useCallback(
     async (id: number, input: ReceivablePaymentInput) => {
-      if (isPersistedNumericId(id)) {
-        await receivableHook.recordPayment(id, input);
-      } else {
-        financial.setReceivableRecords((prev) =>
-          prev.map((r) => {
-            if (r.id !== id) return r;
-            const newTotalPaid = r.amountPaid + input.amount;
-            const status =
-              newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
-            return { ...r, amountPaid: newTotalPaid, status };
-          })
-        );
+      let targetId = id;
+      if (!isPersistedNumericId(id)) {
+        const current = mergedReceivableRecords.find((r) => r.id === id);
+        if (!current) throw new Error("Factura no encontrada");
+        if (!activeCompanyId) throw new Error("No hay empresa activa");
+        const promoted = await promoteImportedReceivableToNative(activeCompanyId, current);
+        targetId = promoted.id;
+        financial.setReceivableRecords((prev) => prev.filter((r) => r.id !== id));
+        await receivableHook.refresh();
       }
+      await receivableHook.recordPayment(targetId, input);
       await bankAccountHook.refreshBankAccounts();
     },
-    [receivableHook, financial, bankAccountHook]
+    [receivableHook, financial, bankAccountHook, mergedReceivableRecords, activeCompanyId]
+  );
+
+  const deleteReceivablePayment = useCallback(
+    async (paymentId: number) => {
+      await receivableHook.deletePayment(paymentId);
+      await bankAccountHook.refreshBankAccounts();
+    },
+    [receivableHook, bankAccountHook]
   );
 
   const scoped = useMemo(
@@ -349,6 +361,8 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
     saveReceivable,
     deleteReceivable,
     recordReceivablePayment,
+    deleteReceivablePayment,
+    receivablePayments: receivableHook.receivablePayments,
     bankAccounts: bankAccountHook.bankAccounts,
     bankAccountsLoading: bankAccountHook.loading,
     bankAccountsError: bankAccountHook.error,
