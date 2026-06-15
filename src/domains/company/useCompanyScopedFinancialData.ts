@@ -30,6 +30,7 @@ import { useCompanyNativeReceivables } from "@/domains/financial/receivables/use
 import type { BankAccountInput, CreateBankAccountInput } from "@/domains/financial/bank-accounts/types";
 import type { ManualTransactionInput, TransferInput } from "@/domains/financial/bank-accounts/types";
 import type { BankAccountRecord, BankTransactionRecord } from "@/domains/financial/bank-accounts/types";
+import type { BnbAccountBalance } from "@/domains/banking/bnbTypes";
 import { useCompanyNativeBankAccounts } from "@/domains/financial/bank-accounts/useCompanyNativeBankAccounts";
 import type { RevenueInput } from "@/domains/financial/revenue/revenueService";
 import { mergeRevenueRecords } from "@/domains/financial/revenue/mergeRevenueRecords";
@@ -83,6 +84,8 @@ export type CompanyScopedFinancialDataResult = UseFinancialDataResult &
     createManualBankTransaction: (input: ManualTransactionInput) => Promise<BankTransactionRecord>;
     createBankTransfer: (input: TransferInput) => Promise<string>;
     refreshBankAccounts: () => Promise<void>;
+    importBnbAccounts: (accounts: BnbAccountBalance[]) => Promise<BankAccountRecord[]>;
+    syncBnbBankAccount: (accountId: string) => Promise<BankAccountRecord>;
   };
 
 export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResult {
@@ -377,5 +380,7 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
     createManualBankTransaction: bankAccountHook.createManualTransaction,
     createBankTransfer: bankAccountHook.createTransfer,
     refreshBankAccounts: bankAccountHook.refreshBankAccounts,
+    importBnbAccounts: bankAccountHook.importBnbAccounts,
+    syncBnbBankAccount: bankAccountHook.syncBnbAccount,
   };
 }

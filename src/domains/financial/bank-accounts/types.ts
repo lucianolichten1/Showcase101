@@ -33,6 +33,10 @@ export interface BankAccountRecord {
   currentBalance: number;
   active: boolean;
   createdAt: string;
+  /** Full BNB account number when linked to Banco Nacional de Bolivia */
+  bnbAccountNumber: string | null;
+  bnbConnected: boolean;
+  bnbLastSyncedAt: string | null;
 }
 
 export interface BankTransactionRecord {

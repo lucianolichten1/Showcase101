@@ -30,6 +30,9 @@ function account(id: string, balance = 0): BankAccountRecord {
     currentBalance: balance,
     active: true,
     createdAt: "2026-01-01T00:00:00Z",
+    bnbAccountNumber: null,
+    bnbConnected: false,
+    bnbLastSyncedAt: null,
   };
 }
 

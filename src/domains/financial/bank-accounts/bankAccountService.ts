@@ -1,3 +1,9 @@
+import type { BnbAccountBalance } from "@/domains/banking/bnbTypes";
+import {
+  mapBnbAccountType,
+  mapBnbCurrency,
+} from "@/domains/banking/bnbService";
+import { BNB_BANK_NAME } from "@/domains/banking/bnbLabels";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   loadCompanyBankAccountsFromStorage,
@@ -30,6 +36,9 @@ export interface CompanyBankAccountRow {
   active: boolean;
   created_at: string;
   updated_at: string;
+  bnb_account_number: string | null;
+  bnb_connected: boolean;
+  bnb_last_synced_at: string | null;
 }
 
 export interface CompanyBankTransactionRow {
@@ -58,6 +67,20 @@ function mapAccountRow(row: CompanyBankAccountRow): BankAccountRecord {
     currentBalance: Number(row.current_balance),
     active: row.active,
     createdAt: row.created_at,
+    bnbAccountNumber: row.bnb_account_number ?? null,
+    bnbConnected: Boolean(row.bnb_connected),
+    bnbLastSyncedAt: row.bnb_last_synced_at ?? null,
+  };
+}
+
+function defaultBnbFields(): Pick<
+  BankAccountRecord,
+  "bnbAccountNumber" | "bnbConnected" | "bnbLastSyncedAt"
+> {
+  return {
+    bnbAccountNumber: null,
+    bnbConnected: false,
+    bnbLastSyncedAt: null,
   };
 }
 
@@ -158,6 +181,7 @@ export async function createCompanyBankAccount(
       currentBalance: 0,
       active: input.active,
       createdAt: new Date().toISOString(),
+      ...defaultBnbFields(),
     };
     const accounts = [record, ...loadCompanyBankAccountsFromStorage(companyId)];
     saveCompanyBankAccountsToStorage(companyId, accounts);
@@ -414,4 +438,100 @@ export async function accountHasTransactions(
 
   if (error) throw error;
   return (count ?? 0) > 0;
+}
+
+function bnbAccountDisplayName(account: BnbAccountBalance): string {
+  const typeLabel = mapBnbAccountType(account.accountType);
+  const last4 = sanitizeLastFour(account.accountNumber);
+  return `${account.partyName} · ${typeLabel} ${last4}`;
+}
+
+async function updateBnbAccountLink(
+  companyId: string,
+  accountId: string,
+  bnb: BnbAccountBalance,
+  options: { updateBalance: boolean }
+): Promise<BankAccountRecord> {
+  const now = new Date().toISOString();
+
+  if (!isSupabaseConfigured) {
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    const next = accounts.map((row) => {
+      if (row.id !== accountId) return row;
+      return {
+        ...row,
+        bnbAccountNumber: bnb.accountNumber,
+        bnbConnected: true,
+        bnbLastSyncedAt: now,
+        currentBalance: options.updateBalance ? bnb.balanceAmount : row.currentBalance,
+      };
+    });
+    saveCompanyBankAccountsToStorage(companyId, next);
+    const updated = next.find((row) => row.id === accountId);
+    if (!updated) throw new Error("Cuenta bancaria no encontrada");
+    return updated;
+  }
+
+  const patch: Record<string, unknown> = {
+    bnb_account_number: bnb.accountNumber,
+    bnb_connected: true,
+    bnb_last_synced_at: now,
+    updated_at: now,
+  };
+  if (options.updateBalance) {
+    patch.current_balance = bnb.balanceAmount;
+  }
+
+  const { data, error } = await supabase
+    .from("company_bank_accounts")
+    .update(patch)
+    .eq("company_id", companyId)
+    .eq("id", accountId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return mapAccountRow(data as CompanyBankAccountRow);
+}
+
+export async function importBnbBankAccounts(
+  companyId: string,
+  accounts: BnbAccountBalance[]
+): Promise<BankAccountRecord[]> {
+  const existing = await fetchCompanyBankAccounts(companyId);
+  const imported: BankAccountRecord[] = [];
+
+  for (const bnb of accounts) {
+    const match = existing.find((row) => row.bnbAccountNumber === bnb.accountNumber);
+    if (match) {
+      imported.push(
+        await updateBnbAccountLink(companyId, match.id, bnb, { updateBalance: true })
+      );
+      continue;
+    }
+
+    const created = await createCompanyBankAccount(companyId, {
+      accountName: bnbAccountDisplayName(bnb),
+      bankName: BNB_BANK_NAME,
+      accountNumber: bnb.accountNumber,
+      accountType: mapBnbAccountType(bnb.accountType),
+      currency: mapBnbCurrency(bnb.currency),
+      openingBalance: bnb.balanceAmount,
+      active: true,
+    });
+
+    imported.push(
+      await updateBnbAccountLink(companyId, created.id, bnb, { updateBalance: true })
+    );
+  }
+
+  return imported;
+}
+
+export async function syncBnbBankAccountBalance(
+  companyId: string,
+  accountId: string,
+  bnb: BnbAccountBalance
+): Promise<BankAccountRecord> {
+  return updateBnbAccountLink(companyId, accountId, bnb, { updateBalance: true });
 }

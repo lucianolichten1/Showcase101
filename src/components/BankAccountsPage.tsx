@@ -1,13 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Building2, Pencil, Plus, Power } from "lucide-react";
+import { Building2, Link2, Pencil, Plus, Power, RefreshCw } from "lucide-react";
 import {
   formatBalanceWithCurrency,
   sumBalancesByCurrency,
 } from "@/domains/financial/bank-accounts/bankAccountSyncLogic";
+import { formatBnbLastSynced } from "@/domains/banking/bnbService";
+import { BNB_COPY } from "@/domains/banking/bnbLabels";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FinancialEmptyBanner } from "@/components/FinancialEmptyBanner";
 import { BankAccountFormDialog } from "@/components/bank-accounts/BankAccountFormDialog";
+import { BnbConnectDialog } from "@/components/bank-accounts/BnbConnectDialog";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import type { BankAccountInput, BankAccountRecord } from "@/domains/financial/bank-accounts/types";
@@ -28,6 +31,8 @@ export function BankAccountsPage() {
     bankAccountsError,
     saveBankAccount,
     deactivateBankAccount,
+    importBnbAccounts,
+    syncBnbBankAccount,
   } = useCompanyScopedFinancialData();
 
   const [searchParams] = useSearchParams();
@@ -40,6 +45,10 @@ export function BankAccountsPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<BankAccountRecord | null>(null);
   const [deactivating, setDeactivating] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [bnbDialogOpen, setBnbDialogOpen] = useState(false);
+  const [bnbImporting, setBnbImporting] = useState(false);
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const [bnbActionError, setBnbActionError] = useState<string | null>(null);
 
   const handleOpenCreate = useCallback(() => {
     setEditTarget(null);
@@ -60,6 +69,13 @@ export function BankAccountsPage() {
   const cashTotals = useMemo(
     () => sumBalancesByCurrency(activeAccounts),
     [activeAccounts]
+  );
+  const linkedBnbNumbers = useMemo(
+    () =>
+      bankAccounts
+        .map((row) => row.bnbAccountNumber)
+        .filter((value): value is string => Boolean(value)),
+    [bankAccounts]
   );
 
   const handleSave = async (input: CreateBankAccountInput | BankAccountInput) => {
@@ -92,6 +108,36 @@ export function BankAccountsPage() {
       setDeactivateTarget(null);
     } finally {
       setDeactivating(false);
+    }
+  };
+
+  const handleBnbImport = async (
+    accounts: Parameters<typeof importBnbAccounts>[0]
+  ) => {
+    if (!activeCompanyId) return;
+    setBnbImporting(true);
+    setBnbActionError(null);
+    try {
+      await importBnbAccounts(accounts);
+      setBnbDialogOpen(false);
+    } catch (err) {
+      setBnbActionError(
+        getSupabaseErrorMessage(err, "No se pudieron importar las cuentas BNB")
+      );
+    } finally {
+      setBnbImporting(false);
+    }
+  };
+
+  const handleBnbSync = async (accountId: string) => {
+    setSyncingAccountId(accountId);
+    setBnbActionError(null);
+    try {
+      await syncBnbBankAccount(accountId);
+    } catch (err) {
+      setBnbActionError(getSupabaseErrorMessage(err, "No se pudo sincronizar con BNB"));
+    } finally {
+      setSyncingAccountId(null);
     }
   };
 
@@ -141,8 +187,35 @@ export function BankAccountsPage() {
           <p className="text-lg font-bold text-stone-900 tabular-nums">
             {formatBalanceWithCurrency(account.currentBalance, account.currency)}
           </p>
+          {account.bnbConnected && (
+            <div className="mt-1 space-y-1">
+              <p className="text-[9px] font-bold uppercase text-green-800">{BNB_COPY.connected}</p>
+              {formatBnbLastSynced(account.bnbLastSyncedAt) && (
+                <p className="text-[10px] text-stone-500">
+                  {BNB_COPY.lastSynced(formatBnbLastSynced(account.bnbLastSyncedAt)!)}
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-1">
+          {account.bnbConnected && account.active && (
+            <button
+              type="button"
+              onClick={() => void handleBnbSync(account.id)}
+              disabled={syncingAccountId === account.id}
+              className="p-2 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50"
+              aria-label={BNB_COPY.sync}
+              title={BNB_COPY.sync}
+            >
+              <RefreshCw
+                className={cn(
+                  "h-3.5 w-3.5",
+                  syncingAccountId === account.id && "animate-spin"
+                )}
+              />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -188,15 +261,35 @@ export function BankAccountsPage() {
               </h1>
               <p className="text-sm text-stone-600 mt-1">{BANK_ACCOUNTS_PAGE_COPY.subtitle}</p>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-green-800 rounded-lg hover:bg-green-900"
-            >
-              <Plus className="h-4 w-4" />
-              {BANK_ACCOUNTS_PAGE_COPY.addAccount}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenCreate}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-green-800 rounded-lg hover:bg-green-900"
+              >
+                <Plus className="h-4 w-4" />
+                {BANK_ACCOUNTS_PAGE_COPY.addAccount}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBnbActionError(null);
+                  setBnbDialogOpen(true);
+                }}
+                disabled={!activeCompanyId}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-green-800 border border-green-800/30 bg-white rounded-lg hover:bg-green-50 disabled:opacity-50"
+              >
+                <Link2 className="h-4 w-4" />
+                {BNB_COPY.connect}
+              </button>
+            </div>
           </section>
+
+          {bnbActionError && (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              {bnbActionError}
+            </p>
+          )}
 
           {!activeCompanyId && (
             <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
@@ -279,6 +372,16 @@ export function BankAccountsPage() {
           }
         }}
         onSave={handleSave}
+      />
+
+      <BnbConnectDialog
+        open={bnbDialogOpen}
+        linkedAccountNumbers={linkedBnbNumbers}
+        importing={bnbImporting}
+        onClose={() => {
+          if (!bnbImporting) setBnbDialogOpen(false);
+        }}
+        onImport={handleBnbImport}
       />
 
       <ConfirmDialog

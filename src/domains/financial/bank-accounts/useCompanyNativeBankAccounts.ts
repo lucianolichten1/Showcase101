@@ -9,6 +9,9 @@ import type {
   ManualTransactionInput,
   TransferInput,
 } from "./types";
+import type { BnbAccountBalance } from "@/domains/banking/bnbTypes";
+import { getAccountBalances } from "@/domains/banking/bnbService";
+import { bnbErrorMessage } from "@/domains/banking/bnbLabels";
 import {
   accountHasTransactions,
   createBankTransfer,
@@ -17,6 +20,8 @@ import {
   deleteCompanyBankAccount,
   fetchCompanyBankAccounts,
   fetchCompanyBankTransactions,
+  importBnbBankAccounts,
+  syncBnbBankAccountBalance,
   updateCompanyBankAccount,
 } from "./bankAccountService";
 
@@ -33,6 +38,8 @@ export interface UseCompanyNativeBankAccountsResult {
   createManualTransaction: (input: ManualTransactionInput) => Promise<BankTransactionRecord>;
   createTransfer: (input: TransferInput) => Promise<string>;
   hasTransactions: (accountId: string) => Promise<boolean>;
+  importBnbAccounts: (accounts: BnbAccountBalance[]) => Promise<BankAccountRecord[]>;
+  syncBnbAccount: (accountId: string) => Promise<BankAccountRecord>;
 }
 
 export function useCompanyNativeBankAccounts(
@@ -182,6 +189,61 @@ export function useCompanyNativeBankAccounts(
     [companyId]
   );
 
+  const importBnbAccounts = useCallback(
+    async (accounts: BnbAccountBalance[]) => {
+      if (!companyId) throw new Error("No hay empresa activa");
+      try {
+        const imported = await importBnbBankAccounts(companyId, accounts);
+        await refreshBankAccounts();
+        setError(null);
+        return imported;
+      } catch (err) {
+        const message = getSupabaseErrorMessage(err, "No se pudieron importar las cuentas BNB");
+        setError(message);
+        throw err;
+      }
+    },
+    [companyId, refreshBankAccounts]
+  );
+
+  const syncBnbAccount = useCallback(
+    async (accountId: string) => {
+      if (!companyId) throw new Error("No hay empresa activa");
+      const current = bankAccounts.find((row) => row.id === accountId);
+      if (!current?.bnbAccountNumber) {
+        throw new Error("La cuenta no está vinculada a BNB");
+      }
+
+      const balanceResult = await getAccountBalances();
+      if (balanceResult.ok === false) {
+        const message = bnbErrorMessage(balanceResult.error);
+        setError(message);
+        throw new Error(message);
+      }
+
+      const match = balanceResult.data.find(
+        (row) => row.accountNumber === current.bnbAccountNumber
+      );
+      if (!match) {
+        const message = "La cuenta ya no aparece en BNB";
+        setError(message);
+        throw new Error(message);
+      }
+
+      try {
+        const updated = await syncBnbBankAccountBalance(companyId, accountId, match);
+        setBankAccounts((prev) => prev.map((row) => (row.id === accountId ? updated : row)));
+        setError(null);
+        return updated;
+      } catch (err) {
+        const message = getSupabaseErrorMessage(err, "No se pudo sincronizar con BNB");
+        setError(message);
+        throw err;
+      }
+    },
+    [companyId, bankAccounts]
+  );
+
   return {
     bankAccounts,
     loading,
@@ -195,5 +257,7 @@ export function useCompanyNativeBankAccounts(
     createManualTransaction,
     createTransfer,
     hasTransactions,
+    importBnbAccounts,
+    syncBnbAccount,
   };
 }
