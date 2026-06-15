@@ -92,6 +92,9 @@ export function bankTransactionSourceLabel(
     manual: "Manual",
     transfer: "Transferencia",
     opening: "Saldo inicial",
+    receivable: "Cobro de factura",
+    purchase_order: "Orden de compra",
+    sales_order: "Orden de venta",
   };
   return labels[referenceType];
 }

@@ -3,16 +3,20 @@ export const MODULE_PATH_RULES = [
   { prefix: "/dashboard", moduleKey: "dashboard" },
   { prefix: "/revenue", moduleKey: "revenue" },
   { prefix: "/expenses", moduleKey: "expenses" },
+  { prefix: "/accounts-receivable", moduleKey: "accounts-receivable" },
   { prefix: "/accounts", moduleKey: "bank-accounts" },
   { prefix: "/customers", moduleKey: "customers" },
-  { prefix: "/accounts-receivable", moduleKey: "accounts-receivable" },
   { prefix: "/reports", moduleKey: "reports" },
   { prefix: "/export-import", moduleKey: "import-export" },
   { prefix: "/inventory", moduleKey: "inventory" },
 ] as const;
 
+const MODULE_PATH_RULES_SORTED = [...MODULE_PATH_RULES].sort(
+  (a, b) => b.prefix.length - a.prefix.length
+);
+
 export function resolveModuleKeyForPath(pathname: string): string | null {
-  for (const rule of MODULE_PATH_RULES) {
+  for (const rule of MODULE_PATH_RULES_SORTED) {
     if (pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`)) {
       return rule.moduleKey;
     }

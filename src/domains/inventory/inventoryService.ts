@@ -80,6 +80,9 @@ export async function fetchCompanyInventory(companyId: string): Promise<Persiste
     total: Number(r.total),
     items: r.items as PurchaseOrderRecord["items"],
     createdAt: r.created_at.slice(0, 10),
+    paymentMethod: (r.payment_method as PurchaseOrderRecord["paymentMethod"]) ?? null,
+    bankAccountId: r.bank_account_id ?? null,
+    receivedDate: r.received_date ?? null,
   }));
 
   const salesOrders: SalesOrderRecord[] = (soRes.data ?? []).map((r) => ({
@@ -90,6 +93,9 @@ export async function fetchCompanyInventory(companyId: string): Promise<Persiste
     total: Number(r.total),
     items: r.items as SalesOrderRecord["items"],
     createdAt: r.created_at.slice(0, 10),
+    paymentMethod: (r.payment_method as SalesOrderRecord["paymentMethod"]) ?? null,
+    bankAccountId: r.bank_account_id ?? null,
+    fulfilledDate: r.fulfilled_date ?? null,
   }));
 
   const adjustments: InventoryAdjustmentRecord[] = (adjRes.data ?? []).map((r) => ({
@@ -167,6 +173,9 @@ export async function persistCompanyInventory(
         total: po.total,
         items: po.items,
         created_at: po.createdAt,
+        payment_method: po.paymentMethod ?? null,
+        bank_account_id: po.bankAccountId ?? null,
+        received_date: po.receivedDate ?? null,
       }))
     );
     if (error) throw error;
@@ -183,6 +192,9 @@ export async function persistCompanyInventory(
         total: so.total,
         items: so.items,
         created_at: so.createdAt,
+        payment_method: so.paymentMethod ?? null,
+        bank_account_id: so.bankAccountId ?? null,
+        fulfilled_date: so.fulfilledDate ?? null,
       }))
     );
     if (error) throw error;

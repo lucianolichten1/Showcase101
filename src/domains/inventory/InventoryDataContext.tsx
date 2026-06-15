@@ -23,6 +23,7 @@ import type {
   SalesOrderRecord,
   SupplierRecord,
 } from "./types";
+import type { OrderPaymentInput } from "./types";
 
 export interface InventoryDataContextValue {
   products: ProductRecord[];
@@ -38,8 +39,8 @@ export interface InventoryDataContextValue {
   loading: boolean;
   error: string | null;
   upsertProduct: (product: ProductRecord) => void;
-  receivePurchaseOrder: (poId: number) => void;
-  fulfillSalesOrder: (soId: number) => void;
+  receivePurchaseOrder: (poId: number, payment: OrderPaymentInput) => PurchaseOrderRecord | null;
+  fulfillSalesOrder: (soId: number, payment: OrderPaymentInput) => SalesOrderRecord | null;
   applyAdjustment: (
     productId: number,
     quantityChange: number,
@@ -197,9 +198,9 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
   );
 
   const receivePurchaseOrder = useCallback(
-    (poId: number) => {
+    (poId: number, payment: OrderPaymentInput): PurchaseOrderRecord | null => {
       const po = purchaseOrders.find((p) => p.id === poId);
-      if (!po || po.status === "Received" || po.status === "Cancelled") return;
+      if (!po || po.status === "Received" || po.status === "Cancelled") return null;
 
       setProducts((prevProducts) => {
         const nextProducts = [...prevProducts];
@@ -215,17 +216,26 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
         return nextProducts;
       });
 
+      const updated: PurchaseOrderRecord = {
+        ...po,
+        status: "Received",
+        paymentMethod: payment.paymentMethod,
+        bankAccountId: payment.bankAccountId,
+        receivedDate: payment.paymentDateIso,
+      };
+
       setPurchaseOrders((prev) =>
-        prev.map((p) => (p.id === poId ? { ...p, status: "Received" as const } : p))
+        prev.map((p) => (p.id === poId ? updated : p))
       );
+      return updated;
     },
     [purchaseOrders, setProducts, setPurchaseOrders]
   );
 
   const fulfillSalesOrder = useCallback(
-    (soId: number) => {
+    (soId: number, payment: OrderPaymentInput): SalesOrderRecord | null => {
       const so = salesOrders.find((s) => s.id === soId);
-      if (!so || so.status === "Fulfilled" || so.status === "Cancelled") return;
+      if (!so || so.status === "Fulfilled" || so.status === "Cancelled") return null;
 
       setProducts((prevProducts) => {
         const nextProducts = [...prevProducts];
@@ -241,9 +251,18 @@ export function InventoryDataProvider({ children }: { children: ReactNode }) {
         return nextProducts;
       });
 
+      const updated: SalesOrderRecord = {
+        ...so,
+        status: "Fulfilled",
+        paymentMethod: payment.paymentMethod,
+        bankAccountId: payment.bankAccountId,
+        fulfilledDate: payment.paymentDateIso,
+      };
+
       setSalesOrders((prev) =>
-        prev.map((s) => (s.id === soId ? { ...s, status: "Fulfilled" as const } : s))
+        prev.map((s) => (s.id === soId ? updated : s))
       );
+      return updated;
     },
     [salesOrders, setProducts, setSalesOrders]
   );

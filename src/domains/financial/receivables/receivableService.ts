@@ -1,11 +1,18 @@
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { isPersistedNumericId } from "@/domains/financial/persistence/isPersistedNumericId";
-import type { ReceivablePaymentStatus, ReceivableRecord } from "@/domains/financial/types";
+import type { PaymentMethod, ReceivablePaymentStatus, ReceivableRecord } from "@/domains/financial/types";
+import { loadCompanyBankAccountsFromStorage } from "@/domains/financial/bank-accounts/bankAccountStorage";
+import {
+  syncLocalReceivablePaymentBankTransaction,
+  removeLocalReceivablePaymentBankTransaction,
+} from "@/domains/financial/bank-accounts/bankAccountLocalSync";
+import { syncServerReceivablePaymentBankTransaction } from "@/domains/financial/bank-accounts/bankAccountLinkedSync";
 import {
   calcOverdueDaysFromIso,
   deriveReceivableStatus,
   isoToDisplayDueDate,
 } from "./receivableDates";
+import type { ReceivablePaymentInput, ReceivablePaymentRecord } from "./receivablePaymentTypes";
 
 export interface CompanyReceivableRow {
   id: number;
@@ -20,6 +27,17 @@ export interface CompanyReceivableRow {
   updated_at: string;
 }
 
+export interface CompanyReceivablePaymentRow {
+  id: number;
+  company_id: string;
+  invoice_id: number;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  bank_account_id: string | null;
+  created_at: string;
+}
+
 export interface ReceivableInput {
   customer: string;
   invoiceNumber: string;
@@ -29,9 +47,14 @@ export interface ReceivableInput {
 }
 
 const STORAGE_PREFIX = "agro-company-receivables-v1";
+const PAYMENTS_STORAGE_PREFIX = "agro-company-receivable-payments-v1";
 
 function storageKey(companyId: string): string {
   return `${STORAGE_PREFIX}-${companyId}`;
+}
+
+function paymentsStorageKey(companyId: string): string {
+  return `${PAYMENTS_STORAGE_PREFIX}-${companyId}`;
 }
 
 function loadFromStorage(companyId: string): ReceivableRecord[] {
@@ -47,6 +70,33 @@ function loadFromStorage(companyId: string): ReceivableRecord[] {
 
 function saveToStorage(companyId: string, records: ReceivableRecord[]): void {
   localStorage.setItem(storageKey(companyId), JSON.stringify(records));
+}
+
+function loadPaymentsFromStorage(companyId: string): ReceivablePaymentRecord[] {
+  try {
+    const raw = localStorage.getItem(paymentsStorageKey(companyId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ReceivablePaymentRecord[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePaymentsToStorage(companyId: string, records: ReceivablePaymentRecord[]): void {
+  localStorage.setItem(paymentsStorageKey(companyId), JSON.stringify(records));
+}
+
+function mapPaymentRow(row: CompanyReceivablePaymentRow): ReceivablePaymentRecord {
+  return {
+    id: Number(row.id),
+    invoiceId: Number(row.invoice_id),
+    amount: Number(row.amount),
+    paymentDate: row.payment_date.slice(0, 10),
+    paymentMethod: row.payment_method as PaymentMethod,
+    bankAccountId: row.bank_account_id,
+    createdAt: row.created_at,
+  };
 }
 
 function mapRowToRecord(row: CompanyReceivableRow): ReceivableRecord {
@@ -94,6 +144,55 @@ function mapInputToRow(input: ReceivableInput, status: ReceivablePaymentStatus) 
   };
 }
 
+function receivableDueDateIso(current: ReceivableRecord): string {
+  if (current.dueDate.includes("-")) return current.dueDate.slice(0, 10);
+  const parts = current.dueDate.split(" ");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const m = months.indexOf(parts[0]) + 1;
+  return `${new Date().getFullYear()}-${String(m).padStart(2, "0")}-${String(parseInt(parts[1], 10)).padStart(2, "0")}`;
+}
+
+async function syncPaymentBankLedger(
+  companyId: string,
+  payment: ReceivablePaymentRecord,
+  invoice: ReceivableRecord
+): Promise<void> {
+  const bankInput = {
+    id: payment.id,
+    amount: payment.amount,
+    paymentDate: payment.paymentDate,
+    paymentMethod: payment.paymentMethod,
+    bankAccountId: payment.bankAccountId,
+    invoiceNumber: invoice.invoiceNumber,
+    customerName: invoice.customer,
+  };
+
+  if (!isSupabaseConfigured) {
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    syncLocalReceivablePaymentBankTransaction(companyId, accounts, bankInput);
+    return;
+  }
+
+  await syncServerReceivablePaymentBankTransaction(companyId, bankInput);
+}
+
+async function removePaymentBankLedger(companyId: string, paymentId: number): Promise<void> {
+  if (!isSupabaseConfigured) {
+    const accounts = loadCompanyBankAccountsFromStorage(companyId);
+    removeLocalReceivablePaymentBankTransaction(companyId, accounts, paymentId);
+    return;
+  }
+
+  const { error } = await supabase
+    .from("company_bank_transactions")
+    .delete()
+    .eq("company_id", companyId)
+    .eq("reference_type", "receivable")
+    .eq("reference_id", String(paymentId));
+
+  if (error) throw error;
+}
+
 export async function fetchCompanyReceivables(companyId: string): Promise<ReceivableRecord[]> {
   if (!isSupabaseConfigured) return loadFromStorage(companyId);
 
@@ -105,6 +204,30 @@ export async function fetchCompanyReceivables(companyId: string): Promise<Receiv
 
   if (error) throw error;
   return (data as CompanyReceivableRow[]).map(mapRowToRecord);
+}
+
+export async function fetchCompanyReceivablePayments(
+  companyId: string,
+  invoiceId?: number
+): Promise<ReceivablePaymentRecord[]> {
+  if (!isSupabaseConfigured) {
+    const all = loadPaymentsFromStorage(companyId);
+    return invoiceId ? all.filter((p) => p.invoiceId === invoiceId) : all;
+  }
+
+  let query = supabase
+    .from("company_receivable_payments")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("payment_date", { ascending: false });
+
+  if (invoiceId !== undefined) {
+    query = query.eq("invoice_id", invoiceId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as CompanyReceivablePaymentRow[]).map(mapPaymentRow);
 }
 
 export async function createCompanyReceivable(
@@ -167,7 +290,15 @@ export async function deleteCompanyReceivable(companyId: string, id: number): Pr
   }
 
   if (!isSupabaseConfigured) {
+    const payments = loadPaymentsFromStorage(companyId).filter((p) => p.invoiceId === id);
+    for (const payment of payments) {
+      await removePaymentBankLedger(companyId, payment.id);
+    }
     saveToStorage(companyId, loadFromStorage(companyId).filter((r) => r.id !== id));
+    savePaymentsToStorage(
+      companyId,
+      loadPaymentsFromStorage(companyId).filter((p) => p.invoiceId !== id)
+    );
     return;
   }
 
@@ -182,31 +313,174 @@ export async function deleteCompanyReceivable(companyId: string, id: number): Pr
 
 export async function recordCompanyReceivablePayment(
   companyId: string,
-  id: number,
-  payment: number
-): Promise<ReceivableRecord> {
+  invoiceId: number,
+  input: ReceivablePaymentInput
+): Promise<{ invoice: ReceivableRecord; payment: ReceivablePaymentRecord }> {
   const records = isSupabaseConfigured
     ? await fetchCompanyReceivables(companyId)
     : loadFromStorage(companyId);
-  const current = records.find((r) => r.id === id);
+  const current = records.find((r) => r.id === invoiceId);
   if (!current) throw new Error("Invoice not found");
 
-  const amountPaid = current.amountPaid + payment;
-  const dueDateIso =
-    current.dueDate.includes("-")
-      ? current.dueDate.slice(0, 10)
-      : (() => {
-          const parts = current.dueDate.split(" ");
-          const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-          const m = months.indexOf(parts[0]) + 1;
-          return `${new Date().getFullYear()}-${String(m).padStart(2, "0")}-${String(parseInt(parts[1], 10)).padStart(2, "0")}`;
-        })();
+  const balance = current.amount - current.amountPaid;
+  if (input.amount <= 0 || input.amount > balance) {
+    throw new Error("Invalid payment amount");
+  }
+  if (input.paymentMethod === "Bank Transfer" && !input.bankAccountId) {
+    throw new Error("Bank account required for bank transfer payments");
+  }
 
-  return updateCompanyReceivable(companyId, id, {
-    customer: current.customer,
-    invoiceNumber: current.invoiceNumber,
-    amount: current.amount,
-    amountPaid,
-    dueDateIso,
-  });
+  if (!isSupabaseConfigured) {
+    const payments = loadPaymentsFromStorage(companyId);
+    const paymentId =
+      payments.length > 0 ? Math.max(...payments.map((p) => p.id), 999999) + 1 : 1_000_000;
+    const payment: ReceivablePaymentRecord = {
+      id: paymentId,
+      invoiceId,
+      amount: input.amount,
+      paymentDate: input.paymentDateIso,
+      paymentMethod: input.paymentMethod,
+      bankAccountId: input.bankAccountId,
+      createdAt: new Date().toISOString(),
+    };
+    savePaymentsToStorage(companyId, [payment, ...payments]);
+    await syncPaymentBankLedger(companyId, payment, current);
+
+    const amountPaid = current.amountPaid + input.amount;
+    const dueDateIso = receivableDueDateIso(current);
+    const invoice = toRecord(invoiceId, {
+      customer: current.customer,
+      invoiceNumber: current.invoiceNumber,
+      amount: current.amount,
+      amountPaid,
+      dueDateIso,
+    });
+    saveToStorage(
+      companyId,
+      loadFromStorage(companyId).map((r) => (r.id === invoiceId ? invoice : r))
+    );
+    return { invoice, payment };
+  }
+
+  const { data: paymentRow, error: paymentError } = await supabase
+    .from("company_receivable_payments")
+    .insert({
+      company_id: companyId,
+      invoice_id: invoiceId,
+      amount: input.amount,
+      payment_date: input.paymentDateIso,
+      payment_method: input.paymentMethod,
+      bank_account_id: input.bankAccountId,
+    })
+    .select("*")
+    .single();
+
+  if (paymentError) throw paymentError;
+  const payment = mapPaymentRow(paymentRow as CompanyReceivablePaymentRow);
+
+  await syncPaymentBankLedger(companyId, payment, current);
+
+  const payments = await fetchCompanyReceivablePayments(companyId, invoiceId);
+  const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const dueDateIso = receivableDueDateIso(current);
+  const status = deriveReceivableStatus(current.amount, amountPaid, dueDateIso);
+
+  const { data: invoiceRow, error: invoiceError } = await supabase
+    .from("company_receivables")
+    .update({
+      amount_paid: amountPaid,
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("company_id", companyId)
+    .eq("id", invoiceId)
+    .select("*")
+    .single();
+
+  if (invoiceError) throw invoiceError;
+  return { invoice: mapRowToRecord(invoiceRow as CompanyReceivableRow), payment };
+}
+
+export async function deleteCompanyReceivablePayment(
+  companyId: string,
+  paymentId: number
+): Promise<ReceivableRecord> {
+  if (!isSupabaseConfigured) {
+    const payments = loadPaymentsFromStorage(companyId);
+    const payment = payments.find((p) => p.id === paymentId);
+    if (!payment) throw new Error("Payment not found");
+
+    await removePaymentBankLedger(companyId, paymentId);
+    const remaining = payments.filter((p) => p.id !== paymentId);
+    savePaymentsToStorage(companyId, remaining);
+
+    const records = loadFromStorage(companyId);
+    const current = records.find((r) => r.id === payment.invoiceId);
+    if (!current) throw new Error("Invoice not found");
+
+    const amountPaid = remaining
+      .filter((p) => p.invoiceId === payment.invoiceId)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const dueDateIso = receivableDueDateIso(current);
+    const invoice = toRecord(payment.invoiceId, {
+      customer: current.customer,
+      invoiceNumber: current.invoiceNumber,
+      amount: current.amount,
+      amountPaid,
+      dueDateIso,
+    });
+    saveToStorage(
+      companyId,
+      records.map((r) => (r.id === payment.invoiceId ? invoice : r))
+    );
+    return invoice;
+  }
+
+  const { data: paymentRow, error: fetchError } = await supabase
+    .from("company_receivable_payments")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("id", paymentId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  const payment = mapPaymentRow(paymentRow as CompanyReceivablePaymentRow);
+
+  const { error: deleteError } = await supabase
+    .from("company_receivable_payments")
+    .delete()
+    .eq("company_id", companyId)
+    .eq("id", paymentId);
+
+  if (deleteError) throw deleteError;
+
+  const payments = await fetchCompanyReceivablePayments(companyId, payment.invoiceId);
+  const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+  const { data: invoiceRow, error: invoiceError } = await supabase
+    .from("company_receivables")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("id", payment.invoiceId)
+    .single();
+
+  if (invoiceError) throw invoiceError;
+  const current = mapRowToRecord(invoiceRow as CompanyReceivableRow);
+  const dueDateIso = receivableDueDateIso(current);
+  const status = deriveReceivableStatus(current.amount, amountPaid, dueDateIso);
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("company_receivables")
+    .update({
+      amount_paid: amountPaid,
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("company_id", companyId)
+    .eq("id", payment.invoiceId)
+    .select("*")
+    .single();
+
+  if (updateError) throw updateError;
+  return mapRowToRecord(updatedRow as CompanyReceivableRow);
 }

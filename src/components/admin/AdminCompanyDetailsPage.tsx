@@ -193,9 +193,13 @@ export function AdminCompanyDetailsPage() {
     const nextModules = currentlyEnabled
       ? enabledModules.filter((k) => k !== moduleKey)
       : [...enabledModules, moduleKey];
-    const normalized = nextModules.includes(DASHBOARD_MODULE_KEY)
-      ? nextModules
-      : [...nextModules, DASHBOARD_MODULE_KEY];
+    const normalized = Array.from(
+      new Set<string>(
+        nextModules.includes(DASHBOARD_MODULE_KEY)
+          ? nextModules
+          : [...nextModules, DASHBOARD_MODULE_KEY]
+      )
+    );
     setEnabledModules(normalized);
     if (companyId) {
       saveCompanyEnabledModules(companyId, normalized);

@@ -4,11 +4,13 @@ import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   createCompanyReceivable,
   deleteCompanyReceivable,
+  deleteCompanyReceivablePayment,
   fetchCompanyReceivables,
   recordCompanyReceivablePayment,
   updateCompanyReceivable,
   type ReceivableInput,
 } from "./receivableService";
+import type { ReceivablePaymentInput } from "./receivablePaymentTypes";
 
 export function useCompanyNativeReceivables(companyId: string | null) {
   const [nativeReceivables, setNativeReceivables] = useState<ReceivableRecord[]>([]);
@@ -37,6 +39,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
   }, [refresh]);
 
   useSupabaseRealtimeRefresh(companyId, "company-receivables", "company_receivables", refresh);
+  useSupabaseRealtimeRefresh(companyId, "company-receivable-payments", "company_receivable_payments", refresh);
 
   const createReceivable = useCallback(
     async (input: ReceivableInput) => {
@@ -68,11 +71,21 @@ export function useCompanyNativeReceivables(companyId: string | null) {
   );
 
   const recordPayment = useCallback(
-    async (id: number, payment: number) => {
+    async (id: number, input: ReceivablePaymentInput) => {
       if (!companyId) throw new Error("No hay empresa activa");
-      const updated = await recordCompanyReceivablePayment(companyId, id, payment);
-      setNativeReceivables((prev) => prev.map((r) => (r.id === id ? updated : r)));
-      return updated;
+      const { invoice } = await recordCompanyReceivablePayment(companyId, id, input);
+      setNativeReceivables((prev) => prev.map((r) => (r.id === id ? invoice : r)));
+      return invoice;
+    },
+    [companyId]
+  );
+
+  const deletePayment = useCallback(
+    async (paymentId: number) => {
+      if (!companyId) throw new Error("No hay empresa activa");
+      const invoice = await deleteCompanyReceivablePayment(companyId, paymentId);
+      setNativeReceivables((prev) => prev.map((r) => (r.id === invoice.id ? invoice : r)));
+      return invoice;
     },
     [companyId]
   );
@@ -85,6 +98,7 @@ export function useCompanyNativeReceivables(companyId: string | null) {
     updateReceivable,
     deleteReceivable,
     recordPayment,
+    deletePayment,
     refresh,
   };
 }

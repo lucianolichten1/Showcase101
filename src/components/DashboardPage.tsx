@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, PlusCircle, BarChart3 } from "lucide-react";
 import { FinancialPeriodFilter } from "./FinancialPeriodFilter";
@@ -28,6 +28,10 @@ import { InventoryDashboardSection } from "./inventory/InventoryDashboardSection
 import { BankAccountsDashboardCard } from "./bank-accounts/BankAccountsDashboardCard";
 import { useCompanyEnabledModules } from "@/domains/company/useCompanyEnabledModules";
 import { isModuleEnabled } from "@/domains/admin/modules";
+import {
+  formatBalanceWithCurrency,
+  sumBalancesByCurrency,
+} from "@/domains/financial/bank-accounts/bankAccountSyncLogic";
 
 const PERIOD_SUBTITLE_KPI_TITLES = new Set([
   "Total Revenue",
@@ -45,6 +49,9 @@ function kpiPeriodSubtitle(title: string, periodLabel: string): string | undefin
   }
   if (title === "Accounts Receivable" || title === "Overdue Receivables") {
     return "Open invoices";
+  }
+  if (title === "Cash on Hand") {
+    return "Active bank accounts";
   }
   return undefined;
 }
@@ -134,13 +141,37 @@ function kpiGridClassName(count: number): string {
 
 export function DashboardPage() {
   const { isWidgetEnabled } = useCompanyBranding();
-  const { kpis: financialKpis, setDateRange, usesImportedData, importedData } =
-    useCompanyScopedFinancialData();
+  const {
+    kpis: financialKpis,
+    setDateRange,
+    usesImportedData,
+    importedData,
+    bankAccounts,
+    refreshBankAccounts,
+  } = useCompanyScopedFinancialData();
   const { enabledModules } = useCompanyEnabledModules();
   const showInventory = isModuleEnabled(enabledModules, "inventory");
+  const showBankModule = isModuleEnabled(enabledModules, "bank-accounts");
   const showBankAccounts =
-    isModuleEnabled(enabledModules, "bank-accounts") &&
-    isWidgetEnabled("bank-accounts");
+    showBankModule && isWidgetEnabled("bank-accounts");
+  const showCashOnHandKpi =
+    showBankModule && isWidgetEnabled("total-cash");
+  const activeBankAccounts = useMemo(
+    () => bankAccounts.filter((a) => a.active),
+    [bankAccounts]
+  );
+  const cashOnHandDisplay = useMemo(() => {
+    const totals = sumBalancesByCurrency(activeBankAccounts);
+    if (totals.length === 0) return "—";
+    return totals
+      .map((row) => formatBalanceWithCurrency(row.total, row.currency))
+      .join(" · ");
+  }, [activeBankAccounts]);
+
+  useEffect(() => {
+    if (!showBankModule) return;
+    void refreshBankAccounts();
+  }, [showBankModule, refreshBankAccounts]);
   const [period, setPeriod] = useState<FinancialPeriod>(DEFAULT_FINANCIAL_PERIOD);
   const periodLabel =
     usesImportedData && period.kind === "all"
@@ -246,8 +277,25 @@ export function DashboardPage() {
       return kpi;
     });
 
-    return [...baseKpis, ...extraKpis];
-  }, [financialKpis, usesImportedData]);
+    const bankKpis: KPIData[] = showCashOnHandKpi
+      ? [
+          {
+            title: "Cash on Hand",
+            value: cashOnHandDisplay,
+            trend: 0,
+            trendText:
+              activeBankAccounts.length > 0
+                ? `${activeBankAccounts.length} active ${
+                    activeBankAccounts.length === 1 ? "account" : "accounts"
+                  }`
+                : "No bank accounts",
+            trendStatus: "neutral",
+          },
+        ]
+      : [];
+
+    return [...baseKpis, ...extraKpis, ...bankKpis];
+  }, [financialKpis, usesImportedData, showCashOnHandKpi, cashOnHandDisplay, activeBankAccounts.length]);
 
   const visibleKpiCards = useMemo(
     () =>

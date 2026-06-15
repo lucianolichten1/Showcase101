@@ -51,6 +51,11 @@ const MODULE_NAV_PATHS = [
   { id: "export-import", label: "Import / Export", path: "/export-import", icon: ArrowUpDown },
 ] as const;
 
+/** Nav module ids match `modules.ts` keys (not URL slugs). */
+const MODULE_NAV_ID_TO_KEY: Record<string, string> = {
+  "export-import": "import-export",
+};
+
 function withCompanyId(path: string, companyId: string): string {
   return `${path}?companyId=${encodeURIComponent(companyId)}`;
 }
@@ -97,9 +102,11 @@ function getCompanyScopedNavigation(
     });
   }
 
-  const visible = MODULE_NAV_PATHS.filter(
-    (m) => !modules || isModuleEnabled(modules, m.id)
-  );
+  const visible = MODULE_NAV_PATHS.filter((m) => {
+    if (!modules) return true;
+    const moduleKey = MODULE_NAV_ID_TO_KEY[m.id] ?? m.id;
+    return isModuleEnabled(modules, moduleKey);
+  });
 
   items.push(
     ...visible.map((m) => ({

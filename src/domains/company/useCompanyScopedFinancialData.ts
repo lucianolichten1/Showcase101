@@ -21,6 +21,7 @@ import {
   isoToDisplayDueDate,
 } from "@/domains/financial/receivables/receivableDates";
 import type { ReceivableInput } from "@/domains/financial/receivables/receivableService";
+import type { ReceivablePaymentInput } from "@/domains/financial/receivables/receivablePaymentTypes";
 import { useCompanyNativeReceivables } from "@/domains/financial/receivables/useCompanyNativeReceivables";
 import type { BankAccountInput, CreateBankAccountInput } from "@/domains/financial/bank-accounts/types";
 import type { ManualTransactionInput, TransferInput } from "@/domains/financial/bank-accounts/types";
@@ -61,7 +62,7 @@ export type CompanyScopedFinancialDataResult = UseFinancialDataResult &
     deleteCustomer: (id: number) => Promise<void>;
     saveReceivable: (id: number | null, input: ReceivableInput) => Promise<void>;
     deleteReceivable: (id: number) => Promise<void>;
-    recordReceivablePayment: (id: number, payment: number) => Promise<void>;
+    recordReceivablePayment: (id: number, input: ReceivablePaymentInput) => Promise<void>;
     bankAccounts: BankAccountRecord[];
     bankAccountsLoading: boolean;
     bankAccountsError: string | null;
@@ -75,6 +76,7 @@ export type CompanyScopedFinancialDataResult = UseFinancialDataResult &
     fetchBankAccountTransactions: (accountId: string) => Promise<BankTransactionRecord[]>;
     createManualBankTransaction: (input: ManualTransactionInput) => Promise<BankTransactionRecord>;
     createBankTransfer: (input: TransferInput) => Promise<string>;
+    refreshBankAccounts: () => Promise<void>;
   };
 
 export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResult {
@@ -247,8 +249,9 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
     async (id: number) => {
       if (isPersistedNumericId(id)) await receivableHook.deleteReceivable(id);
       else financial.setReceivableRecords((prev) => prev.filter((r) => r.id !== id));
+      await bankAccountHook.refreshBankAccounts();
     },
-    [receivableHook, financial]
+    [receivableHook, financial, bankAccountHook]
   );
 
   const activeBankAccounts = useMemo(
@@ -268,22 +271,23 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
   );
 
   const recordReceivablePayment = useCallback(
-    async (id: number, payment: number) => {
+    async (id: number, input: ReceivablePaymentInput) => {
       if (isPersistedNumericId(id)) {
-        await receivableHook.recordPayment(id, payment);
-        return;
+        await receivableHook.recordPayment(id, input);
+      } else {
+        financial.setReceivableRecords((prev) =>
+          prev.map((r) => {
+            if (r.id !== id) return r;
+            const newTotalPaid = r.amountPaid + input.amount;
+            const status =
+              newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
+            return { ...r, amountPaid: newTotalPaid, status };
+          })
+        );
       }
-      financial.setReceivableRecords((prev) =>
-        prev.map((r) => {
-          if (r.id !== id) return r;
-          const newTotalPaid = r.amountPaid + payment;
-          const status =
-            newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
-          return { ...r, amountPaid: newTotalPaid, status };
-        })
-      );
+      await bankAccountHook.refreshBankAccounts();
     },
-    [receivableHook, financial]
+    [receivableHook, financial, bankAccountHook]
   );
 
   const scoped = useMemo(
@@ -355,5 +359,6 @@ export function useCompanyScopedFinancialData(): CompanyScopedFinancialDataResul
     fetchBankAccountTransactions: bankAccountHook.fetchTransactions,
     createManualBankTransaction: bankAccountHook.createManualTransaction,
     createBankTransfer: bankAccountHook.createTransfer,
+    refreshBankAccounts: bankAccountHook.refreshBankAccounts,
   };
 }

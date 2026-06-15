@@ -17,6 +17,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { InvoiceFormDialog } from "./receivables/InvoiceFormDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { RECEIVABLE_PAGE_COPY } from "@/domains/financial/receivables/labels";
+import type { ReceivablePaymentInput } from "@/domains/financial/receivables/receivablePaymentTypes";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
 import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
@@ -123,6 +124,7 @@ export function AccountsReceivablePage({
 
   // Dialog state
   const [paymentTarget, setPaymentTarget] = useState<ReceivableRecord | null>(null);
+  const [savingPayment, setSavingPayment] = useState(false);
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [editInvoice, setEditInvoice] = useState<ReceivableRecord | null>(null);
   const [savingInvoice, setSavingInvoice] = useState(false);
@@ -254,18 +256,23 @@ export function AccountsReceivablePage({
     }
   };
 
-  const handleConfirmPayment = async (id: number, payment: number) => {
-    if (onUpdateReceivableProp) {
-      const r = receivables.find((x) => x.id === id);
-      if (!r) return;
-      const newTotalPaid = r.amountPaid + payment;
-      const status: ReceivableRecord["status"] =
-        newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
-      onUpdateReceivableProp({ ...r, amountPaid: newTotalPaid, status });
-    } else {
-      await recordReceivablePayment(id, payment);
+  const handleConfirmPayment = async (id: number, input: ReceivablePaymentInput) => {
+    setSavingPayment(true);
+    try {
+      if (onUpdateReceivableProp) {
+        const r = receivables.find((x) => x.id === id);
+        if (!r) return;
+        const newTotalPaid = r.amountPaid + input.amount;
+        const status: ReceivableRecord["status"] =
+          newTotalPaid <= 0 ? "Pending" : newTotalPaid < r.amount ? "Partially Paid" : "Paid";
+        onUpdateReceivableProp({ ...r, amountPaid: newTotalPaid, status });
+      } else {
+        await recordReceivablePayment(id, input);
+      }
+      setPaymentTarget(null);
+    } finally {
+      setSavingPayment(false);
     }
-    setPaymentTarget(null);
   };
 
   const handleSaveInvoice = async (input: {
@@ -634,7 +641,8 @@ export function AccountsReceivablePage({
       <RecordPaymentDialog
         open={paymentTarget !== null}
         receivable={paymentTarget}
-        onClose={() => setPaymentTarget(null)}
+        saving={savingPayment}
+        onClose={() => !savingPayment && setPaymentTarget(null)}
         onConfirm={handleConfirmPayment}
       />
       <InvoiceFormDialog

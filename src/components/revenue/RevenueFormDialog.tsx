@@ -309,6 +309,9 @@ export function RevenueFormDialog({
               {bankAccountError && (
                 <p className="mt-1 text-xs text-red-700">{bankAccountError}</p>
               )}
+              {!bankAccountError && form.status !== "Collected" && (
+                <p className="mt-1 text-xs text-amber-800">{REVENUE_FORM_COPY.bankBalanceHint}</p>
+              )}
               {activeBankAccounts.length === 0 && (
                 <p className="mt-1 text-xs text-amber-800">
                   {REVENUE_FORM_COPY.bankAccountMissingHint}

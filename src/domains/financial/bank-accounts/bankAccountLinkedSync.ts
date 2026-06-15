@@ -1,11 +1,17 @@
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import type { ExpenseRecord, RevenueRecord } from "@/domains/financial/types";
+import type { BankTransactionReferenceType } from "./types";
+import type {
+  PurchaseOrderBankSyncInput,
+  ReceivablePaymentBankSyncInput,
+  SalesOrderBankSyncInput,
+} from "./bankAccountSyncLogic";
 
-/** Remove ledger rows linked to an expense or revenue record. */
+/** Remove ledger rows linked to a reference type + id. */
 export async function removeServerLinkedBankTransactions(
   companyId: string,
-  referenceType: "expense" | "revenue",
+  referenceType: BankTransactionReferenceType,
   referenceId: string
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
@@ -94,5 +100,107 @@ export async function syncServerRevenueBankTransaction(
 
   if (error) {
     throw new Error(getSupabaseErrorMessage(error, "No se pudo registrar el ingreso en la cuenta bancaria."));
+  }
+}
+
+export async function syncServerReceivablePaymentBankTransaction(
+  companyId: string,
+  payment: ReceivablePaymentBankSyncInput
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const refId = String(payment.id);
+  await removeServerLinkedBankTransactions(companyId, "receivable", refId);
+
+  if (payment.paymentMethod !== "Bank Transfer" || !payment.bankAccountId) {
+    return;
+  }
+
+  const description = `Cobro ${payment.invoiceNumber} — ${payment.customerName}`;
+  const { error } = await supabase.from("company_bank_transactions").insert({
+    company_id: companyId,
+    bank_account_id: payment.bankAccountId,
+    transaction_date: payment.paymentDate,
+    description,
+    amount: payment.amount,
+    type: "income",
+    reference_type: "receivable",
+    reference_id: refId,
+  });
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "No se pudo registrar el cobro en la cuenta bancaria.")
+    );
+  }
+}
+
+export async function syncServerPurchaseOrderBankTransaction(
+  companyId: string,
+  po: PurchaseOrderBankSyncInput
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const refId = String(po.id);
+  await removeServerLinkedBankTransactions(companyId, "purchase_order", refId);
+
+  if (
+    po.status !== "Received" ||
+    po.paymentMethod !== "Bank Transfer" ||
+    !po.bankAccountId
+  ) {
+    return;
+  }
+
+  const { error } = await supabase.from("company_bank_transactions").insert({
+    company_id: companyId,
+    bank_account_id: po.bankAccountId,
+    transaction_date: po.receivedDate ?? new Date().toISOString().slice(0, 10),
+    description: `Orden de compra ${po.poNumber}`,
+    amount: po.total,
+    type: "expense",
+    reference_type: "purchase_order",
+    reference_id: refId,
+  });
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "No se pudo registrar la orden de compra en la cuenta bancaria.")
+    );
+  }
+}
+
+export async function syncServerSalesOrderBankTransaction(
+  companyId: string,
+  so: SalesOrderBankSyncInput
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const refId = String(so.id);
+  await removeServerLinkedBankTransactions(companyId, "sales_order", refId);
+
+  if (
+    so.status !== "Fulfilled" ||
+    so.paymentMethod !== "Bank Transfer" ||
+    !so.bankAccountId
+  ) {
+    return;
+  }
+
+  const { error } = await supabase.from("company_bank_transactions").insert({
+    company_id: companyId,
+    bank_account_id: so.bankAccountId,
+    transaction_date: so.fulfilledDate ?? new Date().toISOString().slice(0, 10),
+    description: `Orden de venta ${so.soNumber}`,
+    amount: so.total,
+    type: "income",
+    reference_type: "sales_order",
+    reference_id: refId,
+  });
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "No se pudo registrar la orden de venta en la cuenta bancaria.")
+    );
   }
 }

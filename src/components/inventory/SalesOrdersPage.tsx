@@ -2,16 +2,20 @@ import { useCallback, useState, type FormEvent } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Plus } from "lucide-react";
 import { InventoryPageShell } from "./InventoryPageShell";
+import { OrderPaymentDialog } from "./OrderPaymentDialog";
 import { formatCurrency } from "@/data/mockData";
 import { useInventoryData } from "@/domains/inventory/hooks";
+import { syncSalesOrderBankLedger } from "@/domains/inventory/inventoryBankSync";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
-import type { SOStatus, SalesOrderItem, SalesOrderRecord } from "@/domains/inventory/types";
+import type { OrderPaymentInput, SOStatus, SalesOrderItem, SalesOrderRecord } from "@/domains/inventory/types";
 import { SO_STATUSES } from "@/domains/inventory/types";
 
 export function SalesOrdersPage() {
   const { salesOrders, setSalesOrders, products, fulfillSalesOrder } = useInventoryData();
-  const { customerRecords } = useCompanyScopedFinancialData();
+  const { customerRecords, activeCompanyId, refreshBankAccounts } = useCompanyScopedFinancialData();
   const [showForm, setShowForm] = useState(false);
+  const [fulfillTarget, setFulfillTarget] = useState<SalesOrderRecord | null>(null);
+  const [savingFulfill, setSavingFulfill] = useState(false);
 
   const openCreateForm = useCallback(() => setShowForm(true), []);
   useOpenCreateFromQuery("sales-order", openCreateForm);
@@ -65,12 +69,28 @@ export function SalesOrdersPage() {
 
   const updateStatus = (id: number, status: SOStatus) => {
     if (status === "Fulfilled") {
-      fulfillSalesOrder(id);
+      const so = salesOrders.find((s) => s.id === id);
+      if (so) setFulfillTarget(so);
       return;
     }
     setSalesOrders((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status } : s))
     );
+  };
+
+  const handleConfirmFulfill = async (input: OrderPaymentInput) => {
+    if (!fulfillTarget || !activeCompanyId) return;
+    setSavingFulfill(true);
+    try {
+      const updated = fulfillSalesOrder(fulfillTarget.id, input);
+      if (updated) {
+        await syncSalesOrderBankLedger(activeCompanyId, updated);
+        await refreshBankAccounts();
+      }
+      setFulfillTarget(null);
+    } finally {
+      setSavingFulfill(false);
+    }
   };
 
   return (
@@ -123,6 +143,18 @@ export function SalesOrdersPage() {
           </tbody>
         </table>
       </div>
+
+      <OrderPaymentDialog
+        open={fulfillTarget !== null}
+        title="Completar orden de venta"
+        orderLabel="SO #"
+        orderNumber={fulfillTarget?.soNumber ?? ""}
+        total={fulfillTarget?.total ?? 0}
+        balanceHint="El saldo de la cuenta solo se acredita cuando el método de pago es Transferencia bancaria."
+        saving={savingFulfill}
+        onClose={() => !savingFulfill && setFulfillTarget(null)}
+        onConfirm={handleConfirmFulfill}
+      />
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">

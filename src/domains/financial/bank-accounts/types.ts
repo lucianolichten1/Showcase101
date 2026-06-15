@@ -17,7 +17,10 @@ export type BankTransactionReferenceType =
   | "revenue"
   | "manual"
   | "transfer"
-  | "opening";
+  | "opening"
+  | "receivable"
+  | "purchase_order"
+  | "sales_order";
 
 export interface BankAccountRecord {
   id: string;

@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -17,6 +18,7 @@ import {
   isDashboardWidgetEnabled,
   normalizeEnabledDashboardWidgets,
 } from "@/domains/admin/dashboardWidgets";
+import { COMPANY_DASHBOARD_WIDGETS_CHANGED } from "@/domains/company/companyWorkspaceEvents";
 import { brandingToCssVars, resolveCompanyBranding } from "./branding";
 import { useCompanyRecords } from "./CompanyDataContext";
 
@@ -56,6 +58,18 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
   const [fetchedCompany, setFetchedCompany] = useState<CompanyRecord | null>(null);
   /** Company id whose fetch has finished (found or not). Used to detect stale results. */
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null);
+  const [widgetsRevision, setWidgetsRevision] = useState(0);
+
+  const refetchCompany = useCallback(async (targetCompanyId: string) => {
+    try {
+      const record = await getCompanyById(targetCompanyId);
+      setFetchedCompany(record);
+      setResolvedCompanyId(targetCompanyId);
+    } catch {
+      setFetchedCompany(null);
+      setResolvedCompanyId(targetCompanyId);
+    }
+  }, []);
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -71,21 +85,38 @@ export function CompanyBrandingProvider({ children }: { children: ReactNode }) {
     }
 
     let cancelled = false;
-    getCompanyById(activeCompanyId)
-      .then((record) => {
+    void (async () => {
+      try {
+        const record = await getCompanyById(activeCompanyId);
         if (!cancelled) setFetchedCompany(record);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setFetchedCompany(null);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setResolvedCompanyId(activeCompanyId);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [activeCompanyId, fromContext]);
+  }, [activeCompanyId, fromContext, widgetsRevision]);
+
+  useEffect(() => {
+    if (!activeCompanyId) return;
+
+    const onWidgetsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ companyId: string }>).detail;
+      if (!detail?.companyId || detail.companyId === activeCompanyId) {
+        setWidgetsRevision((n) => n + 1);
+        void refetchCompany(activeCompanyId);
+      }
+    };
+
+    window.addEventListener(COMPANY_DASHBOARD_WIDGETS_CHANGED, onWidgetsChanged);
+    return () => {
+      window.removeEventListener(COMPANY_DASHBOARD_WIDGETS_CHANGED, onWidgetsChanged);
+    };
+  }, [activeCompanyId, refetchCompany]);
 
   const company = fromContext ?? fetchedCompany;
   // True from the first render whenever a company is expected but not yet

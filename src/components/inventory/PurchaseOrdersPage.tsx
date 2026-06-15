@@ -2,10 +2,14 @@ import { useCallback, useState, type FormEvent } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
 import { Plus } from "lucide-react";
 import { InventoryPageShell } from "./InventoryPageShell";
+import { OrderPaymentDialog } from "./OrderPaymentDialog";
 import { formatCurrency } from "@/data/mockData";
 import { useInventoryData } from "@/domains/inventory/hooks";
+import { syncPurchaseOrderBankLedger } from "@/domains/inventory/inventoryBankSync";
+import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
 import type { POStatus, PurchaseOrderItem, PurchaseOrderRecord } from "@/domains/inventory/types";
 import { PO_STATUSES } from "@/domains/inventory/types";
+import type { OrderPaymentInput } from "@/domains/inventory/types";
 
 export function PurchaseOrdersPage() {
   const {
@@ -15,7 +19,10 @@ export function PurchaseOrdersPage() {
     suppliers,
     receivePurchaseOrder,
   } = useInventoryData();
+  const { activeCompanyId, refreshBankAccounts } = useCompanyScopedFinancialData();
   const [showForm, setShowForm] = useState(false);
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrderRecord | null>(null);
+  const [savingReceive, setSavingReceive] = useState(false);
 
   const openCreateForm = useCallback(() => setShowForm(true), []);
   useOpenCreateFromQuery("purchase-order", openCreateForm);
@@ -70,12 +77,28 @@ export function PurchaseOrdersPage() {
 
   const updateStatus = (id: number, status: POStatus) => {
     if (status === "Received") {
-      receivePurchaseOrder(id);
+      const po = purchaseOrders.find((p) => p.id === id);
+      if (po) setReceiveTarget(po);
       return;
     }
     setPurchaseOrders((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status } : p))
     );
+  };
+
+  const handleConfirmReceive = async (input: OrderPaymentInput) => {
+    if (!receiveTarget || !activeCompanyId) return;
+    setSavingReceive(true);
+    try {
+      const updated = receivePurchaseOrder(receiveTarget.id, input);
+      if (updated) {
+        await syncPurchaseOrderBankLedger(activeCompanyId, updated);
+        await refreshBankAccounts();
+      }
+      setReceiveTarget(null);
+    } finally {
+      setSavingReceive(false);
+    }
   };
 
   return (
@@ -131,6 +154,18 @@ export function PurchaseOrdersPage() {
         </table>
       </div>
 
+      <OrderPaymentDialog
+        open={receiveTarget !== null}
+        title="Recibir orden de compra"
+        orderLabel="PO #"
+        orderNumber={receiveTarget?.poNumber ?? ""}
+        total={receiveTarget?.total ?? 0}
+        balanceHint="El saldo de la cuenta solo se descuenta cuando el método de pago es Transferencia bancaria."
+        saving={savingReceive}
+        onClose={() => !savingReceive && setReceiveTarget(null)}
+        onConfirm={handleConfirmReceive}
+      />
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <form
@@ -153,7 +188,7 @@ export function PurchaseOrdersPage() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-green-800">Expected delivery</label>
+              <label className="text-[10px] font-bold uppercase text-green-800">Expected date</label>
               <input
                 type="date"
                 value={expectedDate}
@@ -161,64 +196,61 @@ export function PurchaseOrdersPage() {
                 className="mt-1 w-full py-2 px-3 text-xs border border-stone-200 rounded-lg"
               />
             </div>
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase text-green-800">Line items</p>
-              {lines.map((line, i) => (
-                <div key={i} className="grid grid-cols-3 gap-2">
-                  <select
-                    value={line.productId}
-                    onChange={(e) => {
-                      const next = [...lines];
-                      next[i] = { ...next[i], productId: e.target.value };
-                      setLines(next);
-                    }}
-                    className="py-2 px-2 text-xs border border-stone-200 rounded-lg bg-white col-span-1"
-                  >
-                    <option value="">Product</option>
-                    {products.filter((p) => p.active).map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder="Qty"
-                    value={line.quantity}
-                    onChange={(e) => {
-                      const next = [...lines];
-                      next[i] = { ...next[i], quantity: e.target.value };
-                      setLines(next);
-                    }}
-                    className="py-2 px-2 text-xs border border-stone-200 rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    placeholder="Unit cost"
-                    value={line.unitCost}
-                    onChange={(e) => {
-                      const next = [...lines];
-                      next[i] = { ...next[i], unitCost: e.target.value };
-                      setLines(next);
-                    }}
-                    className="py-2 px-2 text-xs border border-stone-200 rounded-lg"
-                  />
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setLines([...lines, { productId: "", quantity: "1", unitCost: "0" }])}
-                className="text-[10px] font-semibold text-green-800 hover:underline"
-              >
-                + Add line
-              </button>
-            </div>
+            {lines.map((line, idx) => (
+              <div key={idx} className="grid grid-cols-3 gap-2">
+                <select
+                  value={line.productId}
+                  onChange={(e) => {
+                    const next = [...lines];
+                    next[idx] = { ...next[idx], productId: e.target.value };
+                    setLines(next);
+                  }}
+                  className="py-2 px-2 text-xs border border-stone-200 rounded-lg bg-white"
+                >
+                  <option value="">Product</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  value={line.quantity}
+                  onChange={(e) => {
+                    const next = [...lines];
+                    next[idx] = { ...next[idx], quantity: e.target.value };
+                    setLines(next);
+                  }}
+                  className="py-2 px-2 text-xs border border-stone-200 rounded-lg"
+                  placeholder="Qty"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={line.unitCost}
+                  onChange={(e) => {
+                    const next = [...lines];
+                    next[idx] = { ...next[idx], unitCost: e.target.value };
+                    setLines(next);
+                  }}
+                  className="py-2 px-2 text-xs border border-stone-200 rounded-lg"
+                  placeholder="Unit cost"
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLines((prev) => [...prev, { productId: "", quantity: "1", unitCost: "0" }])}
+              className="text-xs font-semibold text-green-800"
+            >
+              + Add line
+            </button>
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-xs font-bold border border-stone-200 rounded-lg">
+              <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 text-xs border rounded-lg">
                 Cancel
               </button>
-              <button type="submit" className="px-4 py-2 text-xs font-bold bg-green-800 text-white rounded-lg hover:bg-green-700">
+              <button type="submit" className="px-3 py-2 text-xs font-bold text-white bg-green-800 rounded-lg">
                 Create
               </button>
             </div>

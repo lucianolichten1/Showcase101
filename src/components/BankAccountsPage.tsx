@@ -288,7 +288,7 @@ export function BankAccountsPage() {
         confirmLabel={BANK_ACCOUNTS_PAGE_COPY.markInactive}
         loading={deactivating}
         onConfirm={handleDeactivate}
-        onCancel={() => !deactivating && setDeactivateTarget(null)}
+        onClose={() => !deactivating && setDeactivateTarget(null)}
       />
     </div>
   );

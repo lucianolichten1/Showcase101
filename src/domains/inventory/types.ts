@@ -1,3 +1,5 @@
+import type { PaymentMethod } from "@/domains/financial/types";
+
 export const PRODUCT_CATEGORIES = [
   "Raw material",
   "Finished good",
@@ -24,6 +26,14 @@ export type ProductUnit = (typeof PRODUCT_UNITS)[number];
 export type POStatus = (typeof PO_STATUSES)[number];
 export type SOStatus = (typeof SO_STATUSES)[number];
 export type AdjustmentReason = (typeof ADJUSTMENT_REASONS)[number];
+
+export type { PaymentMethod };
+
+export interface OrderPaymentInput {
+  paymentMethod: PaymentMethod;
+  bankAccountId: string | null;
+  paymentDateIso: string;
+}
 
 export interface SupplierRecord {
   id: number;
@@ -64,6 +74,9 @@ export interface PurchaseOrderRecord {
   total: number;
   items: PurchaseOrderItem[];
   createdAt: string;
+  paymentMethod?: PaymentMethod | null;
+  bankAccountId?: string | null;
+  receivedDate?: string | null;
 }
 
 export interface SalesOrderItem {
@@ -81,6 +94,9 @@ export interface SalesOrderRecord {
   total: number;
   items: SalesOrderItem[];
   createdAt: string;
+  paymentMethod?: PaymentMethod | null;
+  bankAccountId?: string | null;
+  fulfilledDate?: string | null;
 }
 
 export interface InventoryAdjustmentRecord {

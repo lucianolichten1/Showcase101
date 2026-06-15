@@ -1,4 +1,8 @@
+import { dispatchCompanyEnabledModulesChanged } from "@/domains/company/companyWorkspaceEvents";
+
 const STORAGE_KEY = "agro-company-enabled-modules-v1";
+
+export { STORAGE_KEY as COMPANY_ENABLED_MODULES_STORAGE_KEY };
 
 type ModuleMap = Record<string, string[]>;
 
@@ -27,6 +31,7 @@ export function saveCompanyEnabledModules(
   const all = readAll();
   all[companyId] = modules;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  dispatchCompanyEnabledModulesChanged(companyId);
 }
 
 export function removeCompanyEnabledModules(companyId: string): void {
@@ -34,4 +39,5 @@ export function removeCompanyEnabledModules(companyId: string): void {
   if (!(companyId in all)) return;
   delete all[companyId];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  dispatchCompanyEnabledModulesChanged(companyId);
 }

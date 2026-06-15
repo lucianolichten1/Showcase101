@@ -56,6 +56,12 @@ export const DASHBOARD_WIDGET_DEFINITIONS = [
     kind: "kpi",
   },
   {
+    key: "total-cash",
+    name: "Cash on Hand",
+    description: "Total cash across active bank accounts (ledger balances).",
+    kind: "kpi",
+  },
+  {
     key: "financial-overview",
     name: "Financial overview",
     description: "Monthly revenue and expenses chart.",
@@ -134,6 +140,7 @@ export const KPI_TITLE_TO_WIDGET_KEY: Record<string, DashboardWidgetKey> = {
   "Collected Revenue": "collected-revenue",
   "Overdue Receivables": "overdue-receivables",
   "Outstanding Expenses": "outstanding-expenses",
+  "Cash on Hand": "total-cash",
 };
 
 export function isKnownDashboardWidgetKey(key: string): key is DashboardWidgetKey {

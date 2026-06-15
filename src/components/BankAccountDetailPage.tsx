@@ -14,6 +14,8 @@ import {
   bankTransactionTypeLabel,
   maskAccountNumber,
 } from "@/domains/financial/bank-accounts/labels";
+import { useSupabaseRealtimeRefresh } from "@/lib/useSupabaseRealtimeRefresh";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 function formatDisplayDate(isoDate: string): string {
@@ -36,6 +38,15 @@ function sourceLink(
   if (tx.referenceType === "revenue" && tx.referenceId) {
     return { label: "Ver ingreso", href: `/revenue${querySuffix}` };
   }
+  if (tx.referenceType === "receivable") {
+    return { label: "Ver cuentas por cobrar", href: `/receivables${querySuffix}` };
+  }
+  if (tx.referenceType === "purchase_order") {
+    return { label: "Ver órdenes de compra", href: `/inventory/purchase-orders${querySuffix}` };
+  }
+  if (tx.referenceType === "sales_order") {
+    return { label: "Ver órdenes de venta", href: `/inventory/sales-orders${querySuffix}` };
+  }
   return { label: bankTransactionSourceLabel(tx.referenceType), href: null };
 }
 
@@ -46,10 +57,12 @@ export function BankAccountDetailPage() {
   const querySuffix = companyQuery ? `?companyId=${encodeURIComponent(companyQuery)}` : "";
 
   const {
+    activeCompanyId,
     bankAccounts,
     fetchBankAccountTransactions,
     createManualBankTransaction,
     createBankTransfer,
+    refreshBankAccounts,
   } = useCompanyScopedFinancialData();
 
   const account = bankAccounts.find((a) => a.id === id);
@@ -72,7 +85,14 @@ export function BankAccountDetailPage() {
 
   useEffect(() => {
     void loadTransactions();
-  }, [loadTransactions]);
+  }, [loadTransactions, account?.currentBalance]);
+
+  useSupabaseRealtimeRefresh(
+    activeCompanyId,
+    "bank-detail-transactions",
+    "company_bank_transactions",
+    loadTransactions
+  );
 
   if (!account) {
     return (
@@ -231,6 +251,7 @@ export function BankAccountDetailPage() {
             await createManualBankTransaction(input);
             setManualOpen(false);
             await loadTransactions();
+            if (isSupabaseConfigured) await refreshBankAccounts();
           } finally {
             setSaving(false);
           }
@@ -249,6 +270,7 @@ export function BankAccountDetailPage() {
             await createBankTransfer(input);
             setTransferOpen(false);
             await loadTransactions();
+            if (isSupabaseConfigured) await refreshBankAccounts();
           } finally {
             setSaving(false);
           }

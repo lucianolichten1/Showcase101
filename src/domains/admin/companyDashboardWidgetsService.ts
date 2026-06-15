@@ -5,6 +5,7 @@ import {
 } from "./dashboardWidgets";
 import { updateCompanyDashboardWidgets } from "./companyService";
 import type { CompanyRecord } from "./types";
+import { dispatchCompanyDashboardWidgetsChanged } from "@/domains/company/companyWorkspaceEvents";
 
 export function validateDashboardWidgetKeys(keys: string[]): string | null {
   if (keys.length === 0) {
@@ -30,5 +31,7 @@ export async function saveCompanyDashboardWidgets(
     keys.includes(key)
   ) as DashboardWidgetKey[];
 
-  return updateCompanyDashboardWidgets(companyId, ordered);
+  const updated = await updateCompanyDashboardWidgets(companyId, ordered);
+  dispatchCompanyDashboardWidgetsChanged(companyId);
+  return updated;
 }

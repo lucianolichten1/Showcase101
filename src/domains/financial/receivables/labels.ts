@@ -14,6 +14,21 @@ export const RECEIVABLE_FORM_COPY = {
   selectCustomer: "Seleccionar cliente…",
 } as const;
 
+export const RECORD_PAYMENT_COPY = {
+  title: "Registrar pago",
+  amount: "Monto a pagar (Bs)",
+  paymentDate: "Fecha de pago",
+  paymentMethod: "Método de pago",
+  bankAccount: "Cuenta bancaria",
+  bankAccountPlaceholder: "Seleccione una cuenta",
+  bankAccountRequired: "Seleccione una cuenta bancaria para transferencias.",
+  bankAccountMissingHint: "Registre una cuenta bancaria activa antes de guardar.",
+  bankBalanceHint:
+    "El saldo de la cuenta solo se acredita cuando el método de pago es Transferencia bancaria.",
+  cancel: "Cancelar",
+  confirm: "Confirmar pago",
+} as const;
+
 export const RECEIVABLE_PAGE_COPY = {
   title: "Cuentas por cobrar",
   addInvoice: "Agregar factura",
