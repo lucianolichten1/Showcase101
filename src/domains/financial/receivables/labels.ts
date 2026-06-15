@@ -51,6 +51,18 @@ export const RECEIVABLE_PAGE_COPY = {
   paymentError: "No se pudo registrar el pago.",
 } as const;
 
+/** Single-word status labels for table display (internal keys unchanged). */
+export const RECEIVABLE_STATUS_LABELS: Record<string, string> = {
+  Pending: "Pendiente",
+  "Partially Paid": "Parcial",
+  Paid: "Pagado",
+  Overdue: "Vencido",
+};
+
+export function receivableStatusLabel(status: string): string {
+  return RECEIVABLE_STATUS_LABELS[status] ?? status;
+}
+
 export const INVOICE_PAYMENTS_COPY = {
   title: "Historial de pagos",
   total: "Total",

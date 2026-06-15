@@ -1,6 +1,6 @@
 import { useCallback, useState, useMemo } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch, Wallet, History } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch, Wallet } from "lucide-react";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   calculateAverageDaysOverdue,
@@ -17,12 +17,11 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { InvoiceFormDialog } from "./receivables/InvoiceFormDialog";
 import { InvoicePaymentsDialog } from "./receivables/InvoicePaymentsDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
-import { RECEIVABLE_PAGE_COPY } from "@/domains/financial/receivables/labels";
+import { RECEIVABLE_PAGE_COPY, receivableStatusLabel } from "@/domains/financial/receivables/labels";
 import type { ReceivablePaymentInput, ReceivablePaymentRecord } from "@/domains/financial/receivables/receivablePaymentTypes";
 import { getSupabaseErrorMessage } from "@/lib/supabaseError";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
-import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
 import {
   buildWhatsAppChaseUrl,
   isChaseableReceivable,
@@ -109,8 +108,12 @@ function FilterChip({
 function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: SortKey | null; sortDir: "asc" | "desc" }) {
   if (sortKey !== colKey) return <ArrowUpDown size={10} className="inline ml-1 text-stone-300" />;
   return sortDir === "asc"
-    ? <ArrowUp size={10} className="inline ml-1 text-green-700" />
-    : <ArrowDown size={10} className="inline ml-1 text-green-700" />;
+    ? <ArrowUp size={10} className="inline ml-1 text-stone-400" />
+    : <ArrowDown size={10} className="inline ml-1 text-stone-400" />;
+}
+
+function receivableTableStatusClass(status: string): string {
+  return status === "Paid" ? "font-medium text-green-800" : "font-medium text-stone-900";
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -135,7 +138,6 @@ export function AccountsReceivablePage({
 
   // Filter state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
-  const [riskFilters, setRiskFilters] = useState<Set<string>>(new Set());
   const [bankAccountFilter, setBankAccountFilter] = useState("");
   const [search, setSearch] = useState("");
 
@@ -239,9 +241,6 @@ export function AccountsReceivablePage({
     if (statusFilters.size > 0)
       list = list.filter((r) => statusFilters.has(r.status));
 
-    if (riskFilters.size > 0)
-      list = list.filter((r) => riskFilters.has(getRiskLevel(r.overdueDays, r.status)));
-
     if (search.trim())
       list = list.filter((r) =>
         r.customer.toLowerCase().includes(search.trim().toLowerCase())
@@ -273,7 +272,7 @@ export function AccountsReceivablePage({
     }
 
     return list;
-  }, [receivables, statusFilters, riskFilters, search, bankAccountFilter, paymentsByInvoiceId, sortKey, sortDir]);
+  }, [receivables, statusFilters, search, bankAccountFilter, paymentsByInvoiceId, sortKey, sortDir]);
 
   // Table footer totals
   const footerAmount = displayed.reduce((s, r) => s + r.amount, 0);
@@ -286,14 +285,6 @@ export function AccountsReceivablePage({
     setStatusFilters((prev) => {
       const next = new Set(prev);
       next.has(status) ? next.delete(status) : next.add(status);
-      return next;
-    });
-  };
-
-  const toggleRiskFilter = (risk: string) => {
-    setRiskFilters((prev) => {
-      const next = new Set(prev);
-      next.has(risk) ? next.delete(risk) : next.add(risk);
       return next;
     });
   };
@@ -462,19 +453,19 @@ export function AccountsReceivablePage({
         </section>
 
         {receivablesError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+          <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-800">
             {receivablesError}
           </div>
         )}
 
         {paymentError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+          <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-800">
             {paymentError}
           </div>
         )}
 
         {!activeCompanyId && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-800">
             Selecciona una empresa para registrar pagos y sincronizar con cuentas bancarias.
           </div>
         )}
@@ -512,19 +503,10 @@ export function AccountsReceivablePage({
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="text-[10px] font-semibold text-stone-700 mr-1">Status</span>
               <FilterChip label="All" active={statusFilters.size === 0} onClick={() => setStatusFilters(new Set())} />
-              <FilterChip label="Pending" active={statusFilters.has("Pending")} onClick={() => toggleStatusFilter("Pending")} color="stone" />
-              <FilterChip label="Partially Paid" active={statusFilters.has("Partially Paid")} onClick={() => toggleStatusFilter("Partially Paid")} color="amber" />
-              <FilterChip label="Paid" active={statusFilters.has("Paid")} onClick={() => toggleStatusFilter("Paid")} color="green" />
-              <FilterChip label="Overdue" active={statusFilters.has("Overdue")} onClick={() => toggleStatusFilter("Overdue")} color="red" />
-            </div>
-
-            {/* Risk chips */}
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[10px] font-semibold text-stone-700 mr-1">Risk</span>
-              <FilterChip label="All" active={riskFilters.size === 0} onClick={() => setRiskFilters(new Set())} />
-              <FilterChip label="Low" active={riskFilters.has("Low")} onClick={() => toggleRiskFilter("Low")} color="green" />
-              <FilterChip label="Medium" active={riskFilters.has("Medium")} onClick={() => toggleRiskFilter("Medium")} color="amber" />
-              <FilterChip label="High" active={riskFilters.has("High")} onClick={() => toggleRiskFilter("High")} color="red" />
+              <FilterChip label="Pendiente" active={statusFilters.has("Pending")} onClick={() => toggleStatusFilter("Pending")} />
+              <FilterChip label="Parcial" active={statusFilters.has("Partially Paid")} onClick={() => toggleStatusFilter("Partially Paid")} />
+              <FilterChip label="Pagado" active={statusFilters.has("Paid")} onClick={() => toggleStatusFilter("Paid")} />
+              <FilterChip label="Vencido" active={statusFilters.has("Overdue")} onClick={() => toggleStatusFilter("Overdue")} />
             </div>
 
             {activeBankAccounts.length > 0 && (
@@ -553,7 +535,7 @@ export function AccountsReceivablePage({
 
           {/* Results count */}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-green-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-800">
               All Receivables
             </h3>
             <span className="text-[10px] font-medium text-stone-600">
@@ -569,35 +551,35 @@ export function AccountsReceivablePage({
                 <col className="w-[88px]" />
                 <col className="w-[92px]" />
                 {showDepositColumn && <col className="w-[108px]" />}
-                <col className="w-[128px]" />
+                <col className="w-[140px]" />
               </colgroup>
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
                   <th
-                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none"
                     onClick={() => handleSort("customer")}
                   >
                     Customer <SortIcon colKey="customer" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th
-                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right cursor-pointer select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right cursor-pointer select-none"
                     onClick={() => handleSort("balance")}
                   >
                     Balance <SortIcon colKey="balance" sortKey={sortKey} sortDir={sortDir} />
                   </th>
                   <th
-                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none"
+                    className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none"
                     onClick={() => handleSort("dueDate")}
                   >
                     Due <SortIcon colKey="dueDate" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Status</th>
                   {showDepositColumn && (
-                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">
                       {RECEIVABLE_PAGE_COPY.depositColumn}
                     </th>
                   )}
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">
                     {RECEIVABLE_PAGE_COPY.actions}
                   </th>
                 </tr>
@@ -609,20 +591,19 @@ export function AccountsReceivablePage({
                       <div className="flex flex-col items-center gap-2 text-stone-600">
                         <FileSearch size={32} strokeWidth={1.5} />
                         <p className="text-sm font-medium text-stone-800">No invoices match your filters</p>
-                        <p className="text-xs text-stone-600">Try adjusting the search, status, or risk filters</p>
+                        <p className="text-xs text-stone-600">Try adjusting the search or status filters</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   displayed.map((row) => {
                     const balance = row.amount - row.amountPaid;
-                    const risk = getRiskLevel(row.overdueDays, row.status);
                     const invoicePayments = paymentsByInvoiceId.get(row.id) ?? [];
                     const depositName = latestBankDepositName(invoicePayments, bankAccountNameById);
                     return (
                       <tr
                         key={row.id}
-                        className="border-b border-stone-100 last:border-0 transition-colors hover:bg-green-50/40"
+                        className="border-b border-stone-100 last:border-0 transition-colors hover:bg-stone-50/80"
                       >
                         <td className="px-3 py-3 min-w-0 align-top">
                           <div className="font-semibold truncate leading-snug" title={row.customer}>
@@ -643,23 +624,17 @@ export function AccountsReceivablePage({
                           )}
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <div className="font-medium text-stone-700 leading-snug">{row.dueDate}</div>
-                          {row.overdueDays > 0 ? (
-                            <div className="text-[10px] text-red-700 font-semibold mt-0.5">{row.overdueDays}d overdue</div>
-                          ) : (
-                            <div className="text-[10px] text-stone-500 mt-0.5">On time</div>
-                          )}
+                          <div className="font-medium text-stone-900 leading-snug">{row.dueDate}</div>
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <div className={cn(receivableStatusTextClass(row.status), "leading-snug")}>{row.status}</div>
-                          {risk !== "Low" && (
-                            <div className={cn(riskTextClass(risk), "text-[10px] mt-0.5")}>{risk}</div>
-                          )}
+                          <div className={cn(receivableTableStatusClass(row.status), "leading-snug")}>
+                            {receivableStatusLabel(row.status)}
+                          </div>
                         </td>
                         {showDepositColumn && (
                           <td className="px-3 py-3 align-top">
                             {depositName ? (
-                              <div className="text-[10px] font-medium text-green-800 leading-snug truncate" title={depositName}>
+                              <div className="text-[10px] font-medium text-stone-700 leading-snug truncate" title={depositName}>
                                 {depositName}
                               </div>
                             ) : (
@@ -670,7 +645,7 @@ export function AccountsReceivablePage({
                           </td>
                         )}
                         <td className="px-3 py-3 align-top text-right">
-                          <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex flex-col items-stretch gap-2 min-w-[120px]">
                             {row.status !== "Paid" && (
                               <button
                                 type="button"
@@ -684,62 +659,63 @@ export function AccountsReceivablePage({
                                   setPaymentError(null);
                                   setPaymentTarget(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-green-800 px-2 py-1 text-[10px] font-semibold text-white hover:bg-green-700 transition-colors"
+                                className="inline-flex items-center justify-center gap-1 rounded-md bg-green-800 px-2 py-1.5 text-[10px] font-semibold text-white hover:bg-green-700 transition-colors"
                               >
                                 <Wallet size={11} />
                                 {RECEIVABLE_PAGE_COPY.pay}
                               </button>
                             )}
-                            {invoicePayments.length > 0 && (
+                            <div className="flex flex-wrap justify-end gap-x-2.5 gap-y-1">
+                              {invoicePayments.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPaymentError(null);
+                                    setPaymentsTarget(row);
+                                  }}
+                                  className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
+                                >
+                                  {RECEIVABLE_PAGE_COPY.viewPayments} ({invoicePayments.length})
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPaymentError(null);
-                                  setPaymentsTarget(row);
+                                  setEditInvoice(row);
+                                  setInvoiceFormOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-stone-700 hover:text-green-800"
+                                className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
                               >
-                                <History size={11} />
-                                {RECEIVABLE_PAGE_COPY.viewPayments} ({invoicePayments.length})
+                                {RECEIVABLE_PAGE_COPY.edit}
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditInvoice(row);
-                                setInvoiceFormOpen(true);
-                              }}
-                              className="text-[10px] font-semibold text-green-800 hover:underline"
-                            >
-                              {RECEIVABLE_PAGE_COPY.edit}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(row)}
-                              className="text-[10px] font-semibold text-red-700 hover:underline"
-                            >
-                              {RECEIVABLE_PAGE_COPY.delete}
-                            </button>
-                            {isChaseableReceivable(row.status) &&
-                              (chasedIds.has(row.id) ? (
-                                <span className="text-[10px] font-medium text-stone-500">
-                                  Enviado
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleChase(row)}
-                                  disabled={!customerPhoneByName.has(row.customer)}
-                                  title={
-                                    customerPhoneByName.has(row.customer)
-                                      ? "Send payment reminder via WhatsApp"
-                                      : "No phone number on file for this customer"
-                                  }
-                                  className="text-[10px] font-semibold text-green-800 hover:underline disabled:text-stone-400 disabled:no-underline disabled:cursor-not-allowed"
-                                >
-                                  {RECEIVABLE_PAGE_COPY.chase}
-                                </button>
-                              ))}
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(row)}
+                                className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
+                              >
+                                {RECEIVABLE_PAGE_COPY.delete}
+                              </button>
+                              {isChaseableReceivable(row.status) &&
+                                (chasedIds.has(row.id) ? (
+                                  <span className="text-[10px] font-medium text-stone-500">
+                                    {RECEIVABLE_PAGE_COPY.sent}
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleChase(row)}
+                                    disabled={!customerPhoneByName.has(row.customer)}
+                                    title={
+                                      customerPhoneByName.has(row.customer)
+                                        ? "Send payment reminder via WhatsApp"
+                                        : "No phone number on file for this customer"
+                                    }
+                                    className="text-[10px] font-semibold text-stone-600 hover:text-stone-900 disabled:text-stone-400 disabled:no-underline disabled:cursor-not-allowed"
+                                  >
+                                    {RECEIVABLE_PAGE_COPY.chase}
+                                  </button>
+                                ))}
+                            </div>
                           </div>
                         </td>
                       </tr>
