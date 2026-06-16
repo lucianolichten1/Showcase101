@@ -35,9 +35,10 @@ export const RECEIVABLE_PAGE_COPY = {
   edit: "Editar",
   delete: "Eliminar",
   pay: "Registrar pago",
+  payShort: "Registrar",
   viewPayments: "Ver pagos",
   chase: "Cobrar",
-  sent: "Enviado",
+  sent: "WhatsApp enviado",
   deleteTitle: "Eliminar factura",
   deleteMessage: (invoice: string) =>
     `¿Eliminar permanentemente la factura «${invoice}»? Esta acción no se puede deshacer.`,
@@ -49,6 +50,21 @@ export const RECEIVABLE_PAGE_COPY = {
   depositColumn: "Depósito en",
   noDepositYet: "Sin depósito",
   paymentError: "No se pudo registrar el pago.",
+} as const;
+
+export const COLLECT_INVOICE_COPY = {
+  title: "Cobrar factura",
+  description: "Elija cómo desea cobrar al cliente. Puede usar ambas opciones.",
+  whatsApp: "Recordatorio por WhatsApp",
+  whatsAppHint: "Abre un chat con el mensaje de cobro precargado.",
+  whatsAppNoPhone: "Agregue un teléfono al cliente para usar esta opción.",
+  whatsAppSent: "Recordatorio enviado — puede volver a enviar si lo necesita.",
+  qr: "Código QR BNB",
+  qrNew: "Generar nuevo QR BNB",
+  qrHint: "Muestra un QR en pantalla para que el cliente pague al instante.",
+  qrNoBank: "Registre una cuenta bancaria activa antes de generar QR.",
+  qrExpired: "El QR anterior expiró",
+  cancel: "Cancelar",
 } as const;
 
 /** Single-word status labels for table display (internal keys unchanged). */

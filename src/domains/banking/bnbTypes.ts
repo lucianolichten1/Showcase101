@@ -2,6 +2,9 @@ export type BnbErrorCode =
   | "not_configured"
   | "network"
   | "invalid_credentials"
+  | "qr_generation_failed"
+  | "qr_expired"
+  | "credential_update_failed"
   | "unknown";
 
 export type BnbAccountTypeCode = 1 | 2;

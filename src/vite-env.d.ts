@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string;
   readonly VITE_BNB_ACCOUNT_ID?: string;
   readonly VITE_BNB_AUTHORIZATION_ID?: string;
+  readonly BNB_ACCOUNT_ID?: string;
+  readonly BNB_AUTHORIZATION_ID?: string;
 }
 
 interface ImportMeta {

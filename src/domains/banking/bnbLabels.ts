@@ -33,6 +33,12 @@ export function bnbErrorMessage(code: BnbErrorCode): string {
       return "No se pudo conectar con BNB. Intente de nuevo.";
     case "invalid_credentials":
       return "Credenciales BNB inválidas. Verifica tu configuración.";
+    case "qr_generation_failed":
+      return "Error al generar QR. Intente de nuevo.";
+    case "qr_expired":
+      return "El QR expiró. Genera uno nuevo.";
+    case "credential_update_failed":
+      return "No se pudieron actualizar las credenciales de BNB.";
     default:
       return "Ocurrió un error al conectar con BNB.";
   }

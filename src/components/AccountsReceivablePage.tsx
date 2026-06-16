@@ -1,6 +1,6 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useOpenCreateFromQuery } from "@/hooks/useOpenCreateFromQuery";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch, Wallet } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, ArrowUpDown, Plus, Download, FileSearch, Pencil, X } from "lucide-react";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import {
   calculateAverageDaysOverdue,
@@ -27,6 +27,21 @@ import {
   isChaseableReceivable,
 } from "@/lib/invoiceChaser";
 import { useCompanyScopedFinancialData } from "@/domains/company/useCompanyScopedFinancialData";
+import {
+  cancelBnbQr,
+  generateInvoiceQr,
+  getBnbQrStatus,
+} from "@/domains/banking/bnbQRService";
+import { bnbErrorMessage } from "@/domains/banking/bnbLabels";
+import {
+  createReceivableQrCode,
+  fetchLatestReceivableQrCode,
+  receivableBalance,
+  selectDefaultQrBankAccount,
+  updateReceivableQrCodeStatus,
+} from "@/domains/financial/receivables/receivableQrService";
+import { ReceivableQrDialog } from "./receivables/ReceivableQrDialog";
+import { CollectInvoiceDialog } from "./receivables/CollectInvoiceDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,6 +131,9 @@ function receivableTableStatusClass(status: string): string {
   return status === "Paid" ? "font-medium text-green-800" : "font-medium text-stone-900";
 }
 
+const RECEIVABLE_ACTION_BTN =
+  "w-full h-6 text-[10px] font-semibold rounded-md flex items-center justify-center transition-colors";
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AccountsReceivablePage({
@@ -157,6 +175,17 @@ export function AccountsReceivablePage({
   const [deleteTarget, setDeleteTarget] = useState<ReceivableRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [chasedIds, setChasedIds] = useState<Set<number>>(() => new Set());
+  const [qrTarget, setQrTarget] = useState<ReceivableRecord | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrChecking, setQrChecking] = useState(false);
+  const [qrCancelling, setQrCancelling] = useState(false);
+  const [qrExpired, setQrExpired] = useState(false);
+  const [qrImageBase64, setQrImageBase64] = useState("");
+  const [qrExternalId, setQrExternalId] = useState<string | null>(null);
+  const [qrExpirationDate, setQrExpirationDate] = useState<string>("");
+  const [expiredQrInvoiceIds, setExpiredQrInvoiceIds] = useState<Set<number>>(() => new Set());
+  const [collectTarget, setCollectTarget] = useState<ReceivableRecord | null>(null);
 
   const openAddInvoice = useCallback(() => {
     setEditInvoice(null);
@@ -391,6 +420,23 @@ export function AccountsReceivablePage({
 
     window.open(url, "_blank", "noopener,noreferrer");
     setChasedIds((prev) => new Set(prev).add(row.id));
+    setCollectTarget(null);
+  };
+
+  const handleOpenCollect = (row: ReceivableRecord) => {
+    if (!activeCompanyId) {
+      setPaymentError("Selecciona una empresa antes de cobrar.");
+      return;
+    }
+    setPaymentError(null);
+    setCollectTarget(row);
+  };
+
+  const handleCollectQr = async () => {
+    if (!collectTarget) return;
+    const target = collectTarget;
+    setCollectTarget(null);
+    await handleGenerateQr(target);
   };
 
   const handleExportCsv = () => {
@@ -408,6 +454,144 @@ export function AccountsReceivablePage({
     }));
     downloadCsvFile(rowsToCsv(headers, rows), "accounts-receivable.csv");
   };
+
+  const handleMarkQrAsPaid = useCallback(
+    async (invoice: ReceivableRecord, bnbQrId: string) => {
+      if (!activeCompanyId) return;
+      const qrRow = await fetchLatestReceivableQrCode(activeCompanyId, invoice.id);
+      const paymentAmount = receivableBalance(invoice);
+      if (paymentAmount <= 0) return;
+      await recordReceivablePayment(invoice.id, {
+        amount: paymentAmount,
+        paymentDateIso: new Date().toISOString().slice(0, 10),
+        paymentMethod: "Bank Transfer",
+        bankAccountId: qrRow?.bankAccountId ?? selectDefaultQrBankAccount(activeBankAccounts),
+      });
+      await updateReceivableQrCodeStatus(activeCompanyId, bnbQrId, "paid");
+      setQrDialogOpen(false);
+      setPaymentError("Pago recibido");
+    },
+    [activeCompanyId, recordReceivablePayment, activeBankAccounts]
+  );
+
+  const handleGenerateQr = useCallback(
+    async (row: ReceivableRecord) => {
+      if (!activeCompanyId) {
+        setPaymentError("Selecciona una empresa antes de generar QR.");
+        return;
+      }
+      const balance = receivableBalance(row);
+      if (balance <= 0) return;
+      const bankAccountId = selectDefaultQrBankAccount(activeBankAccounts);
+      if (!bankAccountId) {
+        setPaymentError("Necesitas una cuenta bancaria activa para cobrar con QR.");
+        return;
+      }
+
+      setQrLoading(true);
+      setPaymentError(null);
+      setQrExpired(false);
+      setQrTarget(row);
+      try {
+        const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const generated = await generateInvoiceQr({
+          invoiceId: row.id,
+          invoiceNumber: row.invoiceNumber,
+          clientName: row.customer,
+          amount: balance,
+          expirationDateIso: expirationDate,
+        });
+        if (generated.ok === false) {
+          setPaymentError(
+            generated.error === "qr_generation_failed"
+              ? "Error al generar QR. Intente de nuevo."
+              : bnbErrorMessage(generated.error)
+          );
+          return;
+        }
+
+        await createReceivableQrCode(
+          activeCompanyId,
+          row.id,
+          generated.data.qrId,
+          balance,
+          expirationDate,
+          bankAccountId
+        );
+        setQrExternalId(generated.data.qrId);
+        setQrImageBase64(generated.data.qrImageBase64);
+        setQrExpirationDate(expirationDate);
+        setExpiredQrInvoiceIds((prev) => {
+          const next = new Set(prev);
+          next.delete(row.id);
+          return next;
+        });
+        setQrDialogOpen(true);
+      } catch (err) {
+        setPaymentError(getSupabaseErrorMessage(err, "Error al generar QR. Intente de nuevo."));
+      } finally {
+        setQrLoading(false);
+      }
+    },
+    [activeCompanyId, activeBankAccounts]
+  );
+
+  const handleVerifyQr = useCallback(async () => {
+    if (!qrExternalId || !qrTarget || !activeCompanyId) return;
+    setQrChecking(true);
+    try {
+      const status = await getBnbQrStatus(qrExternalId);
+      if (status.ok === false) {
+        if (status.error === "qr_expired") {
+          setQrExpired(true);
+          await updateReceivableQrCodeStatus(activeCompanyId, qrExternalId, "expired");
+          return;
+        }
+        setPaymentError(bnbErrorMessage(status.error));
+        return;
+      }
+
+      if (status.data.statusId === 2) {
+        await handleMarkQrAsPaid(qrTarget, qrExternalId);
+      } else if (status.data.statusId === 3) {
+        setQrExpired(true);
+        setExpiredQrInvoiceIds((prev) => new Set(prev).add(qrTarget.id));
+        await updateReceivableQrCodeStatus(activeCompanyId, qrExternalId, "expired");
+      } else if (status.data.statusId === 4) {
+        setPaymentError("Error al generar QR. Intente de nuevo.");
+      }
+    } catch (err) {
+      setPaymentError(getSupabaseErrorMessage(err, "No se pudo conectar con BNB. Intente de nuevo."));
+    } finally {
+      setQrChecking(false);
+    }
+  }, [qrExternalId, qrTarget, activeCompanyId, handleMarkQrAsPaid]);
+
+  const handleCancelQr = useCallback(async () => {
+    if (!qrExternalId || !activeCompanyId) return;
+    setQrCancelling(true);
+    try {
+      const cancelled = await cancelBnbQr(qrExternalId);
+      if (cancelled.ok === false) {
+        setPaymentError(bnbErrorMessage(cancelled.error));
+        return;
+      }
+      await updateReceivableQrCodeStatus(activeCompanyId, qrExternalId, "cancelled");
+      setQrDialogOpen(false);
+    } catch (err) {
+      setPaymentError(getSupabaseErrorMessage(err, "No se pudo cancelar el QR."));
+    } finally {
+      setQrCancelling(false);
+    }
+  }, [qrExternalId, activeCompanyId]);
+
+  useEffect(() => {
+    if (!qrDialogOpen || !qrExternalId || qrExpired) return;
+    const timer = window.setInterval(() => {
+      void handleVerifyQr();
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [qrDialogOpen, qrExternalId, qrExpired, handleVerifyQr]);
 
   // ── Derived values for AddInvoiceDialog ──────────────────────────────────────
 
@@ -551,7 +735,7 @@ export function AccountsReceivablePage({
                 <col className="w-[88px]" />
                 <col className="w-[92px]" />
                 {showDepositColumn && <col className="w-[108px]" />}
-                <col className="w-[140px]" />
+                <col className="w-[128px]" />
               </colgroup>
               <thead>
                 <tr className="border-b-2 border-stone-200 bg-stone-50">
@@ -605,7 +789,7 @@ export function AccountsReceivablePage({
                         key={row.id}
                         className="border-b border-stone-100 last:border-0 transition-colors hover:bg-stone-50/80"
                       >
-                        <td className="px-3 py-3 min-w-0 align-top">
+                        <td className="px-3 py-2.5 min-w-0 align-middle">
                           <div className="font-semibold truncate leading-snug" title={row.customer}>
                             {row.customer}
                           </div>
@@ -613,7 +797,7 @@ export function AccountsReceivablePage({
                             {row.invoiceNumber}
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-right align-top">
+                        <td className="px-3 py-2.5 text-right align-middle">
                           <div className="font-bold tabular-nums leading-snug">
                             {balance > 0 ? formatCurrency(balance) : <span className="text-green-800 font-medium">Paid</span>}
                           </div>
@@ -623,16 +807,16 @@ export function AccountsReceivablePage({
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-3 align-top">
+                        <td className="px-3 py-2.5 align-middle">
                           <div className="font-medium text-stone-900 leading-snug">{row.dueDate}</div>
                         </td>
-                        <td className="px-3 py-3 align-top">
+                        <td className="px-3 py-2.5 align-middle">
                           <div className={cn(receivableTableStatusClass(row.status), "leading-snug")}>
                             {receivableStatusLabel(row.status)}
                           </div>
                         </td>
                         {showDepositColumn && (
-                          <td className="px-3 py-3 align-top">
+                          <td className="px-3 py-2.5 align-middle">
                             {depositName ? (
                               <div className="text-[10px] font-medium text-stone-700 leading-snug truncate" title={depositName}>
                                 {depositName}
@@ -644,8 +828,32 @@ export function AccountsReceivablePage({
                             )}
                           </td>
                         )}
-                        <td className="px-3 py-3 align-top text-right">
-                          <div className="flex flex-col items-stretch gap-2 min-w-[120px]">
+                        <td className="px-2 py-2.5 align-middle">
+                          <div className="ml-auto w-[116px] flex flex-col gap-1">
+                            <div className="flex justify-end gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditInvoice(row);
+                                  setInvoiceFormOpen(true);
+                                }}
+                                className="p-0.5 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+                                aria-label={RECEIVABLE_PAGE_COPY.edit}
+                                title={RECEIVABLE_PAGE_COPY.edit}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(row)}
+                                className="p-0.5 rounded text-stone-400 hover:text-red-700 hover:bg-red-50"
+                                aria-label={RECEIVABLE_PAGE_COPY.delete}
+                                title={RECEIVABLE_PAGE_COPY.delete}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+
                             {row.status !== "Paid" && (
                               <button
                                 type="button"
@@ -659,63 +867,44 @@ export function AccountsReceivablePage({
                                   setPaymentError(null);
                                   setPaymentTarget(row);
                                 }}
-                                className="inline-flex items-center justify-center gap-1 rounded-md bg-green-800 px-2 py-1.5 text-[10px] font-semibold text-white hover:bg-green-700 transition-colors"
+                                title={RECEIVABLE_PAGE_COPY.pay}
+                                className={cn(
+                                  RECEIVABLE_ACTION_BTN,
+                                  "bg-green-800 text-white hover:bg-green-700"
+                                )}
                               >
-                                <Wallet size={11} />
-                                {RECEIVABLE_PAGE_COPY.pay}
+                                {RECEIVABLE_PAGE_COPY.payShort}
                               </button>
                             )}
-                            <div className="flex flex-wrap justify-end gap-x-2.5 gap-y-1">
-                              {invoicePayments.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPaymentError(null);
-                                    setPaymentsTarget(row);
-                                  }}
-                                  className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
-                                >
-                                  {RECEIVABLE_PAGE_COPY.viewPayments} ({invoicePayments.length})
-                                </button>
-                              )}
+                            {isChaseableReceivable(row.status) && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCollect(row)}
+                                className={cn(
+                                  RECEIVABLE_ACTION_BTN,
+                                  "border border-green-800/30 bg-white text-green-800 hover:bg-green-50"
+                                )}
+                              >
+                                {RECEIVABLE_PAGE_COPY.chase}
+                              </button>
+                            )}
+                            {invoicePayments.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setEditInvoice(row);
-                                  setInvoiceFormOpen(true);
+                                  setPaymentError(null);
+                                  setPaymentsTarget(row);
                                 }}
-                                className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
+                                className="text-[9px] font-semibold text-stone-500 hover:text-stone-800 text-center leading-tight"
                               >
-                                {RECEIVABLE_PAGE_COPY.edit}
+                                {RECEIVABLE_PAGE_COPY.viewPayments} ({invoicePayments.length})
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeleteTarget(row)}
-                                className="text-[10px] font-semibold text-stone-600 hover:text-stone-900"
-                              >
-                                {RECEIVABLE_PAGE_COPY.delete}
-                              </button>
-                              {isChaseableReceivable(row.status) &&
-                                (chasedIds.has(row.id) ? (
-                                  <span className="text-[10px] font-medium text-stone-500">
-                                    {RECEIVABLE_PAGE_COPY.sent}
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleChase(row)}
-                                    disabled={!customerPhoneByName.has(row.customer)}
-                                    title={
-                                      customerPhoneByName.has(row.customer)
-                                        ? "Send payment reminder via WhatsApp"
-                                        : "No phone number on file for this customer"
-                                    }
-                                    className="text-[10px] font-semibold text-stone-600 hover:text-stone-900 disabled:text-stone-400 disabled:no-underline disabled:cursor-not-allowed"
-                                  >
-                                    {RECEIVABLE_PAGE_COPY.chase}
-                                  </button>
-                                ))}
-                            </div>
+                            )}
+                            {chasedIds.has(row.id) && isChaseableReceivable(row.status) && (
+                              <span className="text-[9px] font-medium text-stone-400 text-center leading-tight">
+                                {RECEIVABLE_PAGE_COPY.sent}
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -809,6 +998,33 @@ export function AccountsReceivablePage({
         loading={deleting}
         onConfirm={() => void handleConfirmDelete()}
         onClose={() => !deleting && setDeleteTarget(null)}
+      />
+      <CollectInvoiceDialog
+        open={collectTarget !== null}
+        receivable={collectTarget}
+        balance={collectTarget ? receivableBalance(collectTarget) : 0}
+        hasPhone={collectTarget ? customerPhoneByName.has(collectTarget.customer) : false}
+        hasBankAccount={activeBankAccounts.length > 0}
+        whatsAppSent={collectTarget ? chasedIds.has(collectTarget.id) : false}
+        qrExpired={collectTarget ? expiredQrInvoiceIds.has(collectTarget.id) : false}
+        loadingQr={qrLoading}
+        onClose={() => !qrLoading && setCollectTarget(null)}
+        onWhatsApp={() => collectTarget && handleChase(collectTarget)}
+        onQr={() => void handleCollectQr()}
+      />
+      <ReceivableQrDialog
+        open={qrDialogOpen}
+        amount={qrTarget ? receivableBalance(qrTarget) : 0}
+        expirationDate={qrExpirationDate}
+        qrImageBase64={qrImageBase64}
+        expired={qrExpired}
+        checking={qrChecking}
+        cancelling={qrCancelling}
+        onClose={() => {
+          if (!qrChecking && !qrCancelling) setQrDialogOpen(false);
+        }}
+        onVerify={() => void handleVerifyQr()}
+        onCancelQr={() => void handleCancelQr()}
       />
     </>
   );
