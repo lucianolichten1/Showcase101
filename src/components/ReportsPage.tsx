@@ -47,8 +47,8 @@ function PLRow({ label, amount, indent = false, bold = false, positive }: {
   label: string; amount: number; indent?: boolean; bold?: boolean; positive?: boolean;
 }) {
   const amountColor =
-    positive === true ? "text-green-700"
-    : positive === false ? "text-red-600"
+    positive === true ? "text-stone-900"
+    : positive === false ? "text-stone-900"
     : "text-stone-900";
   return (
     <div className={cn("flex items-center justify-between gap-3 py-2 border-b border-stone-50 last:border-0 min-w-0", indent && "pl-4")}>
@@ -79,7 +79,7 @@ function TrendBadge({ pct }: { pct: number | null }) {
   );
   const up = pct > 0;
   return (
-    <span className={cn("flex items-center gap-0.5 text-[10px] font-bold", up ? "text-green-600" : "text-red-500")}>
+    <span className={cn("flex items-center gap-0.5 text-[10px] font-medium text-stone-600")}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {up ? "+" : ""}{pct}% vs prev
     </span>
@@ -339,7 +339,7 @@ export function ReportsPage() {
         <div className="flex items-center justify-between py-3 mt-1 bg-stone-50 rounded-lg px-3 mb-2">
           <span className="text-sm font-bold text-stone-900">Gross Profit</span>
           <div className="text-right">
-            <span className="text-sm font-bold text-green-700">{formatCurrency(grossProfit)}</span>
+            <span className="text-sm font-bold text-stone-900">{formatCurrency(grossProfit)}</span>
             <span className="ml-2 text-[10px] text-stone-600">{grossMargin}% margin</span>
           </div>
         </div>
@@ -353,10 +353,10 @@ export function ReportsPage() {
         <Divider />
         <PLRow label="Total Operating Expenses" amount={totalOpEx} bold />
 
-        <div className="flex items-center justify-between py-3 mt-2 bg-green-50 rounded-lg px-3 border border-green-100">
-          <span className="text-sm font-bold text-green-900">Net Profit</span>
+        <div className="flex items-center justify-between py-3 mt-2 bg-stone-50 rounded-lg px-3 border border-stone-200">
+          <span className="text-sm font-bold text-stone-900">Net Profit</span>
           <div className="text-right">
-            <span className="text-sm font-bold text-green-700">{formatCurrency(netProfit)}</span>
+            <span className="text-sm font-bold text-stone-900">{formatCurrency(netProfit)}</span>
             <span className="ml-2 text-[10px] text-stone-600">{netMargin}% margin</span>
           </div>
         </div>
@@ -427,13 +427,13 @@ export function ReportsPage() {
               <col className="w-[11%]" />
             </colgroup>
             <thead>
-              <tr className="border-b-2 border-green-800/20 bg-green-50">
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider">Month</th>
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Revenue</th>
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Costs</th>
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Profit</th>
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Margin</th>
-                <th className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider text-right">Change</th>
+              <tr className="border-b-2 border-stone-200 bg-stone-50">
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Month</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">Revenue</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">Costs</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">Profit</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">Margin</th>
+                <th className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider text-right">Change</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-stone-900">
@@ -449,16 +449,16 @@ export function ReportsPage() {
                     onClick={() => !usesImportedData && handlePlMonthSelect(idx)}
                     className={cn(
                       "border-b border-stone-100 last:border-0 cursor-pointer transition-colors",
-                      isSelected ? "bg-green-50/60 hover:bg-green-50/60" : "hover:bg-green-50/40"
+                      isSelected ? "bg-stone-100/80 hover:bg-stone-100/80" : "hover:bg-stone-50/80"
                     )}
                   >
-                    <td className={cn("px-2 py-2 font-semibold whitespace-nowrap", isSelected && "text-green-800")}>
+                    <td className={cn("px-2 py-2 font-semibold whitespace-nowrap", isSelected && "text-stone-900")}>
                       {row.month}
-                      {isSelected && <span className="text-[9px] text-green-600 font-bold ml-0.5">*</span>}
+                      {isSelected && <span className="text-[9px] text-stone-500 font-bold ml-0.5">*</span>}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums truncate">{formatCurrency(row.revenue)}</td>
                     <td className="px-2 py-2 text-right tabular-nums truncate">{formatCurrency(totalCosts)}</td>
-                    <td className={cn("px-2 py-2 text-right tabular-nums font-semibold truncate", row.profit > 0 ? "text-green-700" : "text-red-600")}>
+                    <td className="px-2 py-2 text-right tabular-nums font-semibold truncate text-stone-900">
                       {formatCurrency(row.profit)}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums text-stone-700">{margin}%</td>

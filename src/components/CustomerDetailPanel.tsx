@@ -3,7 +3,7 @@ import type { CustomerRecord } from "@/domains/customers/types";
 import type { ReceivableRecord } from "@/domains/financial/types";
 import { formatCurrency } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { receivableStatusTextClass, riskTextClass } from "@/lib/statusText";
+import { receivableTableStatusClass, riskTableTextClass } from "@/lib/statusText";
 
 interface Props {
   customer: CustomerRecord | null;
@@ -98,22 +98,22 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
                 <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Total Paid</p>
-                <p className="text-sm font-bold text-green-700 mt-0.5">{totalPaid > 0 ? formatCurrency(totalPaid) : "—"}</p>
+                <p className="text-sm font-bold text-stone-900 mt-0.5">{totalPaid > 0 ? formatCurrency(totalPaid) : "—"}</p>
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
                 <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Outstanding</p>
-                <p className={cn("text-sm font-bold mt-0.5", outstanding > 0 ? "text-stone-900" : "text-green-600")}>
+                <p className={cn("text-sm font-bold mt-0.5", outstanding > 0 ? "text-stone-900" : "text-stone-600")}>
                   {outstanding > 0 ? formatCurrency(outstanding) : "Settled"}
                 </p>
               </div>
               <div className="bg-stone-50 rounded-lg p-3">
                 <p className="text-[9px] text-stone-600 font-semibold uppercase tracking-wide">Collection Rate</p>
-                <p className={cn("text-sm font-bold mt-0.5", collectionRate >= 70 ? "text-green-700" : "text-amber-600")}>
+                <p className="text-sm font-bold text-stone-900 mt-0.5">
                   {collectionRate}%
                 </p>
                 <div className="w-full bg-stone-200 rounded-full h-1 mt-1">
                   <div
-                    className={cn("h-1 rounded-full", collectionRate >= 70 ? "bg-green-600" : "bg-amber-500")}
+                    className="h-1 rounded-full bg-stone-600"
                     style={{ width: `${collectionRate}%` }}
                   />
                 </div>
@@ -138,8 +138,8 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono text-stone-500">{inv.invoiceNumber}</span>
                         <div className="flex items-center gap-2 text-[10px]">
-                          <span className={riskTextClass(risk)}>{risk}</span>
-                          <span className={receivableStatusTextClass(inv.status)}>{inv.status}</span>
+                          <span className={riskTableTextClass(risk)}>{risk}</span>
+                          <span className={receivableTableStatusClass(inv.status)}>{inv.status}</span>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-[10px]">
@@ -149,20 +149,17 @@ export function CustomerDetailPanel({ customer, receivables, onClose }: Props) {
                         </div>
                         <div>
                           <p className="text-stone-600">Paid</p>
-                          <p className="font-semibold text-green-700">{inv.amountPaid > 0 ? formatCurrency(inv.amountPaid) : "—"}</p>
+                          <p className="font-semibold text-stone-900">{inv.amountPaid > 0 ? formatCurrency(inv.amountPaid) : "—"}</p>
                         </div>
                         <div>
                           <p className="text-stone-600">Balance</p>
-                          <p className={cn("font-bold", balance > 0 ? "text-stone-900" : "text-green-600")}>
+                          <p className={cn("font-bold", balance > 0 ? "text-stone-900" : "text-stone-600")}>
                             {balance > 0 ? formatCurrency(balance) : "Paid"}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-stone-400">
+                      <div className="text-[10px] text-stone-500">
                         <span>Due {inv.dueDate}</span>
-                        {inv.overdueDays > 0 && (
-                          <span className="text-red-600 font-medium">{inv.overdueDays}d overdue</span>
-                        )}
                       </div>
                     </div>
                   );

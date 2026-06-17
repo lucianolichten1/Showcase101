@@ -310,7 +310,7 @@ export function ExportImportPage() {
               <Database className="h-4 w-4 text-green-700" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-green-900">Imported data is active</p>
+              <p className="text-sm font-semibold text-stone-800">Imported data is active</p>
               <p className="text-xs text-green-700 mt-0.5">
                 {[
                   importedData.sales.length > 0 && `${importedData.sales.length} sales`,
@@ -363,18 +363,18 @@ export function ExportImportPage() {
                   <col className="w-[96px]" />
                 </colgroup>
                 <thead>
-                  <tr className="border-b-2 border-green-800/20 bg-green-50">
-                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">File</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Added</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Date</th>
+                  <tr className="border-b-2 border-stone-200 bg-stone-50">
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">File</th>
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Added</th>
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Status</th>
+                    <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Date</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs text-stone-900">
                   {recentImports.map((row) => (
                     <tr
                       key={row.id}
-                      className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
+                      className="border-b border-stone-100 last:border-0 hover:bg-stone-50/80 transition-colors"
                     >
                       <td className="px-3 py-3 min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
@@ -468,15 +468,15 @@ export function ExportImportPage() {
                 <div className="rounded-lg border border-stone-100 overflow-hidden mb-3">
                   <table className="w-full table-fixed text-left border-collapse">
                     <thead>
-                      <tr className="border-b-2 border-green-800/20 bg-green-50">
+                      <tr className="border-b-2 border-stone-200 bg-stone-50">
                         {parsedHeaders.map((header) => (
-                          <th key={header} className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider truncate">{header}</th>
+                          <th key={header} className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider truncate">{header}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="text-xs text-stone-900">
                       {previewRows.map((row, index) => (
-                        <tr key={index} className="border-b border-stone-100 last:border-0 hover:bg-green-50/40">
+                        <tr key={index} className="border-b border-stone-100 last:border-0 hover:bg-stone-50/80">
                           {parsedHeaders.map((header) => (
                             <td key={header} className="px-2 py-2 truncate" title={String(row[header] ?? "")}>{row[header] ?? ""}</td>
                           ))}
@@ -514,15 +514,15 @@ export function ExportImportPage() {
                 <div className="rounded-lg border border-stone-100 overflow-hidden">
                   <table className="w-full table-fixed text-left border-collapse">
                     <thead>
-                      <tr className="border-b-2 border-green-800/20 bg-green-50">
+                      <tr className="border-b-2 border-stone-200 bg-stone-50">
                         {importedHeaders.map((header) => (
-                          <th key={header} className="px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider truncate">{header}</th>
+                          <th key={header} className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider truncate">{header}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="text-xs text-stone-900">
                       {importedPreviewRows.map((row, index) => (
-                        <tr key={index} className="border-b border-stone-100 last:border-0 hover:bg-green-50/40">
+                        <tr key={index} className="border-b border-stone-100 last:border-0 hover:bg-stone-50/80">
                           {importedHeaders.map((header) => (
                             <td key={header} className="px-2 py-2 truncate" title={String(row[header] ?? "")}>{row[header] ?? ""}</td>
                           ))}

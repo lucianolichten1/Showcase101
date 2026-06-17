@@ -157,7 +157,7 @@ export function InventoryOverviewPage() {
           </p>
           <table className="w-full mt-3 text-xs">
             <thead>
-              <tr className="text-[10px] uppercase text-green-900 font-bold border-b border-stone-100">
+              <tr className="text-[10px] uppercase text-stone-800 font-bold border-b border-stone-100">
                 <th className="text-left py-1">SO #</th>
                 <th className="text-left py-1">Customer</th>
                 <th className="text-right py-1">Amount</th>
@@ -192,7 +192,7 @@ export function InventoryOverviewPage() {
             <col className="w-[100px]" />
           </colgroup>
           <thead>
-            <tr className="text-[10px] uppercase text-green-900 font-bold border-b border-stone-100">
+            <tr className="text-[10px] uppercase text-stone-800 font-bold border-b border-stone-100">
               <th className="text-left py-1 px-1">PO #</th>
               <th className="text-left py-1 px-1">Supplier</th>
               <th className="text-right py-1 px-1">Amount</th>

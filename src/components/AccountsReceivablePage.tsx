@@ -12,6 +12,7 @@ import {
   isActiveReceivable,
 } from "@/domains/financial/calculations";
 import { formatCurrency, customers as allCustomers } from "@/data/mockData";
+import { receivableTableStatusClass } from "@/lib/statusText";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { InvoiceFormDialog } from "./receivables/InvoiceFormDialog";
@@ -125,10 +126,6 @@ function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: Sort
   return sortDir === "asc"
     ? <ArrowUp size={10} className="inline ml-1 text-stone-400" />
     : <ArrowDown size={10} className="inline ml-1 text-stone-400" />;
-}
-
-function receivableTableStatusClass(status: string): string {
-  return status === "Paid" ? "font-medium text-green-800" : "font-medium text-stone-900";
 }
 
 const RECEIVABLE_ACTION_BTN =

@@ -118,15 +118,15 @@ export function PurchaseOrdersPage() {
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-4 overflow-hidden">
         <table className="w-full table-fixed text-xs text-left border-collapse">
           <thead>
-            <tr className="border-b-2 border-green-800/20 bg-green-50">
+            <tr className="border-b-2 border-stone-200 bg-stone-50">
               {["PO #", "Date", "Supplier", "Items", "Total", "Status", ""].map((h) => (
-                <th key={h} className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900">{h}</th>
+                <th key={h} className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {purchaseOrders.map((po) => (
-              <tr key={po.id} className="border-b border-stone-100 hover:bg-green-50/40">
+              <tr key={po.id} className="border-b border-stone-100 hover:bg-stone-50/80">
                 <td className="px-3 py-3 font-mono font-semibold">{po.poNumber}</td>
                 <td className="px-3 py-3">{po.createdAt}</td>
                 <td className="px-3 py-3 truncate">

@@ -114,12 +114,12 @@ export function InventoryProductsPage() {
               <col className="w-[72px]" />
             </colgroup>
             <thead>
-              <tr className="border-b-2 border-green-800/20 bg-green-50">
+              <tr className="border-b-2 border-stone-200 bg-stone-50">
                 {["Product", "SKU", "Category", "Qty", "Unit", "Cost", "Sale", "Value", "Status", ""].map(
                   (h) => (
                     <th
                       key={h}
-                      className="px-2 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider"
+                      className="px-2 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider"
                     >
                       {h}
                     </th>
@@ -129,7 +129,7 @@ export function InventoryProductsPage() {
             </thead>
             <tbody className="text-stone-900">
               {displayed.map((p) => (
-                <tr key={p.id} className="border-b border-stone-100 hover:bg-green-50/40">
+                <tr key={p.id} className="border-b border-stone-100 hover:bg-stone-50/80">
                   <td className="px-2 py-2.5 font-semibold truncate" title={p.name}>{p.name}</td>
                   <td className="px-2 py-2.5 font-mono text-[10px] text-stone-600 truncate">{p.sku}</td>
                   <td className="px-2 py-2.5 truncate">{p.category}</td>
@@ -141,7 +141,7 @@ export function InventoryProductsPage() {
                     {formatCurrency(getProductStockValue(p))}
                   </td>
                   <td className="px-2 py-2.5">
-                    <span className={cn(p.active ? "text-green-800" : "text-stone-500", "font-medium")}>
+                    <span className={cn("font-medium", p.active ? "text-stone-900" : "text-stone-500")}>
                       {p.active ? "Active" : "Inactive"}
                     </span>
                   </td>

@@ -30,7 +30,7 @@ import type {
 } from "@/domains/financial/types";
 import { cn } from "@/lib/utils";
 import { KPICard } from "@/components/KPICard";
-import { revenueStatusTextClass } from "@/lib/statusText";
+import { revenueTableStatusClass } from "@/lib/statusText";
 
 const ALL_FILTER = "all";
 
@@ -369,12 +369,12 @@ export function RevenuePage() {
                     <col className="w-[72px]" />
                   </colgroup>
                   <thead>
-                    <tr className="border-b-2 border-green-800/20 bg-green-50">
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
                       {TABLE_COLUMNS.map(({ key, label, sortKey: columnSortKey, align }) => (
                         <th
                           key={key}
                           className={cn(
-                            "px-2 py-2 text-[10px] uppercase font-bold text-green-900 tracking-wider",
+                            "px-2 py-2 text-[10px] uppercase font-bold text-stone-800 tracking-wider",
                             align === "right" && "text-right"
                           )}
                         >
@@ -385,8 +385,8 @@ export function RevenuePage() {
                               className={cn(
                                 "inline-flex items-center gap-0.5 cursor-pointer max-w-full",
                                 align === "right" && "ml-auto",
-                                "hover:text-green-800 transition-colors",
-                                sortKey === columnSortKey && "text-green-800"
+                                "hover:text-stone-900 transition-colors",
+                                sortKey === columnSortKey && "text-stone-900"
                               )}
                             >
                               <span className="truncate">{label}</span>
@@ -433,7 +433,7 @@ export function RevenuePage() {
                       sortedRevenue.map((record) => (
                         <tr
                           key={record.id}
-                          className="border-b border-stone-100 last:border-0 hover:bg-green-50/40 transition-colors"
+                          className="border-b border-stone-100 last:border-0 hover:bg-stone-50/80 transition-colors"
                         >
                           <td className="px-2 py-2 whitespace-nowrap align-top">
                             {formatDisplayDate(record.date)}
@@ -458,7 +458,7 @@ export function RevenuePage() {
                             {formatCurrency(record.amount)}
                           </td>
                           <td className="px-2 py-2 align-top">
-                            <span className={revenueStatusTextClass(record.status)}>
+                            <span className={revenueTableStatusClass(record.status)}>
                               {revenueStatusLabel(record.status)}
                             </span>
                           </td>
@@ -473,7 +473,7 @@ export function RevenuePage() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(record)}
-                                className="text-left text-[10px] font-semibold text-green-800 hover:text-green-900"
+                                className="text-left text-[10px] font-semibold text-stone-700 hover:text-stone-900"
                               >
                                 {REVENUE_PAGE_COPY.edit}
                               </button>

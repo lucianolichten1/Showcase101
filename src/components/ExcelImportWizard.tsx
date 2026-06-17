@@ -832,11 +832,11 @@ export function ExcelImportWizard() {
                     <div className="border border-stone-100 rounded-lg overflow-hidden">
                       <table className="w-full table-fixed text-xs">
                         <thead>
-                          <tr className="border-b-2 border-green-800/20 bg-green-50">
+                          <tr className="border-b-2 border-stone-200 bg-stone-50">
                             {activeSheet.headers.map((h) => (
                               <th
                                 key={h}
-                                className="px-2 py-2 text-left text-[10px] uppercase font-bold text-green-900 tracking-wider truncate"
+                                className="px-2 py-2 text-left text-[10px] uppercase font-bold text-stone-800 tracking-wider truncate"
                               >
                                 {h}
                               </th>
@@ -845,7 +845,7 @@ export function ExcelImportWizard() {
                         </thead>
                         <tbody className="text-stone-900">
                           {activeSheet.previewRows.map((row, i) => (
-                            <tr key={i} className="border-b border-stone-100 last:border-0 hover:bg-green-50/40">
+                            <tr key={i} className="border-b border-stone-100 last:border-0 hover:bg-stone-50/80">
                               {activeSheet.headers.map((h) => (
                                 <td
                                   key={h}

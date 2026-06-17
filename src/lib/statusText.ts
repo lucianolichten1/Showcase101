@@ -1,3 +1,23 @@
+export function receivableTableStatusClass(status: string): string {
+  return status === "Paid" ? "font-medium text-green-800" : "font-medium text-stone-900";
+}
+
+export function revenueTableStatusClass(status: string): string {
+  return status === "Collected" ? "font-medium text-green-800" : "font-medium text-stone-900";
+}
+
+export function expenseTableStatusClass(status: string): string {
+  return status === "Paid" ? "font-medium text-green-800" : "font-medium text-stone-900";
+}
+
+export function customerTableStatusClass(status: string): string {
+  return status === "Active" ? "font-medium text-stone-900" : "font-medium text-stone-600";
+}
+
+export function riskTableTextClass(_risk: string): string {
+  return "font-medium text-stone-900";
+}
+
 export function receivableStatusTextClass(status: string): string {
   if (status === "Overdue") return "font-semibold text-red-700";
   if (status === "Paid") return "font-medium text-green-800";

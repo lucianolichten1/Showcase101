@@ -105,7 +105,7 @@ export function InventoryAdjustmentsPage() {
               <col className="w-[120px]" />
             </colgroup>
             <thead>
-              <tr className="border-b-2 border-green-800/20 bg-green-50">
+              <tr className="border-b-2 border-stone-200 bg-stone-50">
                 {["When", "Product", "Change", "Reason", "User"].map((h) => (
                   <th key={h} className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900">
                     {h}
@@ -135,7 +135,7 @@ export function InventoryAdjustmentsPage() {
                       <span className="block truncate">{productName}</span>
                     </td>
                     <td
-                      className={`px-3 py-3 align-top tabular-nums font-bold text-right ${a.quantityChange < 0 ? "text-red-700" : "text-green-800"}`}
+                      className="px-3 py-3 align-top tabular-nums font-bold text-right text-stone-900"
                     >
                       {a.quantityChange > 0 ? "+" : ""}
                       {a.quantityChange}

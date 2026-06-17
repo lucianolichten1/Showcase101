@@ -12,7 +12,7 @@ import { CustomerDetailPanel } from "./CustomerDetailPanel";
 import { CUSTOMER_PAGE_COPY, CUSTOMER_INDUSTRY_LABELS } from "@/domains/customers/labels";
 import { KPICard } from "./KPICard";
 import { rowsToCsv, downloadCsvFile } from "@/lib/csv";
-import { riskTextClass } from "@/lib/statusText";
+import { customerTableStatusClass, riskTableTextClass } from "@/lib/statusText";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SortKey = "name" | "invoiced" | "paid" | "outstanding" | "risk";
@@ -43,8 +43,7 @@ function getCustomerRisk(customerName: string, receivables: ReceivableRecord[]):
 }
 
 function customerStatusTextClass(status: string): string {
-  if (status === "Active") return "font-medium text-green-800";
-  return "font-medium text-stone-600";
+  return customerTableStatusClass(status);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -74,8 +73,8 @@ function FilterChip({
 function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey; sortKey: SortKey | null; sortDir: "asc" | "desc" }) {
   if (sortKey !== colKey) return <ArrowUpDown size={10} className="inline ml-1 text-stone-300" />;
   return sortDir === "asc"
-    ? <ArrowUp size={10} className="inline ml-1 text-green-700" />
-    : <ArrowDown size={10} className="inline ml-1 text-green-700" />;
+    ? <ArrowUp size={10} className="inline ml-1 text-stone-400" />
+    : <ArrowDown size={10} className="inline ml-1 text-stone-400" />;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -374,27 +373,27 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
           <div className="overflow-x-auto rounded-lg border border-stone-100">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("name")}>
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none" onClick={() => handleSort("name")}>
                     Customer <SortIcon colKey="name" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">City</th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Industry</th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Contact</th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("invoiced")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">City</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Industry</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Contact</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none" onClick={() => handleSort("invoiced")}>
                     Total Invoiced <SortIcon colKey="invoiced" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("paid")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none" onClick={() => handleSort("paid")}>
                     Total Paid <SortIcon colKey="paid" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("outstanding")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none" onClick={() => handleSort("outstanding")}>
                     Outstanding <SortIcon colKey="outstanding" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">Status</th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider cursor-pointer select-none" onClick={() => handleSort("risk")}>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">Status</th>
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider cursor-pointer select-none" onClick={() => handleSort("risk")}>
                     Risk <SortIcon colKey="risk" sortKey={sortKey} sortDir={sortDir} />
                   </th>
-                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-green-900 tracking-wider">
+                  <th className="px-3 py-2.5 text-[10px] uppercase font-bold text-stone-800 tracking-wider">
                     {CUSTOMER_PAGE_COPY.actions}
                   </th>
                 </tr>
@@ -422,8 +421,8 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                       className={cn(
                         "border-b border-stone-100 last:border-0 cursor-pointer transition-colors",
                         selectedCustomer?.id === c.id
-                          ? "bg-green-50/60 hover:bg-green-50/60"
-                          : "hover:bg-green-50/40"
+                          ? "bg-stone-100/80 hover:bg-stone-100/80"
+                          : "hover:bg-stone-50/80"
                       )}
                     >
                       <td className="px-3 py-3">
@@ -434,19 +433,19 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                       <td className="px-3 py-3 font-medium text-stone-700">{c.industry || "—"}</td>
                       <td className="px-3 py-3 font-mono text-[10px] text-stone-600">{c.phone || "—"}</td>
                       <td className="px-3 py-3 font-semibold">{formatCurrency(c.totalInvoiced)}</td>
-                      <td className="px-3 py-3 font-semibold text-green-800">
+                      <td className="px-3 py-3 font-semibold text-stone-900">
                         {c.totalPaid > 0 ? formatCurrency(c.totalPaid) : "—"}
                       </td>
                       <td className="px-3 py-3 font-bold">
                         {c.outstanding > 0
                           ? formatCurrency(c.outstanding)
-                          : <span className="text-green-800 font-medium">Settled</span>}
+                          : <span className="text-stone-600 font-medium">Settled</span>}
                       </td>
                       <td className="px-3 py-3">
                         <span className={customerStatusTextClass(c.status)}>{c.status}</span>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={riskTextClass(c.risk)}>{c.risk}</span>
+                        <span className={riskTableTextClass(c.risk)}>{c.risk}</span>
                       </td>
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col gap-1">
@@ -456,7 +455,7 @@ export function CustomersPage({ onAddCustomer: onAddCustomerProp }: Props = {}) 
                               setEditTarget(c);
                               setFormOpen(true);
                             }}
-                            className="text-left text-[10px] font-semibold text-green-800 hover:text-green-900"
+                            className="text-left text-[10px] font-semibold text-stone-700 hover:text-stone-900"
                           >
                             {CUSTOMER_PAGE_COPY.edit}
                           </button>

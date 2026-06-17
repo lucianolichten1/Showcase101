@@ -69,10 +69,10 @@ export function InventoryReportsPage() {
           render: (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
-                  <th className="px-3 py-2 text-left text-[10px] uppercase font-bold text-green-900">Category</th>
-                  <th className="px-3 py-2 text-right text-[10px] uppercase font-bold text-green-900">Products</th>
-                  <th className="px-3 py-2 text-right text-[10px] uppercase font-bold text-green-900">Total value</th>
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
+                  <th className="px-3 py-2 text-left text-[10px] uppercase font-bold text-stone-800">Category</th>
+                  <th className="px-3 py-2 text-right text-[10px] uppercase font-bold text-stone-800">Products</th>
+                  <th className="px-3 py-2 text-right text-[10px] uppercase font-bold text-stone-800">Total value</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,9 +103,9 @@ export function InventoryReportsPage() {
           render: (
             <table className="w-full text-xs table-fixed">
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
                   {["Product", "SKU", "Qty", "Cost", "Value"].map((h) => (
-                    <th key={h} className="px-2 py-2 text-[10px] uppercase font-bold text-green-900">{h}</th>
+                    <th key={h} className="px-2 py-2 text-[10px] uppercase font-bold text-stone-800">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -138,9 +138,9 @@ export function InventoryReportsPage() {
           render: (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
                   {["Product", "Current", "Min", "Status"].map((h) => (
-                    <th key={h} className="px-3 py-2 text-[10px] uppercase font-bold text-green-900 text-left">{h}</th>
+                    <th key={h} className="px-3 py-2 text-[10px] uppercase font-bold text-stone-800 text-left">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -152,11 +152,11 @@ export function InventoryReportsPage() {
                     <td className="px-3 py-2 tabular-nums">{p.minThreshold}</td>
                     <td className="px-3 py-2">
                       {isOutOfStock(p) ? (
-                        <span className="text-red-700 font-semibold">Out of stock</span>
+                        <span className="text-stone-900 font-semibold">Out of stock</span>
                       ) : isLimitedStock(p) ? (
-                        <span className="text-amber-800 font-semibold">Limited</span>
+                        <span className="text-stone-700 font-semibold">Limited</span>
                       ) : (
-                        <span className="text-green-800">OK</span>
+                        <span className="text-stone-600">OK</span>
                       )}
                     </td>
                   </tr>
@@ -198,9 +198,9 @@ export function InventoryReportsPage() {
           render: (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b-2 border-green-800/20 bg-green-50">
+                <tr className="border-b-2 border-stone-200 bg-stone-50">
                   {["Product", "Qty sold", "Revenue"].map((h) => (
-                    <th key={h} className="px-3 py-2 text-[10px] uppercase font-bold text-green-900 text-left">{h}</th>
+                    <th key={h} className="px-3 py-2 text-[10px] uppercase font-bold text-stone-800 text-left">{h}</th>
                   ))}
                 </tr>
               </thead>
